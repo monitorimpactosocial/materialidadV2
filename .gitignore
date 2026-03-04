@@ -1,0 +1,12 @@
+# Node
+app/node_modules
+app/dist
+app/.vite
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Data inputs (can include PII)
+data_pipeline/input/
