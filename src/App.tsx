@@ -72,22 +72,30 @@ const App = () => {
     }, [isLoaded, conn]);
 
     return (
-        <div className="flex h-screen bg-neutral-900 text-white overflow-hidden font-sans">
+        <div className="flex h-screen bg-slate-950 text-slate-200 overflow-hidden font-sans relative">
+            {/* Background Orbs */}
+            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+                <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-emerald-600/20 rounded-full mix-blend-screen filter blur-[100px] animate-blob"></div>
+                <div className="absolute top-[20%] right-[-5%] w-96 h-96 bg-cyan-600/20 rounded-full mix-blend-screen filter blur-[100px] animate-blob animation-delay-2000"></div>
+                <div className="absolute bottom-[-20%] left-[20%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full mix-blend-screen filter blur-[120px] animate-blob animation-delay-4000"></div>
+            </div>
 
             {/* Sidebar / Navigation */}
-            <aside className="w-64 bg-neutral-950 border-r border-neutral-800 flex flex-col z-20">
-                <div className="p-6 border-b border-neutral-800">
-                    <div className="flex items-center gap-3 text-emerald-500 font-bold text-xl mb-1">
-                        <LayoutDashboard size={24} />
+            <aside className="w-72 bg-slate-900/60 backdrop-blur-xl border-r border-white/5 flex flex-col z-20 shadow-2xl">
+                <div className="p-8 border-b border-white/5">
+                    <div className="flex items-center gap-3 text-emerald-400 font-bold text-xl mb-1 mt-2">
+                        <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                            <LayoutDashboard size={22} className="text-emerald-400" />
+                        </div>
                         <h2>Materialidad</h2>
                     </div>
-                    <p className="text-xs text-neutral-400">Doble Materialidad 2026</p>
+                    <p className="text-xs text-slate-400 tracking-wide font-medium mt-3 ml-2">Doble Materialidad 2026</p>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-2">
+                <nav className="flex-1 p-6 space-y-3">
                     <button
                         onClick={() => setActiveTab('dashboard')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === 'dashboard' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'}`}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all duration-300 ${activeTab === 'dashboard' ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-emerald-300 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}
                     >
                         <BarChart3 size={18} />
                         <span className="font-medium text-sm">Matriz & Dashboard</span>
@@ -95,7 +103,7 @@ const App = () => {
 
                     <button
                         onClick={() => setActiveTab('table')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === 'table' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'}`}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all duration-300 ${activeTab === 'table' ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-emerald-300 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}
                     >
                         <TableIcon size={18} />
                         <span className="font-medium text-sm">Ranking & Tablas</span>
@@ -103,7 +111,7 @@ const App = () => {
                 </nav>
 
                 {/* Sidebar Settings Panel */}
-                <div className="p-4 border-t border-neutral-800">
+                <div className="p-6 border-t border-white/5 bg-slate-900/40">
                     <SettingsPanel
                         tauImpact={tauImpact} setTauImpact={setTauImpact}
                         tauFin={tauFin} setTauFin={setTauFin}
@@ -112,29 +120,28 @@ const App = () => {
                     />
                 </div>
 
-                <div className="p-4 bg-neutral-950 border-t border-neutral-800 text-xs text-neutral-500 text-center tracking-widest font-semibold">
+                <div className="p-5 bg-slate-950/80 border-t border-white/5 text-xs text-slate-500 text-center tracking-[0.2em] font-bold">
                     PARACEL S.A.
                 </div>
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-1 flex flex-col relative overflow-hidden bg-neutral-900">
-
+            <main className="flex-1 flex flex-col relative overflow-hidden z-10">
                 {/* Header */}
-                <header className="h-16 shrink-0 flex items-center justify-between px-8 border-b border-neutral-800 bg-neutral-900/50 backdrop-blur-md z-10">
-                    <h1 className="text-lg font-medium text-neutral-200">
+                <header className="h-20 shrink-0 flex items-center justify-between px-10 border-b border-white/5 bg-slate-900/40 backdrop-blur-md">
+                    <h1 className="text-xl font-semibold text-white tracking-tight">
                         {activeTab === 'dashboard' && 'Matriz de Doble Materialidad'}
                         {activeTab === 'table' && 'Ranking General de Temas'}
                     </h1>
 
                     <div className="flex items-center gap-4">
-                        <button className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors bg-neutral-800 hover:bg-neutral-700 px-3 py-1.5 rounded-md border border-neutral-700 shadow-sm">
-                            <RefreshCw size={14} className={loadingQuery ? "animate-spin" : ""} />
-                            <span>Recalcular</span>
+                        <button className="flex items-center gap-2 text-sm text-slate-300 hover:text-white transition-all bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl border border-white/10 shadow-sm backdrop-blur-sm">
+                            <RefreshCw size={16} className={loadingQuery ? "animate-spin" : ""} />
+                            <span className="font-medium">Recalcular</span>
                         </button>
-                        <button className="flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 transition-colors bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-md border border-emerald-500/30 shadow-sm">
-                            <Download size={14} />
-                            <span>Exportar</span>
+                        <button className="flex items-center gap-2 text-sm text-emerald-300 hover:text-emerald-200 transition-all bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-xl border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)] backdrop-blur-sm">
+                            <Download size={16} />
+                            <span className="font-medium">Exportar</span>
                         </button>
                     </div>
                 </header>

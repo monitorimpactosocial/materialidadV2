@@ -19,7 +19,7 @@ export const MaterialityMatrix: React.FC<MatrixProps> = ({ data, tauImpact, tauF
                 type: 'scatter',
                 textposition: 'top center',
                 marker: {
-                    size: data.map((d: any) => Math.max(10, (d.score_stakeholders || 1) * 4)),
+                    size: data.map((d: any) => Math.max(12, (d.score_stakeholders || 1) * 5)),
                     color: data.map((d: any) => {
                         const isImpMat = d.score_impact >= tauImpact;
                         const isFinMat = d.score_fin >= tauFin;
@@ -27,21 +27,22 @@ export const MaterialityMatrix: React.FC<MatrixProps> = ({ data, tauImpact, tauF
                             ? (isImpMat && isFinMat)
                             : (isImpMat || isFinMat);
 
-                        if (isDouble) return '#10b981'; // emerald-500
-                        if (isImpMat) return '#3b82f6'; // blue-500
-                        if (isFinMat) return '#f59e0b'; // amber-500
-                        return '#525252'; // neutral-600
+                        // Vibrant Premium Colors
+                        if (isDouble) return '#10b981'; // Vibrant Emerald
+                        if (isImpMat) return '#22d3ee'; // Bright Cyan
+                        if (isFinMat) return '#fbbf24'; // Bright Amber
+                        return '#4b5563'; // Neutral Grey (Non-material)
                     }),
                     line: {
-                        color: '#171717', // neutral-900
-                        width: 1
+                        color: 'rgba(255, 255, 255, 0.2)', // Soft white border for glass effect
+                        width: 1.5
                     },
-                    opacity: 0.8
+                    opacity: 0.9
                 },
                 hovertemplate:
                     "<b>%{text}</b><br><br>" +
-                    "Impacto: %{y:.2f}<br>" +
-                    "Financiero: %{x:.2f}<br>" +
+                    "Impacto Social: %{y:.2f}<br>" +
+                    "Impacto Financiero: %{x:.2f}<br>" +
                     "<extra></extra>"
             }
         ];
@@ -49,24 +50,26 @@ export const MaterialityMatrix: React.FC<MatrixProps> = ({ data, tauImpact, tauF
 
     const layout: Partial<Plotly.Layout> = {
         title: {
-            text: 'Matriz de Doble Materialidad',
-            font: { color: '#e5e5e5', size: 18 }
+            text: 'Resultados de Doble Materialidad',
+            font: { color: '#f8fafc', size: 20, family: 'Inter' }
         },
         paper_bgcolor: 'transparent',
         plot_bgcolor: 'transparent',
         xaxis: {
-            title: { text: 'Impacto Financiero' },
-            color: '#a3a3a3', // neutral-400
-            gridcolor: '#404040', // neutral-700
+            title: { text: 'Impacto Financiero', font: { color: '#cbd5e1', size: 14 } },
+            color: '#64748b',
+            gridcolor: 'rgba(255, 255, 255, 0.05)',
             range: [0.5, 5.5],
-            zeroline: false
+            zeroline: false,
+            tickfont: { color: '#94a3b8' }
         },
         yaxis: {
-            title: { text: 'Evaluación de Impacto' },
-            color: '#a3a3a3',
-            gridcolor: '#404040',
+            title: { text: 'Evaluación de Impacto (Ambiental/Social)', font: { color: '#cbd5e1', size: 14 } },
+            color: '#64748b',
+            gridcolor: 'rgba(255, 255, 255, 0.05)',
             range: [0.5, 5.5],
-            zeroline: false
+            zeroline: false,
+            tickfont: { color: '#94a3b8' }
         },
         shapes: [
             {
@@ -75,7 +78,7 @@ export const MaterialityMatrix: React.FC<MatrixProps> = ({ data, tauImpact, tauF
                 x1: 6,
                 y0: tauImpact,
                 y1: tauImpact,
-                line: { color: '#ef4444', width: 1, dash: 'dash' } // red-500
+                line: { color: 'rgba(239, 68, 68, 0.6)', width: 2, dash: 'dot' } // Red with opacity
             },
             {
                 type: 'line',
@@ -83,11 +86,12 @@ export const MaterialityMatrix: React.FC<MatrixProps> = ({ data, tauImpact, tauF
                 x1: tauFin,
                 y0: 0,
                 y1: 6,
-                line: { color: '#ef4444', width: 1, dash: 'dash' }
+                line: { color: 'rgba(239, 68, 68, 0.6)', width: 2, dash: 'dot' }
             }
         ],
-        margin: { t: 50, r: 50, l: 60, b: 60 },
-        hovermode: 'closest'
+        margin: { t: 60, r: 40, l: 60, b: 60 },
+        hovermode: 'closest',
+        font: { family: 'Inter, sans-serif' }
     };
 
     return (
