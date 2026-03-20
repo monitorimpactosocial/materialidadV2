@@ -437,45 +437,69 @@
     }
   }
 
+  function mkPillsCompactExternal(tid, options) {
+    let html = `<div class="rating-group-matrix" style="justify-content: center;">`;
+    for (const opt of options) {
+      const val = opt.value || opt.v;
+      const id = `ex_${tid}_${val}`.replace(/\s+/g, "");
+      html += `<input type="radio" name="ext_${tid}" id="${id}" value="${val}">`;
+      html += `<label for="${id}" title="${val}" style="width:32px; height:32px; font-size:14px;">${val}</label>`;
+    }
+    html += `</div>`;
+    return html;
+  }
+
   function buildExternalTopics(container) {
     container.innerHTML = "";
-    const scale = DATA.scale; // [{label,value}]
-    for (const t of DATA.topics) {
+    const scale5 = [{ v: "1" }, { v: "2" }, { v: "3" }, { v: "4" }, { v: "5" }];
+
+    for (const dim of DIMENSIONS) {
+      const dimTopics = DATA.topics.filter((t) => dim.range.includes(t.tema_id));
+      if (dimTopics.length === 0) continue;
+
       const card = document.createElement("div");
-      card.className = "topic-card";
-      card.dataset.tid = t.tema_id;
-
-      const title = document.createElement("div");
-      title.className = "topic-title";
-      title.textContent = `${t.tema_id} · ${t.tema_nombre}`;
-      card.appendChild(title);
-
-      const likert = document.createElement("div");
-      likert.className = "likert";
-
-      for (const s of scale) {
-        const id = `ext_${t.tema_id}_${s.value}`;
-        const lab = document.createElement("label");
-        lab.htmlFor = id;
-
-        const inp = document.createElement("input");
-        inp.type = "radio";
-        inp.name = `ext_${t.tema_id}`;
-        inp.id = id;
-        inp.value = String(s.value);
-        inp.addEventListener("change", updateExternalProgress);
-
-        const span = document.createElement("span");
-        span.textContent = s.label.replace("RELEVANTE", "REL.");
-
-        lab.appendChild(inp);
-        lab.appendChild(span);
-        likert.appendChild(lab);
+      card.className = `dim-card ${dim.class}`;
+      
+      let html = `
+        <div class="dim-header">${dim.title}</div>
+        <div class="dim-bulk-row" style="background:rgba(0,0,0,0.02); padding:8px 16px; border-bottom:1px solid rgba(0,0,0,0.05); display:flex; gap:8px; align-items:center;">
+          <span style="font-size:12px; font-weight:700; color:var(--muted);">Rellenar bloque con:</span>
+          ${[1, 2, 3, 4, 5].map(v => `<button type="button" class="btn btn-small btn-ghost btn-mark-ext" data-val="${v}">Todos en ${v}</button>`).join("")}
+        </div>
+        <div class="table-matrix-wrap">
+          <table class="table-matrix">
+            <thead>
+              <tr>
+                <th>Tema a Evaluar</th>
+                <th style="width: 250px; text-align: center;">Nivel de Importancia</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      for (const t of dimTopics) {
+        html += `<tr class="topic-block" data-tid="${t.tema_id}">
+          <td class="topic-title-block" style="vertical-align: middle;">${t.tema_id} · ${t.tema_nombre}</td>
+          <td style="text-align: center; vertical-align: middle; padding: 12px;">${mkPillsCompactExternal(t.tema_id, scale5)}</td>
+        </tr>`;
       }
-
-      card.appendChild(likert);
+      html += `</tbody></table></div>`;
+      card.innerHTML = html;
       container.appendChild(card);
     }
+
+    container.querySelectorAll('.btn-mark-ext').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.val;
+        const card = btn.closest('.dim-card');
+        card.querySelectorAll(`input[type="radio"][value="${val}"]`).forEach((r) => r.checked = true);
+        updateExternalProgress();
+      });
+    });
+
+    container.querySelectorAll('input[type="radio"]').forEach((r) => {
+      r.addEventListener('change', updateExternalProgress);
+    });
   }
 
   const DIMENSIONS = [
@@ -573,6 +597,24 @@
       const checked = document.querySelector(`input[name="ext_${t.tema_id}"]:checked`);
       return acc + (checked ? 1 : 0);
     }, 0);
+    
+    // Autosave external draft
+    const draft = {};
+    const checkedBoxes = document.querySelectorAll('#extTopics input[type="radio"]:checked');
+    checkedBoxes.forEach(r => draft[r.name] = r.value);
+    
+    // Save text inputs
+    const grp = document.getElementById("extGrupo");
+    const org = document.getElementById("extOrg");
+    const st = document.getElementById("extSector");
+    const ce = document.getElementById("extContacto");
+    if (grp) draft.extGrupo = grp.value;
+    if (org) draft.extOrg = org.value;
+    if (st) draft.extSector = st.value;
+    if (ce) draft.extContacto = ce.value;
+    
+    localStorage.setItem("paracel_external_draft", JSON.stringify(draft));
+
     document.getElementById("extProgress").textContent = `${answered} / ${DATA.topics.length}`;
     document.getElementById("extProgressBar").value = answered;
   }
@@ -758,27 +800,62 @@
   // ---------------------------------------------------------------------------
   function hookExternalForm() {
     const form = document.getElementById("formExternal");
-    const btnClear = document.getElementById("btnExtClear");
+    const grp = document.getElementById("extGrupo");
+    const org = document.getElementById("extOrg");
+    const st = document.getElementById("extSector");
+    const ce = document.getElementById("extContacto");
 
-    btnClear.addEventListener("click", () => {
-      form.reset();
-      document.querySelectorAll('#extTopics input[type="radio"]').forEach((r) => (r.checked = false));
-      updateExternalProgress();
+    // Add draft trigger for text inputs
+    [grp, org, st, ce].forEach(el => {
+      if(el) el.addEventListener("input", updateExternalProgress);
     });
+
+    // Cargar borrador guardado (si existe)
+    try {
+      const draftStr = localStorage.getItem("paracel_external_draft");
+      if (draftStr) {
+        const draft = JSON.parse(draftStr);
+        if (draft.extGrupo && grp) grp.value = draft.extGrupo;
+        if (draft.extOrg && org) org.value = draft.extOrg;
+        if (draft.extSector && st) st.value = draft.extSector;
+        if (draft.extContacto && ce) ce.value = draft.extContacto;
+        
+        Object.keys(draft).forEach(k => {
+          if (["extGrupo", "extOrg", "extSector", "extContacto"].includes(k)) return;
+          const r = document.querySelector(`input[name="${k}"][value="${draft[k]}"]`);
+          if (r) r.checked = true;
+        });
+      }
+    } catch (e) { console.warn("Could not load external draft", e); }
+
+    const btnClearExt = document.getElementById("btnExtClear");
+    if (btnClearExt) {
+      btnClearExt.addEventListener("click", () => {
+        const ok = confirm("¿Limpiar todo el formulario externo?");
+        if (!ok) return;
+        form.reset();
+        document.querySelectorAll('#extTopics input[type="radio"]').forEach((r) => (r.checked = false));
+        localStorage.removeItem("paracel_external_draft");
+        updateExternalProgress();
+      });
+    }
 
     form.addEventListener("submit", (ev) => {
       ev.preventDefault();
       const db = ensureDB();
 
-      const grupo = document.getElementById("extGrupo").value;
-      const sector = document.getElementById("extSector").value.trim();
-      const org = document.getElementById("extOrg").value.trim();
-      const contacto = document.getElementById("extContacto").value.trim();
-      const percepcion = document.getElementById("extPercepcion").value;
-      const comentarios = document.getElementById("extComentarios").value.trim();
+      const grupo = grp.value;
+      const organizacion = org.value.trim();
+      const sector = st.value.trim();
+      const contacto = ce.value.trim();
+      // Wait, there's percepcion and comentarios normally, but if not in DOM, it's ok string:
+      const rawPerc = document.getElementById("extPercepcion");
+      const percepcion = rawPerc ? rawPerc.value.trim() : "";
+      const rawCom = document.getElementById("extComentarios");
+      const comentarios = rawCom ? rawCom.value.trim() : "";
 
       if (!grupo) {
-        alert("Debe seleccionar el grupo de interés.");
+        alert("Seleccione su grupo de interés.");
         return;
       }
 
@@ -788,13 +865,13 @@
         const checked = document.querySelector(`input[name="ext_${t.tema_id}"]:checked`);
         if (checked) {
           ratings[t.tema_id] = Number(checked.value);
-          answered += 1;
+          answered++;
         }
       }
 
       if (answered < DATA.topics.length) {
-        const ok = confirm(`La respuesta tiene ${answered} de ${DATA.topics.length} ítems completados. ¿Desea guardar igualmente?`);
-        if (!ok) return;
+        alert(`Faltan respuestas. Por favor de puntuar los 27 temas antes de enviar.\nActualmente calificados: ${answered}`);
+        return;
       }
 
       const row = {
@@ -803,7 +880,7 @@
         editionId: db.currentEditionId,
         grupo,
         sector,
-        organizacion: org,
+        organizacion,
         contacto,
         percepcion,
         comentarios,
@@ -812,12 +889,13 @@
 
       db.externalResponses.push(row);
       saveDB(db);
+      populateDatalists(db);
 
       form.reset();
       document.querySelectorAll('#extTopics input[type="radio"]').forEach((r) => (r.checked = false));
+      localStorage.removeItem("paracel_external_draft");
       updateExternalProgress();
 
-      renderAll(db);
       renderAll(db);
       alert("¡Gracias por su participación!\nSu respuesta ha sido enviada de forma exitosa.\n\nPuede cerrar esta pestaña o volver a llenar el formulario si necesita registrar otra respuesta.");
     });
