@@ -493,15 +493,14 @@
     const scale5 = [1, 2, 3, 4, 5];
     const horizVals = HORIZONS.map((h) => h.v);
 
-    const mkPills = (tid, key, options) => {
-      const keyLabel = key.replace("_", " ").toUpperCase();
-      let html = `<div class="rating-item"><div class="rating-label">${keyLabel}</div><div class="rating-group">`;
+    const mkPillsCompact = (tid, key, options) => {
+      let html = `<div class="rating-group-matrix">`;
       for (const val of options) {
         const id = `int_${tid}_${key}_${val}`;
         html += `<input type="radio" name="int_${tid}_${key}" id="${id}" value="${val}">`;
-        html += `<label for="${id}">${val}</label>`;
+        html += `<label for="${id}" title="${val}">${val}</label>`;
       }
-      html += `</div></div>`;
+      html += `</div>`;
       return html;
     };
 
@@ -512,27 +511,38 @@
       const card = document.createElement("div");
       card.className = `dim-card ${dim.class}`;
       
-      let html = `<div class="dim-header">${dim.title}</div><div class="dim-body">`;
+      let html = `
+        <div class="dim-header">${dim.title}</div>
+        <div class="table-matrix-wrap">
+          <table class="table-matrix">
+            <thead>
+              <tr>
+                <th>Tema a Evaluar</th>
+                <th>Severidad</th>
+                <th>Alcance</th>
+                <th>Irremediabilidad</th>
+                <th>Probabilidad</th>
+                <th>Impacto Fin.</th>
+                <th>Probabilidad Fin.</th>
+                <th>Horizonte</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
       
       for (const t of dimTopics) {
-        html += `<div class="topic-block" data-tid="${t.tema_id}">
-          <div class="topic-title-block">${t.tema_id} · ${t.tema_nombre}</div>
-          <div class="rating-grid">`;
-        
-        // ASG
-        html += mkPills(t.tema_id, "severidad", scale5);
-        html += mkPills(t.tema_id, "alcance", scale5);
-        html += mkPills(t.tema_id, "irremediabilidad", scale5);
-        html += mkPills(t.tema_id, "probabilidad", scale5);
-        // Financiero
-        html += mkPills(t.tema_id, "impacto_financiero", scale5);
-        html += mkPills(t.tema_id, "probabilidad_financiera", scale5);
-        // Horizonte
-        html += mkPills(t.tema_id, "horizonte", horizVals);
-        
-        html += `</div></div>`;
+        html += `<tr class="topic-block" data-tid="${t.tema_id}">
+          <td class="topic-title-block">${t.tema_id} · ${t.tema_nombre}</td>
+          <td>${mkPillsCompact(t.tema_id, "severidad", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "alcance", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "irremediabilidad", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "probabilidad", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "impacto_financiero", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "probabilidad_financiera", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "horizonte", horizVals)}</td>
+        </tr>`;
       }
-      html += `</div>`;
+      html += `</tbody></table></div>`;
       card.innerHTML = html;
       container.appendChild(card);
     }

@@ -602,3 +602,83 @@ progress::-webkit-progress-value {
   box-shadow: 0 2px 4px rgba(0,0,0,0.12);
   transform: scale(1.05);
 }
+
+/* MATRIZ DENSA (EVALUACION INTERNA) */
+.table-matrix-wrap {
+  width: 100%;
+  overflow-x: auto;
+  padding: 1px;
+}
+.table-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.table-matrix th {
+  font-size: 11px;
+  text-align: center;
+  vertical-align: bottom;
+  padding: 8px 4px;
+  background: rgba(242, 251, 247, 0.95);
+  color: var(--primary);
+  border-bottom: 2px solid rgba(6,78,59,0.15);
+  border-right: 1px dashed rgba(6,78,59,0.1);
+  line-height: 1.2;
+}
+.table-matrix th:first-child { text-align: left; }
+.table-matrix th:last-child { border-right: none; }
+.table-matrix td {
+  padding: 8px 6px;
+  vertical-align: middle;
+  text-align: center;
+  border-bottom: 1px solid rgba(6,78,59,0.08);
+  border-right: 1px dashed rgba(6,78,59,0.08);
+}
+.table-matrix td:first-child { 
+  font-weight: 700; 
+  text-align: left; 
+  min-width: 220px; 
+  color: var(--text);
+}
+.table-matrix td:last-child { border-right: none; }
+.table-matrix tr:last-child td { border-bottom: none; }
+.table-matrix tr:hover td { background: rgba(16,185,129,0.04); }
+
+.rating-group-matrix {
+  display: inline-flex;
+  background: rgba(6,78,59,0.05);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid rgba(6,78,59,0.08);
+}
+.rating-group-matrix label {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+.rating-group-matrix label:hover {
+  background: rgba(255,255,255,0.8);
+  color: var(--primary);
+}
+.rating-group-matrix input[type="radio"] { display: none; }
+.rating-group-matrix input[type="radio"]:checked + label {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  transform: scale(1.1);
+  z-index: 2;
+}
