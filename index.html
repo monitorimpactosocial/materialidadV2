@@ -10,7 +10,31 @@
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 </head>
 <body>
-  <div class="app-shell">
+  <!-- ENTRADA GLOBAL -->
+  <div class="login-shell" id="globalLogin">
+    <div class="card login-card">
+      <div style="display:flex; justify-content:center; margin-bottom:16px;">
+        <div class="logo">PARACEL</div>
+      </div>
+      <h2 style="text-align:center; margin-bottom: 24px; font-size:22px; letter-spacing:-0.03em;">Doble Materialidad</h2>
+      <div class="form-grid" style="grid-template-columns: 1fr;">
+        <div class="field">
+          <label for="sysUser">Usuario</label>
+          <input type="text" id="sysUser" placeholder="Usuario" autofocus />
+        </div>
+        <div class="field">
+          <label for="sysPass">Contraseña</label>
+          <input type="password" id="sysPass" placeholder="Contraseña" />
+        </div>
+      </div>
+      <div class="btn-row mt-16" style="justify-content:center;">
+        <button class="btn btn-primary" id="btnSysLogin" style="width:100%; font-size:16px;">Ingresar</button>
+      </div>
+      <div id="sysLoginError" class="muted small mt-8" style="color:var(--danger); display:none; text-align:center;">Credenciales incorrectas.</div>
+    </div>
+  </div>
+
+  <div class="app-shell" id="appShell" style="display:none;">
     <header class="app-header">
       <div class="brand">
         <div class="logo" aria-hidden="true">PARACEL</div>
@@ -22,7 +46,9 @@
 
       <div class="header-right">
         <div class="edition-pill" id="editionPill" title="Edición activa"></div>
+        <span id="userRoleBadge" class="badge" style="display:none; margin-right:8px; border:none; background:var(--primary); color:white;"></span>
         <button class="btn btn-ghost" id="btnOpenAdmin" type="button">Administración</button>
+        <button class="btn btn-ghost" id="btnSysLogout" type="button" style="color:var(--danger);">Salir</button>
       </div>
     </header>
 
@@ -571,28 +597,7 @@
         <button class="btn btn-ghost" value="cancel" aria-label="Cerrar">✕</button>
       </div>
 
-      <div class="modal-body" id="adminLoginSection">
-        <div class="callout">
-          <div class="callout-title">Acceso restringido</div>
-          <div class="muted">Ingrese las credenciales de administrador para gestionar las ediciones, correos externos y exportaciones.</div>
-        </div>
-        <div class="form-grid mt-12">
-          <div class="field">
-            <label for="adminUser">Usuario</label>
-            <input type="text" id="adminUser" placeholder="Usuario" />
-          </div>
-          <div class="field">
-            <label for="adminPass">Contraseña</label>
-            <input type="password" id="adminPass" placeholder="Contraseña" />
-          </div>
-        </div>
-        <div class="btn-row mt-12">
-          <button class="btn btn-primary" id="btnLogin" type="button">Ingresar</button>
-        </div>
-        <div id="loginError" class="muted small mt-8" style="color:var(--danger);display:none;">Credenciales incorrectas.</div>
-      </div>
-
-      <div class="modal-body" id="adminContentSection" style="display:none;">
+      <div class="modal-body" id="adminContentSection">
         <div class="grid-2">
           <div class="card card-flat">
             <div class="card-header">
@@ -666,7 +671,6 @@
       </div>
 
       <div class="modal-foot">
-        <button class="btn btn-primary" id="btnAdminLogout" type="button" style="display:none; margin-right:auto; background:var(--muted); border-color:var(--muted);">Cerrar sesión</button>
         <button class="btn btn-primary" value="cancel">Cerrar Ventana</button>
       </div>
     </form>

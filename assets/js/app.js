@@ -1193,40 +1193,9 @@
     }
 
     document.getElementById("btnOpenAdmin").addEventListener("click", () => {
-      if (!sessionStorage.getItem("adminLogged")) {
-        document.getElementById("adminLoginSection").style.display = "block";
-        document.getElementById("adminContentSection").style.display = "none";
-        document.getElementById("btnAdminLogout").style.display = "none";
-      } else {
-        document.getElementById("adminLoginSection").style.display = "none";
-        document.getElementById("adminContentSection").style.display = "block";
-        document.getElementById("btnAdminLogout").style.display = "block";
-        loadEmailList();
-      }
+      document.getElementById("adminContentSection").style.display = "block";
+      loadEmailList();
       modal.showModal();
-    });
-
-    document.getElementById("btnLogin").addEventListener("click", () => {
-      const u = document.getElementById("adminUser").value;
-      const p = document.getElementById("adminPass").value;
-      if (u === "user" && p === "123") {
-        sessionStorage.setItem("adminLogged", "true");
-        document.getElementById("loginError").style.display = "none";
-        document.getElementById("adminLoginSection").style.display = "none";
-        document.getElementById("adminContentSection").style.display = "block";
-        document.getElementById("btnAdminLogout").style.display = "block";
-        document.getElementById("adminPass").value = "";
-        loadEmailList();
-      } else {
-        document.getElementById("loginError").style.display = "block";
-      }
-    });
-
-    document.getElementById("btnAdminLogout").addEventListener("click", () => {
-      sessionStorage.removeItem("adminLogged");
-      document.getElementById("adminLoginSection").style.display = "block";
-      document.getElementById("adminContentSection").style.display = "none";
-      document.getElementById("btnAdminLogout").style.display = "none";
     });
 
     document.getElementById("emailListType").addEventListener("change", loadEmailList);
@@ -1415,6 +1384,71 @@
   // Inicialización
   // ---------------------------------------------------------------------------
   async function init() {
+    const role = sessionStorage.getItem("appRole");
+    const globalLogin = document.getElementById("globalLogin");
+    const appShell = document.getElementById("appShell");
+
+    document.getElementById("btnSysLogin").addEventListener("click", async () => {
+      const u = document.getElementById("sysUser").value;
+      const p = document.getElementById("sysPass").value;
+      let newRole = null;
+      if (u === "user" && p === "123") newRole = "admin";
+      else if (u === "encuesta" && p === "paracel") newRole = "externa";
+      else if (u === "comite" && p === "paracel") newRole = "interna";
+
+      if (newRole) {
+        sessionStorage.setItem("appRole", newRole);
+        document.getElementById("sysLoginError").style.display = "none";
+        globalLogin.style.display = "none";
+        appShell.style.display = "";
+        await startApp(newRole);
+      } else {
+        document.getElementById("sysLoginError").style.display = "block";
+      }
+    });
+
+    document.getElementById("btnSysLogout").addEventListener("click", () => {
+      sessionStorage.removeItem("appRole");
+      location.reload();
+    });
+
+    // Soporte para presionar ENTER en el input de contraseña
+    document.getElementById("sysPass").addEventListener("keyup", (ev) => {
+      if (ev.key === "Enter") document.getElementById("btnSysLogin").click();
+    });
+
+    if (!role) {
+      globalLogin.style.display = "flex";
+      appShell.style.display = "none";
+      return;
+    } else {
+      globalLogin.style.display = "none";
+      appShell.style.display = "";
+      await startApp(role);
+    }
+  }
+
+  async function startApp(role) {
+    // RBAC
+    const roleBadge = document.getElementById("userRoleBadge");
+    if (role === "admin") {
+      roleBadge.textContent = "Administrador";
+      roleBadge.style.display = "";
+      setActiveView("home");
+    } else if (role === "externa") {
+      roleBadge.textContent = "Encuestado";
+      roleBadge.style.display = "";
+      document.querySelector("aside.app-nav").style.display = "none";
+      document.getElementById("btnOpenAdmin").style.display = "none";
+      setActiveView("external");
+    } else if (role === "interna") {
+      roleBadge.textContent = "Comité Evaluador";
+      roleBadge.style.display = "";
+      document.querySelector("aside.app-nav").style.display = "none";
+      document.getElementById("btnOpenAdmin").style.display = "none";
+      setActiveView("internal");
+    }
+
     // cargar catálogos
     DATA.topics = await loadJSON("data/topics.json");
     DATA.scale = await loadJSON("data/scale.json");
