@@ -513,6 +513,10 @@
       
       let html = `
         <div class="dim-header">${dim.title}</div>
+        <div class="dim-bulk-row" style="background:rgba(0,0,0,0.02); padding:8px 16px; border-bottom:1px solid rgba(0,0,0,0.05); display:flex; gap:8px; align-items:center;">
+          <span style="font-size:12px; font-weight:700; color:var(--muted);">Rellenar este bloque con:</span>
+          ${[1, 2, 3, 4, 5].map(v => `<button type="button" class="btn btn-small btn-ghost btn-mark-dim" data-val="${v}">Todos en ${v}</button>`).join("")}
+        </div>
         <div class="table-matrix-wrap">
           <table class="table-matrix">
             <thead>
@@ -546,6 +550,15 @@
       card.innerHTML = html;
       container.appendChild(card);
     }
+
+    container.querySelectorAll('.btn-mark-dim').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.val;
+        const card = btn.closest('.dim-card');
+        card.querySelectorAll(`input[type="radio"][value="${val}"]`).forEach((r) => r.checked = true);
+        updateInternalProgress();
+      });
+    });
 
     container.querySelectorAll('input[type="radio"]').forEach((r) => {
       r.addEventListener('change', updateInternalProgress);
@@ -1425,6 +1438,36 @@ Equipo PARACEL`;
     });
 
     document.getElementById("btnPrintReport").addEventListener("click", () => window.print());
+
+    document.getElementById("btnExportWord").addEventListener("click", () => {
+      const reportHtml = document.getElementById("reportArea").innerHTML;
+      const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head>
+          <meta charset='utf-8'>
+          <title>Export HTML To Doc</title>
+          <style>
+            body { font-family: Arial, sans-serif; font-size: 11pt; color: #333; }
+            h1, h2, h3 { color: #064e3b; }
+            .muted { color: #555; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #ccc; padding: 6px; text-align: left; vertical-align: top; }
+            th { background-color: #f2fbf7; color: #064e3b; }
+            .right { text-align: right; }
+            .center { text-align: center; }
+            .plot { margin-top: 20px; }
+          </style>
+        </head>
+        <body>${reportHtml}</body>
+      </html>`;
+      const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Reporte_Materialidad_PARACEL.doc';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
 
     document.getElementById("btnExportReportCSV").addEventListener("click", () => exportCSVPack(ensureDB()));
 

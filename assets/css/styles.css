@@ -435,6 +435,10 @@ body{
 .no-print{ display: block; }
 
 @media print{
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
   body{ background: #ffffff !important; }
   .app-nav, .app-header, .no-print, #btnOpenAdmin{ display:none !important; }
   .app-shell{ grid-template-columns: 1fr; grid-template-rows: 1fr; grid-template-areas: "main"; }
