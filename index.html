@@ -542,7 +542,26 @@
             <h3>1. Resumen ejecutivo</h3>
             <div class="muted" id="repExecutive"></div>
 
-            <h3 class="mt-16">2. Temas priorizados (doble materialidad)</h3>
+            <h3 class="mt-16">2. Materialidad por Dimensión ISO 26000</h3>
+            <div id="plotDimensionReport" class="plot plot-print" style="min-height:300px; margin-bottom: 24px;"></div>
+
+            <h3>3. Top 5 Temas Críticos</h3>
+            <div class="grid-2 mt-8 mb-16" id="repKpisTop5" style="gap:16px;">
+              <div class="card card-flat" style="border: 1px solid rgba(6,78,59,0.12); margin:0;">
+                <div class="card-header" style="background: rgba(220, 38, 38, 0.05); padding: 10px 14px; border-bottom: 1px solid rgba(6,78,59,0.08);">
+                  <strong style="color: #b91c1c;">Top 5 Impacto ASG</strong>
+                </div>
+                <div class="card-body" id="top5Impact" style="padding: 10px 14px; font-size: 13px;"></div>
+              </div>
+              <div class="card card-flat" style="border: 1px solid rgba(6,78,59,0.12); margin:0;">
+                <div class="card-header" style="background: rgba(37, 99, 235, 0.05); padding: 10px 14px; border-bottom: 1px solid rgba(6,78,59,0.08);">
+                  <strong style="color: #1d4ed8;">Top 5 Impacto Financiero</strong>
+                </div>
+                <div class="card-body" id="top5Fin" style="padding: 10px 14px; font-size: 13px;"></div>
+              </div>
+            </div>
+
+            <h3 class="mt-16">4. Temas priorizados (doble materialidad)</h3>
             <div class="table-wrap">
               <table class="table" id="tableReportDouble">
                 <thead>
@@ -557,10 +576,10 @@
               </table>
             </div>
 
-            <h3 class="mt-16">3. Matriz</h3>
+            <h3 class="mt-16">5. Matriz de Resultados</h3>
             <div id="plotMatrixReport" class="plot plot-print"></div>
 
-            <h3 class="mt-16">4. Anexo, ranking completo</h3>
+            <h3 class="mt-16">6. Anexo, ranking completo</h3>
             <div class="table-wrap">
               <table class="table table-compact" id="tableReportAll">
                 <thead>

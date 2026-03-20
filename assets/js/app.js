@@ -1139,6 +1139,63 @@
     renderRankingTable(db);
   }
 
+  function renderDimensionPlot(db, targetId) {
+    const { rows } = computeScores(db);
+    const byDim = {};
+    for (const d of DIMENSIONS) {
+      const tIds = DATA.topics.filter(t => d.range.includes(t.tema_id)).map(t => t.tema_id);
+      const dRows = rows.filter(r => tIds.includes(r.tema_id) && r.impact_score !== null && r.fin_score !== null);
+      if (dRows.length === 0) continue;
+      const sumIm = dRows.reduce((a, b) => a + b.impact_score, 0);
+      const sumFi = dRows.reduce((a, b) => a + b.fin_score, 0);
+      const avg = (sumIm + sumFi) / (dRows.length * 2);
+      byDim[d.title] = avg;
+    }
+    
+    const sorted = Object.entries(byDim).sort((a,b) => b[1] - a[1]);
+    const x = sorted.map(k => k[0]);
+    const y = sorted.map(k => k[1]);
+    
+    const data = [{
+      x, y, type: 'bar', marker: { color: '#059669' },
+      hovertemplate: "Promedio Doble Mat.: %{y:.2f}<extra></extra>"
+    }];
+    const layout = {
+      margin: { l: 30, r: 20, t: 30, b: 120 },
+      yaxis: { range: [1, 5], title: "Media Doble Mat.", gridcolor: "rgba(2,44,34,0.10)" },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(255,255,255,0.75)",
+    };
+    if (document.getElementById(targetId)) {
+        Plotly.newPlot(targetId, data, layout, { displayModeBar: false, responsive: true });
+    }
+  }
+
+  function renderTop5KPIs(db) {
+    const { rows } = computeScores(db);
+    const topIm = [...rows].filter(r => r.impact_score !== null).sort((a, b) => b.impact_score - a.impact_score).slice(0, 5);
+    const topFi = [...rows].filter(r => r.fin_score !== null).sort((a, b) => b.fin_score - a.fin_score).slice(0, 5);
+    
+    const imC = document.getElementById("top5Impact");
+    if (imC) {
+      imC.innerHTML = topIm.map((r, i) => `
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:6px 0;">
+          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%;"><b>${i+1}.</b> ${r.tema_nombre}</span>
+          <span style="font-weight:bold; color:var(--primary);">${fmt(r.impact_score,2)}</span>
+        </div>
+      `).join("");
+    }
+    const fiC = document.getElementById("top5Fin");
+    if (fiC) {
+      fiC.innerHTML = topFi.map((r, i) => `
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:6px 0;">
+          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%;"><b>${i+1}.</b> ${r.tema_nombre}</span>
+          <span style="font-weight:bold; color:var(--primary);">${fmt(r.fin_score,2)}</span>
+        </div>
+      `).join("");
+    }
+  }
+
   function renderReport(db) {
     const params = getParams(db);
     const edition = db.editions.find((e) => e.id === db.currentEditionId);
@@ -1201,6 +1258,8 @@
 
     // plot en reporte
     renderMatrixPlot(db, "plotMatrixReport");
+    renderDimensionPlot(db, "plotDimensionReport");
+    renderTop5KPIs(db);
   }
 
   function renderAll(db) {
@@ -1439,34 +1498,74 @@ Equipo PARACEL`;
 
     document.getElementById("btnPrintReport").addEventListener("click", () => window.print());
 
-    document.getElementById("btnExportWord").addEventListener("click", () => {
-      const reportHtml = document.getElementById("reportArea").innerHTML;
-      const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-        <head>
-          <meta charset='utf-8'>
-          <title>Export HTML To Doc</title>
-          <style>
-            body { font-family: Arial, sans-serif; font-size: 11pt; color: #333; }
-            h1, h2, h3 { color: #064e3b; }
-            .muted { color: #555; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th, td { border: 1px solid #ccc; padding: 6px; text-align: left; vertical-align: top; }
-            th { background-color: #f2fbf7; color: #064e3b; }
-            .right { text-align: right; }
-            .center { text-align: center; }
-            .plot { margin-top: 20px; }
-          </style>
-        </head>
-        <body>${reportHtml}</body>
-      </html>`;
-      const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'Reporte_Materialidad_PARACEL.doc';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    document.getElementById("btnExportWord").addEventListener("click", async function() {
+      const btn = this;
+      const prevText = btn.textContent;
+      btn.textContent = "Generando Word...";
+      btn.disabled = true;
+
+      try {
+        const reportDiv = document.getElementById("reportArea");
+        const clone = reportDiv.cloneNode(true);
+        
+        const plots = reportDiv.querySelectorAll(".plot");
+        const clonePlots = clone.querySelectorAll(".plot");
+        
+        // Snapshot every plotly instance
+        for(let i = 0; i < plots.length; i++) {
+          try {
+            const dataUrl = await Plotly.toImage(plots[i], {format: 'png', height: 400, width: 700});
+            const img = document.createElement("img");
+            img.src = dataUrl;
+            img.style.width = "100%";
+            img.style.maxWidth = "700px";
+            clonePlots[i].parentNode.replaceChild(img, clonePlots[i]);
+          } catch(e) { console.error("Plotly toImage Error:", e); }
+        }
+        
+        // Inline styles for Word compatibility
+        clone.querySelectorAll("table").forEach(t => {
+          t.style.borderCollapse = "collapse";
+          t.style.width = "100%";
+          t.style.marginTop = "10px";
+          t.style.marginBottom = "20px";
+        });
+        clone.querySelectorAll("th").forEach(th => {
+          th.style.border = "1px solid #ccc";
+          th.style.padding = "8px";
+          th.style.backgroundColor = "#f2fbf7";
+          th.style.color = "#064e3b";
+          th.style.fontWeight = "bold";
+        });
+        clone.querySelectorAll("td").forEach(td => {
+          td.style.border = "1px solid #ccc";
+          td.style.padding = "8px";
+        });
+        clone.querySelectorAll(".no-print").forEach(e => e.remove());
+
+        const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+          <head>
+            <meta charset='utf-8'>
+            <title>Export HTML To Doc</title>
+          </head>
+          <body style="font-family: Arial, Tahoma, sans-serif; font-size: 11pt; color: #333;">${clone.innerHTML}</body>
+        </html>`;
+        
+        const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'Reporte_Doble_Materialidad_PARACEL.doc';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error(err);
+        alert("Ocurrió un error al exportar el documento.");
+      } finally {
+        btn.textContent = prevText;
+        btn.disabled = false;
+      }
     });
 
     document.getElementById("btnExportReportCSV").addEventListener("click", () => exportCSVPack(ensureDB()));
