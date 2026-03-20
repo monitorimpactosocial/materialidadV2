@@ -1451,21 +1451,30 @@ Equipo PARACEL`;
   async function startApp(role) {
     // RBAC
     const roleBadge = document.getElementById("userRoleBadge");
+    const logExtCard = document.getElementById("tableExternalLog").closest(".card");
+    const logIntCard = document.getElementById("tableInternalLog").closest(".card");
+
     if (role === "admin") {
       roleBadge.textContent = "Administrador";
       roleBadge.style.display = "";
+      if (logExtCard) logExtCard.style.display = "";
+      if (logIntCard) logIntCard.style.display = "";
       setActiveView("home");
     } else if (role === "externa") {
       roleBadge.textContent = "Encuestado";
       roleBadge.style.display = "";
       document.querySelector("aside.app-nav").style.display = "none";
       document.getElementById("btnOpenAdmin").style.display = "none";
+      if (logExtCard) logExtCard.style.display = "none";
+      if (logIntCard) logIntCard.style.display = "none";
       setActiveView("external");
     } else if (role === "interna") {
       roleBadge.textContent = "Comité Evaluador";
       roleBadge.style.display = "";
       document.querySelector("aside.app-nav").style.display = "none";
       document.getElementById("btnOpenAdmin").style.display = "none";
+      if (logExtCard) logExtCard.style.display = "none";
+      if (logIntCard) logIntCard.style.display = "none";
       setActiveView("internal");
     }
 
