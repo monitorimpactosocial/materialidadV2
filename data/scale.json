@@ -1,0 +1,22 @@
+[
+  {
+    "label": "MUY RELEVANTE",
+    "value": 5
+  },
+  {
+    "label": "RELEVANTE",
+    "value": 4
+  },
+  {
+    "label": "MEDIANAMENTE RELEVANTE",
+    "value": 3
+  },
+  {
+    "label": "POCO RELEVANTE",
+    "value": 2
+  },
+  {
+    "label": "NADA RELEVANTE",
+    "value": 1
+  }
+]
