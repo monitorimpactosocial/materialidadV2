@@ -411,6 +411,15 @@
                 </div>
               </div>
 
+              <div class="btn-row mt-8 mb-16" style="background: rgba(6,78,59,0.05); padding: 10px; border-radius: 8px; border: 1px dashed rgba(6,78,59,0.15);">
+                <strong class="muted" style="margin-right:8px; font-size:13px;">Rellenado Rápido (Aplica a todo):</strong>
+                <button type="button" class="btn btn-secondary btn-small" id="btnMarkAll1">Todos en 1</button>
+                <button type="button" class="btn btn-secondary btn-small" id="btnMarkAll2">Todos en 2</button>
+                <button type="button" class="btn btn-secondary btn-small" id="btnMarkAll3">Todos en 3</button>
+                <button type="button" class="btn btn-secondary btn-small" id="btnMarkAll4">Todos en 4</button>
+                <button type="button" class="btn btn-secondary btn-small" id="btnMarkAll5">Todos en 5</button>
+              </div>
+
               <div id="internalCardsContainer" class="dimensions-layout"></div>
 
               <div class="form-grid mt-12">
@@ -503,25 +512,36 @@
 
       <!-- REPORTE -->
       <section class="view" id="view-report">
-        <div class="card print-area" id="reportArea">
-          <div class="card-header">
-            <h2>Reporte de Materialidad, edición activa</h2>
-            <p class="muted">Documento generado a partir de datos disponibles. Use "Imprimir" para exportar a PDF.</p>
+        <div class="card print-area" id="reportArea" style="border: none; box-shadow: none; background: #fff;">
+          <div class="card-header" style="border-bottom: 3px solid var(--primary); padding-bottom: 24px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+              <div>
+                <h1 style="margin:0; font-weight:950; color:var(--primary); font-size:28px; letter-spacing:-0.03em;">DIAGNÓSTICO DE DOBLE MATERIALIDAD</h1>
+                <p class="muted" style="margin:4px 0 0 0; font-size:16px;">Paracel S.A. Central · Documento de Control Cíclico</p>
+              </div>
+              <div class="logo" style="font-size:32px;">PARACEL</div>
+            </div>
           </div>
 
           <div class="card-body">
-            <div class="report-head">
+            <div class="callout callout-info" style="border-left: 4px solid var(--primary); background: #f8fafc; border-radius: 8px; font-size: 13px;">
+              <div class="callout-title" style="color:var(--text); font-size:14px; font-weight:800; margin-bottom:8px;">Metodología, Alcance y Limitaciones</div>
+              <p style="margin:0 0 8px 0; text-align:justify; line-height:1.5;">El presente reporte consolida los hallazgos de las encuestas aplicadas a grupos de interés (materialidad de impacto) y al comité interno de evaluación (materialidad financiera), organizados en las 6 Materias Fundamentales de la Norma <strong>ISO 26000:2010</strong>. El impacto social y ambiental es parametrizado analizando <em>Severidad, Alcance, Irremediabilidad y Probabilidad</em>. El factor de negocio evalúa el <em>Impacto y Probabilidad Financiera</em>.</p>
+              <p style="margin:0 0 8px 0; text-align:justify; line-height:1.5;"><strong>Aviso de Limitaciones:</strong> Este documento se genera automatizadamente sobre una muestra estadística puntual disponible en la ventana analítica. Su función es orientativa para re-evaluación estratégica ASG (Ambiental, Social y Gobernanza) y no representa auditorías financieras verificadas externas.</p>
+            </div>
+
+            <div class="report-head mt-16">
               <div class="report-meta">
-                <div><span class="muted">Edición:</span> <strong id="repEdition"></strong></div>
-                <div><span class="muted">Fecha:</span> <strong id="repDate"></strong></div>
-                <div><span class="muted">Regla:</span> <strong id="repRule"></strong></div>
-                <div><span class="muted">Umbral impacto:</span> <strong id="repTauImpact"></strong></div>
-                <div><span class="muted">Umbral financiero:</span> <strong id="repTauFin"></strong></div>
+                <div><span class="muted">Edición Analizada:</span> <strong id="repEdition"></strong></div>
+                <div><span class="muted">Fecha de Generación:</span> <strong id="repDate"></strong></div>
+                <div><span class="muted">Regla Condicional:</span> <strong id="repRule"></strong></div>
+                <div><span class="muted">Umbral Impacto (τ):</span> <strong id="repTauImpact"></strong></div>
+                <div><span class="muted">Umbral Financiero (τ):</span> <strong id="repTauFin"></strong></div>
               </div>
               <div class="report-meta">
-                <div><span class="muted">Respuestas externas:</span> <strong id="repNExternal"></strong></div>
-                <div><span class="muted">Evaluaciones internas:</span> <strong id="repNInternal"></strong></div>
-                <div><span class="muted">Doble materialidad:</span> <strong id="repNDouble"></strong></div>
+                <div><span class="muted">Total Encuestas Externas (N):</span> <strong id="repNExternal"></strong></div>
+                <div><span class="muted">Total Evaluaciones Internas (N):</span> <strong id="repNInternal"></strong></div>
+                <div><span class="muted">Ítems con Doble Materialidad (N):</span> <strong id="repNDouble" style="color:var(--danger); font-size:18px;"></strong></div>
               </div>
             </div>
 

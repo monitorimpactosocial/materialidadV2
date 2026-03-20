@@ -566,10 +566,25 @@
 
   function updateInternalProgress() {
     let complete = 0;
+    const draft = {};
     for (const t of DATA.topics) {
       const inputs = document.querySelectorAll(`input[name^="int_${t.tema_id}_"]:checked`);
       if (inputs.length > 0) complete += 1;
     }
+    
+    // Autosave draft
+    const checkedBoxes = document.querySelectorAll('#internalCardsContainer input[type="radio"]:checked');
+    checkedBoxes.forEach(r => draft[r.name] = r.value);
+    
+    const area = document.getElementById("intArea");
+    const rol = document.getElementById("intRol");
+    const comentarios = document.getElementById("intComentarios");
+    if (area) draft.intArea = area.value;
+    if (rol) draft.intRol = rol.value;
+    if (comentarios) draft.intComentarios = comentarios.value;
+    
+    localStorage.setItem("paracel_internal_draft", JSON.stringify(draft));
+
     document.getElementById("intProgress").textContent = `${complete} / ${DATA.topics.length}`;
     document.getElementById("intProgressBar").value = complete;
   }
@@ -798,10 +813,51 @@
   function hookInternalForm() {
     const form = document.getElementById("formInternal");
     const btnClear = document.getElementById("btnIntClear");
+    const intArea = document.getElementById("intArea");
+    const intRol = document.getElementById("intRol");
+    const intComentarios = document.getElementById("intComentarios");
+
+    // Llenado rápido (Marcar todos con...)
+    for (let i = 1; i <= 5; i++) {
+      const btnMark = document.getElementById(`btnMarkAll${i}`);
+      if (btnMark) {
+        btnMark.addEventListener("click", () => {
+          document.querySelectorAll(`#internalCardsContainer input[type="radio"][value="${i}"]`).forEach(r => {
+            r.checked = true;
+          });
+          updateInternalProgress();
+        });
+      }
+    }
+
+    // Trigger draft on typing text inputs
+    intArea.addEventListener("input", updateInternalProgress);
+    intRol.addEventListener("input", updateInternalProgress);
+    intComentarios.addEventListener("input", updateInternalProgress);
+
+    // Cargar borrador guardado (si existe)
+    try {
+      const draftStr = localStorage.getItem("paracel_internal_draft");
+      if (draftStr) {
+        const draft = JSON.parse(draftStr);
+        if (draft.intArea) intArea.value = draft.intArea;
+        if (draft.intRol) intRol.value = draft.intRol;
+        if (draft.intComentarios) intComentarios.value = draft.intComentarios;
+        
+        Object.keys(draft).forEach(k => {
+          if (k === "intArea" || k === "intRol" || k === "intComentarios") return;
+          const r = document.querySelector(`input[name="${k}"][value="${draft[k]}"]`);
+          if (r) r.checked = true;
+        });
+      }
+    } catch (e) { console.warn("Could not load internal draft", e); }
 
     btnClear.addEventListener("click", () => {
+      const ok = confirm("¿Está seguro de querer limpiar todo el formulario y perder el progreso no enviado?");
+      if (!ok) return;
       form.reset();
       document.querySelectorAll('#internalCardsContainer input[type="radio"]').forEach((r) => (r.checked = false));
+      localStorage.removeItem("paracel_internal_draft");
       updateInternalProgress();
     });
 
@@ -809,9 +865,9 @@
       ev.preventDefault();
       const db = ensureDB();
 
-      const area = document.getElementById("intArea").value.trim();
-      const rol = document.getElementById("intRol").value.trim();
-      const comentarios = document.getElementById("intComentarios").value.trim();
+      const area = intArea.value.trim();
+      const rol = intRol.value.trim();
+      const comentarios = intComentarios.value.trim();
 
       if (!area) {
         alert("Debe completar el área evaluadora.");
@@ -824,20 +880,24 @@
       for (const t of DATA.topics) {
         const row = {};
         const keys = ["severidad", "alcance", "irremediabilidad", "probabilidad", "impacto_financiero", "probabilidad_financiera", "horizonte"];
-        let any = false;
+        let answeredKeys = 0;
 
         for (const k of keys) {
           const checked = document.querySelector(`input[name="int_${t.tema_id}_${k}"]:checked`);
           if (checked) {
             row[k] = checked.value;
-            any = true;
+            answeredKeys++;
           } else {
             row[k] = null;
           }
         }
 
-        if (any) {
+        if (answeredKeys === keys.length) {
           complete += 1;
+        }
+
+        // Aunque esté incompleto se arma el objeto, luego se intercepta la suma
+        if (answeredKeys > 0) {
           table[t.tema_id] = {
             severidad: row.severidad ? Number(row.severidad) : null,
             alcance: row.alcance ? Number(row.alcance) : null,
@@ -850,8 +910,8 @@
         }
       }
 
-      if (complete === 0) {
-        alert("No se registraron puntajes. Complete al menos un tema.");
+      if (complete < DATA.topics.length) {
+        alert(`Faltan respuestas. Debe calificar TODOS los cuadrantes de los 27 temas antes de enviar.\nTemas 100% completados actualmente: ${complete}`);
         return;
       }
 
@@ -871,6 +931,7 @@
 
       form.reset();
       document.querySelectorAll('#internalCardsContainer input[type="radio"]').forEach((r) => (r.checked = false));
+      localStorage.removeItem("paracel_internal_draft");
       updateInternalProgress();
 
       renderAll(db);

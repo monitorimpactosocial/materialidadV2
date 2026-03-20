@@ -657,7 +657,8 @@ progress::-webkit-progress-value {
   border: 1px solid rgba(6,78,59,0.08);
 }
 .rating-group-matrix label {
-  width: 24px;
+  min-width: 24px;
+  padding: 0 4px;
   height: 24px;
   display: flex;
   align-items: center;
