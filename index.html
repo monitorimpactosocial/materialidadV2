@@ -291,11 +291,11 @@
                 </div>
                 <div class="field">
                   <label for="extSector">Sector</label>
-                  <input id="extSector" type="text" placeholder="Ej.: Comunidad, Proveedor, Sector público" />
+                  <input id="extSector" list="listSector" type="text" placeholder="Ej.: Comunidad, Proveedor, Sector público" autocomplete="off" />
                 </div>
                 <div class="field">
                   <label for="extOrg">Organización, comunidad o entidad</label>
-                  <input id="extOrg" type="text" placeholder="Nombre de organización o comunidad" />
+                  <input id="extOrg" list="listOrg" type="text" placeholder="Nombre de organización o comunidad" autocomplete="off" />
                 </div>
                 <div class="field">
                   <label for="extContacto">Contacto (opcional)</label>
@@ -308,11 +308,14 @@
                 <div class="muted">Indique el nivel de relevancia de cada tema respecto al relacionamiento e impactos asociados a la organización.</div>
               </div>
 
-              <div class="topics-toolbar">
-                <input id="topicSearchExt" class="search" type="search" placeholder="Buscar tema (ej.: transparencia, seguridad, agua)"/>
-                <div class="progress">
-                  <span class="muted">Completitud</span>
-                  <span class="badge" id="extProgress">0 / 27</span>
+              <div class="topics-toolbar sticky-toolbar">
+                <input id="topicSearchExt" class="search" type="search" placeholder="Buscar tema (ej.: transparencia, seguridad)"/>
+                <div class="progress-box">
+                  <div class="progress-info">
+                    <span class="muted">Avance</span>
+                    <span class="badge" id="extProgress">0 / 27</span>
+                  </div>
+                  <progress id="extProgressBar" value="0" max="27"></progress>
                 </div>
               </div>
 
@@ -384,44 +387,31 @@
               <div class="form-grid">
                 <div class="field">
                   <label for="intArea">Área evaluadora</label>
-                  <input id="intArea" type="text" required placeholder="Ej.: Sostenibilidad, Legal, Finanzas, Operaciones" />
+                  <input id="intArea" list="listArea" type="text" required placeholder="Ej.: Sostenibilidad, Legal, Finanzas, Operaciones" autocomplete="off" />
                 </div>
                 <div class="field">
                   <label for="intRol">Rol</label>
-                  <input id="intRol" type="text" placeholder="Ej.: Comité, Analista, Gerencia" />
+                  <input id="intRol" list="listRol" type="text" placeholder="Ej.: Comité, Analista, Gerencia" autocomplete="off" />
                 </div>
               </div>
 
               <div class="callout">
-                <div class="callout-title">Escala sugerida</div>
-                <div class="muted">1 (Muy bajo) a 5 (Muy alto). Complete para cada tema. Puede guardarse más de una evaluación y el sistema promedia.</div>
+                <div class="callout-title">Escala de Evaluación (1 a 5)</div>
+                <div class="muted">Para calificar un factor, haga clic en el número de valoración dentro de las barras correspondientes para cada tema. Opciones con (&#x25cf;) han sido marcadas.</div>
               </div>
 
-              <div class="topics-toolbar">
+              <div class="topics-toolbar sticky-toolbar">
                 <input id="topicSearchInt" class="search" type="search" placeholder="Buscar tema"/>
-                <div class="progress">
-                  <span class="muted">Filas completas</span>
-                  <span class="badge" id="intProgress">0 / 27</span>
+                <div class="progress-box">
+                  <div class="progress-info">
+                    <span class="muted">Temas calificados</span>
+                    <span class="badge" id="intProgress">0 / 27</span>
+                  </div>
+                  <progress id="intProgressBar" value="0" max="27"></progress>
                 </div>
               </div>
 
-              <div class="table-wrap">
-                <table class="table table-compact" id="tableInternal">
-                  <thead>
-                    <tr>
-                      <th>Tema</th>
-                      <th class="center">Severidad</th>
-                      <th class="center">Alcance</th>
-                      <th class="center">Irrem.</th>
-                      <th class="center">Prob.</th>
-                      <th class="center">Impacto fin.</th>
-                      <th class="center">Prob. fin.</th>
-                      <th>Horizonte</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </div>
+              <div id="internalCardsContainer" class="dimensions-layout"></div>
 
               <div class="form-grid mt-12">
                 <div class="field">
@@ -675,6 +665,12 @@
       </div>
     </form>
   </dialog>
+
+  <!-- DATALISTS PARA VALORES HISTORICOS -->
+  <datalist id="listSector"></datalist>
+  <datalist id="listOrg"></datalist>
+  <datalist id="listArea"></datalist>
+  <datalist id="listRol"></datalist>
 
   <script src="assets/js/app.js"></script>
 </body>

@@ -478,64 +478,68 @@
     }
   }
 
-  function buildInternalTable(tbody) {
-    tbody.innerHTML = "";
-    const mkSel = (tid, key) => {
-      const sel = document.createElement("select");
-      sel.dataset.tid = tid;
-      sel.dataset.key = key;
+  const DIMENSIONS = [
+    { id: "gobernanza", title: "1. Gobernanza de la organización", class: "dim-gobernanza", range: ["P01", "P02", "P03", "P04", "P05"] },
+    { id: "derechos", title: "2. Derechos humanos", class: "dim-derechos", range: ["P06", "P07"] },
+    { id: "laborales", title: "3. Prácticas laborales", class: "dim-laborales", range: ["P08", "P09", "P10", "P11"] },
+    { id: "medioambiente", title: "4. Medioambiente", class: "dim-medioambiente", range: ["P12", "P13", "P14", "P15"] },
+    { id: "operacion", title: "5. Prácticas justas de operación", class: "dim-operacion", range: ["P16", "P17", "P18"] },
+    { id: "comunidad", title: "6. Participación activa y desarrollo de la comunidad", class: "dim-comunidad", range: ["P19", "P20", "P21", "P22", "P23", "P24", "P25", "P26", "P27"] }
+  ];
 
-      const o0 = document.createElement("option");
-      o0.value = "";
-      o0.textContent = "";
-      sel.appendChild(o0);
+  function buildInternalCards(container) {
+    container.innerHTML = "";
+    
+    const scale5 = [1, 2, 3, 4, 5];
+    const horizVals = HORIZONS.map((h) => h.v);
 
-      for (let i = 1; i <= 5; i++) {
-        const o = document.createElement("option");
-        o.value = String(i);
-        o.textContent = String(i);
-        sel.appendChild(o);
+    const mkPills = (tid, key, options) => {
+      const keyLabel = key.replace("_", " ").toUpperCase();
+      let html = `<div class="rating-item"><div class="rating-label">${keyLabel}</div><div class="rating-group">`;
+      for (const val of options) {
+        const id = `int_${tid}_${key}_${val}`;
+        html += `<input type="radio" name="int_${tid}_${key}" id="${id}" value="${val}">`;
+        html += `<label for="${id}">${val}</label>`;
       }
-      sel.addEventListener("change", updateInternalProgress);
-      return sel;
+      html += `</div></div>`;
+      return html;
     };
 
-    const mkHorizon = (tid) => {
-      const sel = document.createElement("select");
-      sel.dataset.tid = tid;
-      sel.dataset.key = "horizonte";
-      for (const h of HORIZONS) {
-        const o = document.createElement("option");
-        o.value = h.v;
-        o.textContent = h.t;
-        sel.appendChild(o);
+    for (const dim of DIMENSIONS) {
+      const dimTopics = DATA.topics.filter((t) => dim.range.includes(t.tema_id));
+      if (dimTopics.length === 0) continue;
+
+      const card = document.createElement("div");
+      card.className = `dim-card ${dim.class}`;
+      
+      let html = `<div class="dim-header">${dim.title}</div><div class="dim-body">`;
+      
+      for (const t of dimTopics) {
+        html += `<div class="topic-block" data-tid="${t.tema_id}">
+          <div class="topic-title-block">${t.tema_id} · ${t.tema_nombre}</div>
+          <div class="rating-grid">`;
+        
+        // ASG
+        html += mkPills(t.tema_id, "severidad", scale5);
+        html += mkPills(t.tema_id, "alcance", scale5);
+        html += mkPills(t.tema_id, "irremediabilidad", scale5);
+        html += mkPills(t.tema_id, "probabilidad", scale5);
+        // Financiero
+        html += mkPills(t.tema_id, "impacto_financiero", scale5);
+        html += mkPills(t.tema_id, "probabilidad_financiera", scale5);
+        // Horizonte
+        html += mkPills(t.tema_id, "horizonte", horizVals);
+        
+        html += `</div></div>`;
       }
-      sel.addEventListener("change", updateInternalProgress);
-      return sel;
-    };
-
-    for (const t of DATA.topics) {
-      const tr = document.createElement("tr");
-      tr.dataset.tid = t.tema_id;
-
-      const td0 = document.createElement("td");
-      td0.textContent = `${t.tema_id} · ${t.tema_nombre}`;
-      tr.appendChild(td0);
-
-      const keys = ["severidad", "alcance", "irremediabilidad", "probabilidad", "impacto_financiero", "probabilidad_financiera"];
-      for (const k of keys) {
-        const td = document.createElement("td");
-        td.className = "center";
-        td.appendChild(mkSel(t.tema_id, k));
-        tr.appendChild(td);
-      }
-
-      const tdH = document.createElement("td");
-      tdH.appendChild(mkHorizon(t.tema_id));
-      tr.appendChild(tdH);
-
-      tbody.appendChild(tr);
+      html += `</div>`;
+      card.innerHTML = html;
+      container.appendChild(card);
     }
+
+    container.querySelectorAll('input[type="radio"]').forEach((r) => {
+      r.addEventListener('change', updateInternalProgress);
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -547,22 +551,17 @@
       return acc + (checked ? 1 : 0);
     }, 0);
     document.getElementById("extProgress").textContent = `${answered} / ${DATA.topics.length}`;
+    document.getElementById("extProgressBar").value = answered;
   }
 
   function updateInternalProgress() {
-    const tbody = document.querySelector("#tableInternal tbody");
     let complete = 0;
     for (const t of DATA.topics) {
-      const tr = tbody.querySelector(`tr[data-tid="${t.tema_id}"]`);
-      if (!tr) continue;
-      const sels = tr.querySelectorAll("select");
-      let any = false;
-      for (const s of sels) {
-        if (s.value !== "") { any = true; break; }
-      }
-      if (any) complete += 1;
+      const inputs = document.querySelectorAll(`input[name^="int_${t.tema_id}_"]:checked`);
+      if (inputs.length > 0) complete += 1;
     }
     document.getElementById("intProgress").textContent = `${complete} / ${DATA.topics.length}`;
+    document.getElementById("intProgressBar").value = complete;
   }
 
   function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector) {
@@ -792,7 +791,7 @@
 
     btnClear.addEventListener("click", () => {
       form.reset();
-      document.querySelectorAll("#tableInternal select").forEach((s) => (s.value = ""));
+      document.querySelectorAll('#internalCardsContainer input[type="radio"]').forEach((r) => (r.checked = false));
       updateInternalProgress();
     });
 
@@ -810,18 +809,23 @@
       }
 
       const table = {};
-      const tbody = document.querySelector("#tableInternal tbody");
       let complete = 0;
 
       for (const t of DATA.topics) {
-        const tr = tbody.querySelector(`tr[data-tid="${t.tema_id}"]`);
         const row = {};
-        tr.querySelectorAll("select").forEach((sel) => {
-          const key = sel.dataset.key;
-          row[key] = sel.value === "" ? null : sel.value;
-        });
+        const keys = ["severidad", "alcance", "irremediabilidad", "probabilidad", "impacto_financiero", "probabilidad_financiera", "horizonte"];
+        let any = false;
 
-        const any = Object.values(row).some((v) => v !== null && v !== "");
+        for (const k of keys) {
+          const checked = document.querySelector(`input[name="int_${t.tema_id}_${k}"]:checked`);
+          if (checked) {
+            row[k] = checked.value;
+            any = true;
+          } else {
+            row[k] = null;
+          }
+        }
+
         if (any) {
           complete += 1;
           table[t.tema_id] = {
@@ -853,12 +857,12 @@
 
       db.internalAssessments.push(row);
       saveDB(db);
+      populateDatalists(db);
 
       form.reset();
-      document.querySelectorAll("#tableInternal select").forEach((s) => (s.value = ""));
+      document.querySelectorAll('#internalCardsContainer input[type="radio"]').forEach((r) => (r.checked = false));
       updateInternalProgress();
 
-      renderAll(db);
       renderAll(db);
       alert("¡Gracias por su evaluación!\nLos puntajes internos han sido guardados de forma exitosa.\n\nPuede cerrar esta pestaña o registrar una nueva evaluación desde cero.");
     });
@@ -1401,6 +1405,39 @@ Equipo PARACEL`;
   }
 
   // ---------------------------------------------------------------------------
+  // DataLists Poblator
+  // ---------------------------------------------------------------------------
+  function populateDatalists(db) {
+    const sSect = new Set();
+    const sOrg = new Set();
+    db.externalResponses.forEach(r => {
+      if (r.sector) sSect.add(r.sector.trim());
+      if (r.organizacion) sOrg.add(r.organizacion.trim());
+    });
+    const lsSect = document.getElementById("listSector");
+    lsSect.innerHTML = "";
+    sSect.forEach(v => lsSect.appendChild(new Option(v)));
+
+    const lsOrg = document.getElementById("listOrg");
+    lsOrg.innerHTML = "";
+    sOrg.forEach(v => lsOrg.appendChild(new Option(v)));
+
+    const sArea = new Set();
+    const sRol = new Set();
+    db.internalAssessments.forEach(r => {
+      if (r.area) sArea.add(r.area.trim());
+      if (r.rol) sRol.add(r.rol.trim());
+    });
+    const lsArea = document.getElementById("listArea");
+    lsArea.innerHTML = "";
+    sArea.forEach(v => lsArea.appendChild(new Option(v)));
+
+    const lsRol = document.getElementById("listRol");
+    lsRol.innerHTML = "";
+    sRol.forEach(v => lsRol.appendChild(new Option(v)));
+  }
+
+  // ---------------------------------------------------------------------------
   // Inicialización
   // ---------------------------------------------------------------------------
   async function init() {
@@ -1505,9 +1542,9 @@ Equipo PARACEL`;
     applyTopicSearch("topicSearchExt", "#extTopics", ".topic-card", ".topic-title");
 
     // tabla interna
-    buildInternalTable(document.querySelector("#tableInternal tbody"));
+    buildInternalCards(document.getElementById("internalCardsContainer"));
     updateInternalProgress();
-    applyTopicSearch("topicSearchInt", "#tableInternal tbody", "tr", "td:first-child");
+    applyTopicSearch("topicSearchInt", "#internalCardsContainer", ".topic-block", ".topic-title-block");
 
     // Pre-carga de datos históricos si la base estad vacía
     if (!loadDB()) {
@@ -1521,6 +1558,7 @@ Equipo PARACEL`;
 
     // DB
     const db = ensureDB();
+    populateDatalists(db);
 
     // asignar escenario al cargar
     const sc = db.lastScenarioId || "base_moderado";
