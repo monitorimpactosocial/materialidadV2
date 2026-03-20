@@ -1,0 +1,53 @@
+[
+  {
+    "id": "base_moderado",
+    "nombre": "Base (moderado)",
+    "tau_impact": 3.5,
+    "tau_fin": 3.5,
+    "rule_double": "AND",
+    "weights_impact": {
+      "severidad": 0.3,
+      "alcance": 0.25,
+      "irremediabilidad": 0.25,
+      "probabilidad": 0.2
+    },
+    "weights_fin": {
+      "impacto_financiero": 0.6,
+      "probabilidad_financiera": 0.4
+    }
+  },
+  {
+    "id": "estricto",
+    "nombre": "Estricto (priorización alta)",
+    "tau_impact": 4.0,
+    "tau_fin": 4.0,
+    "rule_double": "AND",
+    "weights_impact": {
+      "severidad": 0.35,
+      "alcance": 0.25,
+      "irremediabilidad": 0.25,
+      "probabilidad": 0.15
+    },
+    "weights_fin": {
+      "impacto_financiero": 0.65,
+      "probabilidad_financiera": 0.35
+    }
+  },
+  {
+    "id": "expansivo",
+    "nombre": "Expansivo (más temas en lista)",
+    "tau_impact": 3.0,
+    "tau_fin": 3.0,
+    "rule_double": "OR",
+    "weights_impact": {
+      "severidad": 0.25,
+      "alcance": 0.25,
+      "irremediabilidad": 0.25,
+      "probabilidad": 0.25
+    },
+    "weights_fin": {
+      "impacto_financiero": 0.5,
+      "probabilidad_financiera": 0.5
+    }
+  }
+]
