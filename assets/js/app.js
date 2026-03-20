@@ -781,8 +781,8 @@
       updateExternalProgress();
 
       renderAll(db);
-      alert("Respuesta externa guardada.");
-      setActiveView("home");
+      renderAll(db);
+      alert("¡Gracias por su participación!\nSu respuesta ha sido enviada de forma exitosa.\n\nPuede cerrar esta pestaña o volver a llenar el formulario si necesita registrar otra respuesta.");
     });
   }
 
@@ -859,8 +859,8 @@
       updateInternalProgress();
 
       renderAll(db);
-      alert("Evaluación interna guardada.");
-      setActiveView("home");
+      renderAll(db);
+      alert("¡Gracias por su evaluación!\nLos puntajes internos han sido guardados de forma exitosa.\n\nPuede cerrar esta pestaña o registrar una nueva evaluación desde cero.");
     });
   }
 
@@ -1218,7 +1218,27 @@
       }
       const bcc = emailsText.split(/[\n,;]+/).map(v => v.trim()).filter(v => v).join(",");
       const subject = encodeURIComponent(type === "externa" ? "Encuesta Externa de Materialidad - Paracel" : "Evaluación Interna de Materialidad - Paracel");
-      const body = encodeURIComponent(`Hola,\n\nTe invitamos a participar en el ejercicio de materialidad de Paracel.\n\nPor favor ingresa aquí:\n[Reemplazar con el enlace a la encuesta]\n\nSaludos cordiales,\nEquipo Paracel.`);
+      const credUser = type === "externa" ? "encuesta" : "comite";
+      const bodyData = `Estimado/a,
+
+Le extendemos una cordial invitación para participar en el ejercicio de Análisis de Doble Materialidad de PARACEL. Su perspectiva es fundamental para nuestra organización, ya que nos permitirá identificar y priorizar los temas ambientales, sociales y de gobernanza (ASG) más relevantes para nuestra gestión y relación con ustedes.
+
+Para completar el cuestionario, por favor ingrese al siguiente enlace:
+🔗 https://monitorimpactosocial.github.io/materialidad
+
+🔒 Datos de Acceso:
+Usuario: ${credUser}
+Contraseña: paracel
+
+💡 Nota técnica: El cuestionario se puede rellenar y guardar en su equipo incluso si experimenta intermitencia de internet (modo offline). La respuesta quedará registrada.
+
+Le rogamos amablemente que nos haga llegar sus apreciaciones dentro de los próximos 7 días naturales, a fin de poder procesar la información a tiempo.
+
+Agradecemos de antemano su valiosa colaboración.
+
+Saludos cordiales,
+Equipo PARACEL`;
+      const body = encodeURIComponent(bodyData);
       window.location.href = `mailto:?bcc=${bcc}&subject=${subject}&body=${body}`;
     });
 
