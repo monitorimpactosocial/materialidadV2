@@ -41,6 +41,78 @@
     groupFilter: "TODOS",
   };
 
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwEWtVjE1ljD3N6Ndv02mS2rfJFTrcblKA40x5Qt_ZtTQJJNvsimkFgQabPeFzyWqf8jw/exec";
+
+  // ---------------------------------------------------------------------------
+  // Sincronización Cloud (Google Sheets)
+  // ---------------------------------------------------------------------------
+  let isSyncing = false;
+
+  function showSyncPill(msg) {
+    let p = document.getElementById("sync-pill");
+    if (!p) {
+      p = document.createElement("div");
+      p.id = "sync-pill";
+      p.style.position = "fixed";
+      p.style.bottom = "20px";
+      p.style.right = "20px";
+      p.style.background = "var(--primary)";
+      p.style.color = "white";
+      p.style.padding = "8px 16px";
+      p.style.borderRadius = "20px";
+      p.style.fontSize = "13px";
+      p.style.fontWeight = "bold";
+      p.style.zIndex = "9999";
+      p.style.boxShadow = "0 4px 6px -1px rgba(0,0,0,0.1)";
+      p.style.transition = "opacity 0.3s";
+      document.body.appendChild(p);
+    }
+    p.textContent = msg;
+    p.style.opacity = "1";
+  }
+
+  function hideSyncPill() {
+    const p = document.getElementById("sync-pill");
+    if (p) p.style.opacity = "0";
+  }
+
+  async function fetchCloudDB() {
+    showSyncPill("Conectando con la nube...");
+    try {
+      const r = await fetch(GAS_URL + "?t=" + Date.now());
+      if (!r.ok) throw new Error("Network response was not ok");
+      const data = await r.json();
+      hideSyncPill();
+      return data;
+    } catch (err) {
+      console.warn("Fallo al leer la nube:", err);
+      showSyncPill("Modo Offline");
+      setTimeout(() => hideSyncPill(), 3000);
+      return null;
+    }
+  }
+
+  async function syncToCloud(db) {
+    if (isSyncing) return;
+    isSyncing = true;
+    showSyncPill("Guardando en la nube...");
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({ db: db }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+      });
+      if (!res.ok) throw new Error("Fallo al guardar");
+      showSyncPill("Nube actualizada ✔");
+    } catch (err) {
+      console.error(err);
+      showSyncPill("Guardado local (Nube inactiva)");
+    } finally {
+      setTimeout(() => hideSyncPill(), 3000);
+      isSyncing = false;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Utilidades
   // ---------------------------------------------------------------------------
@@ -147,7 +219,9 @@
   }
 
   function saveDB(db) {
+    db.updatedAt = new Date().toISOString();
     localStorage.setItem(APP_KEY, JSON.stringify(db));
+    syncToCloud(db);
   }
 
   function ensureDB() {
@@ -1801,11 +1875,32 @@ Equipo PARACEL`;
     updateInternalProgress();
     applyTopicSearch("topicSearchInt", "#internalCardsContainer", ".topic-block", ".topic-title-block");
 
-    // Pre-carga de datos históricos si la base estad vacía
+    // ----------------------------------------------------
+    // LECTURA DE LA NUBE (Google Sheets) EN EL ARRANQUE
+    // ----------------------------------------------------
+    try {
+      const cloudDB = await fetchCloudDB();
+      // Si la nube nos devuelve una base de datos válida, la adoptamos,
+      // sobreescribiendo lo local para garantizar sincronía global.
+      if (cloudDB && cloudDB.version) {
+        localStorage.setItem(APP_KEY, JSON.stringify(cloudDB));
+      } else if (cloudDB && !cloudDB.version) {
+        // La nube acaba de crearse y está vacía. Si tenemos algo local, lo sembramos.
+        const local = loadDB();
+        if (local && local.version) syncToCloud(local);
+      }
+    } catch(err) {
+      console.warn("Fallo en sincronía inicial con la nube.", err);
+    }
+
+    // Pre-carga offline de datos históricos SOLO si la base sigue vacía
     if (!loadDB()) {
       try {
         const initialDB = await loadJSON("data/initial_db.json");
-        if (initialDB) saveDB(initialDB);
+        if (initialDB) {
+           initialDB.updatedAt = new Date().toISOString();
+           localStorage.setItem(APP_KEY, JSON.stringify(initialDB));
+        }
       } catch (e) {
         console.warn("No se encontró initial_db.json");
       }
