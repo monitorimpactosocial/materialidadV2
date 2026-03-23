@@ -123,18 +123,6 @@ async function postCloudPayload(payload) {
     headers: { "Content-Type": "text/plain;charset=utf-8" }
   }, 15000);
   if (!res.ok) throw new Error(`Fallo al guardar (${res.status})`);
-  
-  // NATIVELY CATCH GAS SILENT ERRORS
-  const text = await res.text();
-  try {
-    const json = JSON.parse(text);
-    if (json.status === "error") {
-      alert("ERROR DE SECUENCIA GOOGLE: " + json.message);
-      throw new Error(json.message);
-    }
-  } catch(e) {
-    // Si no es json o falló el parse
-  }
   return res;
 }
 
@@ -180,6 +168,11 @@ async function flushSyncQueue() {
 
 async function syncToCloudRecord(type, data) {
   const payload = { type, data };
+  const payloadBytes = estimatePayloadBytes(payload);
+  if (payloadBytes && payloadBytes > 200000) {
+    console.warn(`Payload ${type} demasiado grande: ${payloadBytes} bytes.`);
+  }
+
   if (isSyncing) {
     enqueueSync(payload);
     return;
@@ -191,8 +184,7 @@ async function syncToCloudRecord(type, data) {
     await postCloudPayload(payload);
     showSyncPill("Nube actualizada ✔");
   } catch (err) {
-    alert("FALLA DE RED O NAVEGADOR AL ENVIAR: " + (err.message || String(err)));
-    console.error(err);
+    console.error(`Fallo al sincronizar ${type}. Bytes aproximados: ${payloadBytes || 'NA'}`, err);
     enqueueSync(payload);
     showSyncPill("Guardado local, nube pendiente");
   } finally {
@@ -336,6 +328,14 @@ function sanitizeRating(value) {
   if (!isFinite(n)) return null;
   if (n < 1 || n > 5) return null;
   return n;
+}
+
+function estimatePayloadBytes(value) {
+  try {
+    return new Blob([JSON.stringify(value)]).size;
+  } catch {
+    return null;
+  }
 }
 
 function persistLocalDB(db) {
@@ -1262,7 +1262,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       });
 
       db.externalResponses.push(row);
-      saveDB(db, { skipConfigSync: true });
+      saveDB(db);
       populateDatalists(db);
 
       const btn = form.querySelector('button[type="submit"]');
@@ -1336,93 +1336,97 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       updateInternalProgress();
     });
 
-    let isSubmittingExternal = false;
+    let isSubmittingInternal = false;
 
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
-      if (isSubmittingExternal) return;
-      const db = ensureDB();
-      if (!isEditionOpen(db)) {
-        alert("La edición activa está cerrada. Abra o cree una nueva edición antes de registrar respuestas.");
-        return;
-      }
+      if (isSubmittingInternal) return;
 
-      const area = sanitizeText(intArea.value, 300);
-      const rol = sanitizeText(intRol.value, 300);
-      const comentarios = sanitizeText(intComentarios.value, 4000);
+      const btn = form.querySelector('button[type="submit"]');
+      try {
+        const db = ensureDB();
+        if (!isEditionOpen(db)) {
+          alert("La edición activa está cerrada. Abra o cree una nueva edición antes de registrar respuestas.");
+          return;
+        }
 
-      if (!area) {
-        alert("Debe completar el área evaluadora.");
-        return;
-      }
+        const area = sanitizeText(intArea.value, 300);
+        const rol = sanitizeText(intRol.value, 300);
+        const comentarios = sanitizeText(intComentarios.value, 4000);
 
-      const table = {};
-      let complete = 0;
+        if (!area) {
+          alert("Debe completar el área evaluadora.");
+          return;
+        }
 
-      for (const t of DATA.topics) {
-        const row = {};
-        const keys = ["impacto", "financiero"];
-        let answeredKeys = 0;
+        const table = {};
+        let complete = 0;
 
-        for (const k of keys) {
-          const checked = document.querySelector(`input[name="int_${t.tema_id}_${k}"]:checked`);
-          if (checked) {
-            row[k] = checked.value;
-            answeredKeys++;
-          } else {
-            row[k] = null;
+        for (const t of DATA.topics) {
+          const row = {};
+          const keys = ["impacto", "financiero"];
+          let answeredKeys = 0;
+
+          for (const k of keys) {
+            const checked = document.querySelector(`input[name="int_${t.tema_id}_${k}"]:checked`);
+            if (checked) {
+              row[k] = checked.value;
+              answeredKeys++;
+            } else {
+              row[k] = null;
+            }
+          }
+
+          if (answeredKeys === keys.length) {
+            complete += 1;
+          }
+
+          if (answeredKeys > 0) {
+            table[t.tema_id] = {
+              impacto: row.impacto ? Number(row.impacto) : null,
+              financiero: row.financiero ? Number(row.financiero) : null
+            };
           }
         }
 
-        if (answeredKeys === keys.length) {
-          complete += 1;
+        if (complete < DATA.topics.length) {
+          alert(`Faltan respuestas. Debe calificar TODOS los cuadrantes de los 27 temas antes de enviar.\nTemas 100% completados actualmente: ${complete}`);
+          return;
         }
 
-        // Aunque esté incompleto se arma el objeto, luego se intercepta la suma
-        if (answeredKeys > 0) {
-          table[t.tema_id] = {
-            impacto: row.impacto ? Number(row.impacto) : null,
-            financiero: row.financiero ? Number(row.financiero) : null
-          };
-        }
-      }
+        const row = normalizeInternalRow({
+          id: uuidv4(),
+          ts: nowISO(),
+          editionId: db.currentEditionId,
+          area,
+          rol,
+          comentarios,
+          table,
+        }, db.params);
 
-      if (complete < DATA.topics.length) {
-        alert(`Faltan respuestas. Debe calificar TODOS los cuadrantes de los 27 temas antes de enviar.\nTemas 100% completados actualmente: ${complete}`);
-        return;
-      }
+        isSubmittingInternal = true;
+        if (btn) btn.disabled = true;
 
-      const row = normalizeInternalRow({
-        id: uuidv4(),
-        ts: nowISO(),
-        editionId: db.currentEditionId,
-        area,
-        rol,
-        comentarios,
-        table,
-      }, db.params);
+        db.internalAssessments.push(row);
+        saveDB(db);
+        populateDatalists(db);
 
-      db.internalAssessments.push(row);
-      saveDB(db, { skipConfigSync: true });
-      populateDatalists(db);
-
-      const btn = form.querySelector('button[type="submit"]');
-      isSubmittingInternal = true;
-      if (btn) btn.disabled = true;
-      try {
         await syncToCloudRecord("interna", row);
+
+        form.reset();
+        document.querySelectorAll('#internalCardsContainer input[type="radio"]').forEach((r) => (r.checked = false));
+        localStorage.removeItem("paracel_internal_draft");
+        updateInternalProgress();
+
+        renderAll(db);
+        alert("¡Gracias por su evaluación!\nLos puntajes internos han sido guardados de forma exitosa.\n\nPuede cerrar esta pestaña o registrar una nueva evaluación desde cero.");
+      } catch (err) {
+        console.error("Fallo en el envío interno:", err);
+        alert("La evaluación interna se guardó localmente, pero ocurrió un error durante el envío o la confirmación. Revise la consola del navegador y vuelva a sincronizar.");
       } finally {
         if (btn) btn.disabled = false;
         isSubmittingInternal = false;
       }
-
-      form.reset();
-      document.querySelectorAll('#internalCardsContainer input[type="radio"]').forEach((r) => (r.checked = false));
-      localStorage.removeItem("paracel_internal_draft");
-      updateInternalProgress();
-
-      renderAll(db);
-      alert("¡Gracias por su evaluación!\nLos puntajes internos han sido guardados de forma exitosa.\n\nPuede cerrar esta pestaña o registrar una nueva evaluación desde cero.");
     });
   }
 

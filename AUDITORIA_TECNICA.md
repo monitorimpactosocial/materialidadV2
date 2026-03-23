@@ -73,3 +73,10 @@ El proyecto original presentaba una base funcional visualmente correcta, pero co
 - Incorporar bitácora de cambios y usuarios.
 - Separar configuración, catálogo, captura y analítica en módulos.
 - Añadir pruebas automatizadas para validación de esquemas y reglas de negocio.
+
+
+## Ajuste adicional 2026-03-23
+
+- Se corrigió un error de variable en el envío del formulario interno (`isSubmittingInternal`), que podía interrumpir el proceso antes de la confirmación al usuario y antes de la sincronización remota.
+- Se añadió manejo explícito de errores en el submit interno para evitar fallas silenciosas.
+- Se añadieron diagnósticos básicos del tamaño del payload enviado a la nube.
