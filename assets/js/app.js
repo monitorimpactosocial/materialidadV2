@@ -41,7 +41,7 @@
     groupFilter: "TODOS",
   };
 
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbwEWtVjE1ljD3N6Ndv02mS2rfJFTrcblKA40x5Qt_ZtTQJJNvsimkFgQabPeFzyWqf8jw/exec";
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwARPyhi-w-BWDrI8ztzcWLbspg9znx15OBihWF6D67wbd875kbPbXDVpNcQa1V6WeY7Q/exec";
 
   // ---------------------------------------------------------------------------
   // Sincronización Cloud (Google Sheets)
