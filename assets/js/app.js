@@ -253,14 +253,9 @@
         tema_id: tid,
         n: 0,
         dims: {
-          severidad: { n: 0, sum: 0, mean: null },
-          alcance: { n: 0, sum: 0, mean: null },
-          irremediabilidad: { n: 0, sum: 0, mean: null },
-          probabilidad: { n: 0, sum: 0, mean: null },
-          impacto_financiero: { n: 0, sum: 0, mean: null },
-          probabilidad_financiera: { n: 0, sum: 0, mean: null },
-        },
-        horizon_mode: null,
+          impacto: { n: 0, sum: 0, mean: null },
+          financiero: { n: 0, sum: 0, mean: null }
+        }
       };
     }
 
@@ -271,29 +266,35 @@
         const row = table[tid];
         if (!row) continue;
 
+        let imp = row.impacto;
+        let fin = row.financiero;
         let any = false;
-        for (const k of ["severidad", "alcance", "irremediabilidad", "probabilidad", "impacto_financiero", "probabilidad_financiera"]) {
-          const v = Number(row[k]);
-          if (!isFinite(v)) continue;
-          out[tid].dims[k].n += 1;
-          out[tid].dims[k].sum += v;
+        
+        // Fallback para datos antiguos si existen
+        if (imp === undefined && row.severidad !== undefined) {
+           const vs = [row.severidad, row.alcance, row.irremediabilidad, row.probabilidad].filter(isFinite);
+           imp = vs.length > 0 ? vs.reduce((a,b)=>a+b,0)/vs.length : null;
+        }
+        if (fin === undefined && row.impacto_financiero !== undefined) {
+           const vf = [row.impacto_financiero, row.probabilidad_financiera].filter(isFinite);
+           fin = vf.length > 0 ? vf.reduce((a,b)=>a+b,0)/vf.length : null;
+        }
+
+        if (isFinite(imp)) {
+          out[tid].dims.impacto.n += 1;
+          out[tid].dims.impacto.sum += Number(imp);
+          any = true;
+        }
+        if (isFinite(fin)) {
+          out[tid].dims.financiero.n += 1;
+          out[tid].dims.financiero.sum += Number(fin);
           any = true;
         }
         if (any) out[tid].n += 1;
       }
     }
 
-    // horizon: moda simple
     for (const tid of topics) {
-      const counts = { CORTO: 0, MEDIO: 0, LARGO: 0 };
-      for (const r of rows) {
-        const row = (r.table || {})[tid];
-        if (!row || !row.horizonte) continue;
-        if (counts[row.horizonte] !== undefined) counts[row.horizonte] += 1;
-      }
-      const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-      out[tid].horizon_mode = best && best[1] > 0 ? best[0] : null;
-
       for (const k of Object.keys(out[tid].dims)) {
         const d = out[tid].dims[k];
         d.mean = d.n > 0 ? d.sum / d.n : null;
@@ -305,16 +306,6 @@
   function computeScores(db) {
     const editionId = db.currentEditionId;
     const params = getParams(db);
-    const wI = normalizeWeights({
-      severidad: clamp01(params.wImpact.severidad),
-      alcance: clamp01(params.wImpact.alcance),
-      irremediabilidad: clamp01(params.wImpact.irremediabilidad),
-      probabilidad: clamp01(params.wImpact.probabilidad),
-    });
-    const wF = normalizeWeights({
-      impacto_financiero: clamp01(params.wFin.impacto_financiero),
-      probabilidad_financiera: clamp01(params.wFin.probabilidad_financiera),
-    });
 
     const stake = computeStakeholderByTheme(db, editionId);
     const internal = computeInternalByTheme(db, editionId);
@@ -326,23 +317,9 @@
       const stakeMean = params.stakeWeightByN ? stake[tid].mean_pool : stake[tid].mean_equal_groups;
 
       const di = internal[tid].dims;
-      const sev = di.severidad.mean;
-      const alc = di.alcance.mean;
-      const irr = di.irremediabilidad.mean;
-      const prb = di.probabilidad.mean;
 
-      const finI = di.impacto_financiero.mean;
-      const finP = di.probabilidad_financiera.mean;
-
-      const impactScore =
-        [sev, alc, irr, prb].every((v) => isFinite(v))
-          ? wI.severidad * sev + wI.alcance * alc + wI.irremediabilidad * irr + wI.probabilidad * prb
-          : null;
-
-      const finScore =
-        [finI, finP].every((v) => isFinite(v))
-          ? wF.impacto_financiero * finI + wF.probabilidad_financiera * finP
-          : null;
+      const impactScore = di.impacto.mean !== null ? di.impacto.mean : null;
+      const finScore = di.financiero.mean !== null ? di.financiero.mean : null;
 
       const isImpactMat = impactScore !== null ? impactScore >= params.tauImpact : false;
       const isFinMat = finScore !== null ? finScore >= params.tauFin : false;
@@ -453,46 +430,42 @@
     container.innerHTML = "";
     const scale5 = [{ v: "1" }, { v: "2" }, { v: "3" }, { v: "4" }, { v: "5" }];
 
-    for (const dim of DIMENSIONS) {
-      const dimTopics = DATA.topics.filter((t) => dim.range.includes(t.tema_id));
-      if (dimTopics.length === 0) continue;
+    if (DATA.topics.length === 0) return;
 
-      const card = document.createElement("div");
-      card.className = `dim-card ${dim.class}`;
-      
-      let html = `
-        <div class="dim-header">${dim.title}</div>
-        <div class="dim-bulk-row" style="background:rgba(0,0,0,0.02); padding:8px 16px; border-bottom:1px solid rgba(0,0,0,0.05); display:flex; gap:8px; align-items:center;">
-          <span style="font-size:12px; font-weight:700; color:var(--muted);">Rellenar bloque con:</span>
-          ${[1, 2, 3, 4, 5].map(v => `<button type="button" class="btn btn-small btn-ghost btn-mark-ext" data-val="${v}">Todos en ${v}</button>`).join("")}
-        </div>
-        <div class="table-matrix-wrap">
-          <table class="table-matrix">
-            <thead>
-              <tr>
-                <th>Tema a Evaluar</th>
-                <th style="width: 250px; text-align: center;">Nivel de Importancia</th>
-              </tr>
-            </thead>
-            <tbody>
-      `;
-      
-      for (const t of dimTopics) {
-        html += `<tr class="topic-block" data-tid="${t.tema_id}">
-          <td class="topic-title-block" style="vertical-align: middle;">${t.tema_id} · ${t.tema_nombre}</td>
-          <td style="text-align: center; vertical-align: middle; padding: 12px;">${mkPillsCompactExternal(t.tema_id, scale5)}</td>
-        </tr>`;
-      }
-      html += `</tbody></table></div>`;
-      card.innerHTML = html;
-      container.appendChild(card);
+    const card = document.createElement("div");
+    card.className = "dim-card";
+
+    let html = `
+      <div class="dim-bulk-row" style="background:rgba(0,0,0,0.02); padding:8px 16px; border-bottom:1px solid rgba(0,0,0,0.05); display:flex; gap:8px; align-items:center;">
+        <span style="font-size:12px; font-weight:700; color:var(--muted);">Rellenar bloque con:</span>
+        ${[1, 2, 3, 4, 5].map(v => `<button type="button" class="btn btn-small btn-ghost btn-mark-ext" data-val="${v}">Todos en ${v}</button>`).join("")}
+      </div>
+      <div class="table-matrix-wrap">
+        <table class="table-matrix">
+          <thead>
+            <tr>
+              <th>Tema a Evaluar</th>
+              <th style="width: 250px; text-align: center;">Puntaje</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    for (const t of DATA.topics) {
+      html += `<tr class="topic-block" data-tid="${t.tema_id}">
+        <td class="topic-title-block" style="vertical-align: middle;">${t.tema_id} · ${t.tema_nombre}</td>
+        <td style="text-align: center; vertical-align: middle; padding: 12px;">${mkPillsCompactExternal(t.tema_id, scale5)}</td>
+      </tr>`;
     }
+    html += `</tbody></table></div>`;
+    card.innerHTML = html;
+    container.appendChild(card);
 
     container.querySelectorAll('.btn-mark-ext').forEach((btn) => {
       btn.addEventListener('click', () => {
         const val = btn.dataset.val;
-        const card = btn.closest('.dim-card');
-        card.querySelectorAll(`input[type="radio"][value="${val}"]`).forEach((r) => r.checked = true);
+        const cardNode = btn.closest('.dim-card');
+        cardNode.querySelectorAll(`input[type="radio"][value="${val}"]`).forEach((r) => r.checked = true);
         updateExternalProgress();
       });
     });
@@ -546,13 +519,8 @@
             <thead>
               <tr>
                 <th>Tema a Evaluar</th>
-                <th>Severidad</th>
-                <th>Alcance</th>
-                <th>Irremediabilidad</th>
-                <th>Probabilidad</th>
-                <th>Impacto Fin.</th>
-                <th>Probabilidad Fin.</th>
-                <th>Horizonte</th>
+                <th>Puntaje para Impacto</th>
+                <th>Financiero</th>
               </tr>
             </thead>
             <tbody>
@@ -561,13 +529,8 @@
       for (const t of dimTopics) {
         html += `<tr class="topic-block" data-tid="${t.tema_id}">
           <td class="topic-title-block">${t.tema_id} · ${t.tema_nombre}</td>
-          <td>${mkPillsCompact(t.tema_id, "severidad", scale5)}</td>
-          <td>${mkPillsCompact(t.tema_id, "alcance", scale5)}</td>
-          <td>${mkPillsCompact(t.tema_id, "irremediabilidad", scale5)}</td>
-          <td>${mkPillsCompact(t.tema_id, "probabilidad", scale5)}</td>
-          <td>${mkPillsCompact(t.tema_id, "impacto_financiero", scale5)}</td>
-          <td>${mkPillsCompact(t.tema_id, "probabilidad_financiera", scale5)}</td>
-          <td>${mkPillsCompact(t.tema_id, "horizonte", horizVals)}</td>
+          <td>${mkPillsCompact(t.tema_id, "impacto", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "financiero", scale5)}</td>
         </tr>`;
       }
       html += `</tbody></table></div>`;
@@ -578,8 +541,8 @@
     container.querySelectorAll('.btn-mark-dim').forEach((btn) => {
       btn.addEventListener('click', () => {
         const val = btn.dataset.val;
-        const card = btn.closest('.dim-card');
-        card.querySelectorAll(`input[type="radio"][value="${val}"]`).forEach((r) => r.checked = true);
+        const cardNode = btn.closest('.dim-card');
+        cardNode.querySelectorAll(`input[type="radio"][value="${val}"]`).forEach((r) => r.checked = true);
         updateInternalProgress();
       });
     });
@@ -970,7 +933,7 @@
 
       for (const t of DATA.topics) {
         const row = {};
-        const keys = ["severidad", "alcance", "irremediabilidad", "probabilidad", "impacto_financiero", "probabilidad_financiera", "horizonte"];
+        const keys = ["impacto", "financiero"];
         let answeredKeys = 0;
 
         for (const k of keys) {
@@ -990,13 +953,8 @@
         // Aunque esté incompleto se arma el objeto, luego se intercepta la suma
         if (answeredKeys > 0) {
           table[t.tema_id] = {
-            severidad: row.severidad ? Number(row.severidad) : null,
-            alcance: row.alcance ? Number(row.alcance) : null,
-            irremediabilidad: row.irremediabilidad ? Number(row.irremediabilidad) : null,
-            probabilidad: row.probabilidad ? Number(row.probabilidad) : null,
-            impacto_financiero: row.impacto_financiero ? Number(row.impacto_financiero) : null,
-            probabilidad_financiera: row.probabilidad_financiera ? Number(row.probabilidad_financiera) : null,
-            horizonte: row.horizonte || null,
+            impacto: row.impacto ? Number(row.impacto) : null,
+            financiero: row.financiero ? Number(row.financiero) : null
           };
         }
       }
@@ -1713,8 +1671,14 @@ Equipo PARACEL`;
     lsOrg.innerHTML = "";
     sOrg.forEach(v => lsOrg.appendChild(new Option(v)));
 
-    const sArea = new Set();
-    const sRol = new Set();
+    const sArea = new Set([
+      "Finanzas", "Asuntos Jurídicos & Regulatorios", "Comunicación y Sustentabilidad Social", 
+      "Sustentabilidad Ambiental", "TI", "Talento Humano"
+    ]);
+    const sRol = new Set([
+      "Directores/as", "Gerentes", "Coordinadores/as", "Especialistas", 
+      "Supervisores/as", "Analistas / Técnicos/as", "Asistentes", "Operadores/as"
+    ]);
     db.internalAssessments.forEach(r => {
       if (r.area) sArea.add(r.area.trim());
       if (r.rol) sRol.add(r.rol.trim());
