@@ -206,21 +206,13 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Base local
+  // Base en Memoria (Stateless Cloud)
   // ---------------------------------------------------------------------------
-  function loadDB() {
-    const raw = localStorage.getItem(APP_KEY);
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  }
+  let ACTIVE_DB = null;
 
   function saveDB(db) {
     db.updatedAt = new Date().toISOString();
-    localStorage.setItem(APP_KEY, JSON.stringify(db));
+    ACTIVE_DB = db;
     // Sincronizar configuraciones generales (nunca interfiere con las filas P0x)
     syncToCloudRecord("config", {
       params: db.params,
@@ -230,7 +222,7 @@
   }
 
   function ensureDB() {
-    let db = loadDB();
+    let db = ACTIVE_DB;
     if (!db) {
       db = {
         version: 1,
@@ -1897,30 +1889,18 @@ Equipo PARACEL`;
     applyTopicSearch("topicSearchInt", "#internalCardsContainer", ".topic-block", ".topic-title-block");
 
     // ----------------------------------------------------
-    // LECTURA DE LA NUBE (Google Sheets) EN EL ARRANQUE
+    // LECTURA NATIVA DESDE GOOGLE SHEETS
     // ----------------------------------------------------
     try {
       const cloudDB = await fetchCloudDB();
-      // Si la nube nos devuelve una base de datos válida, la adoptamos,
-      // sobreescribiendo lo local para garantizar sincronía global directa.
       if (cloudDB && cloudDB.version === 2) {
-        localStorage.setItem(APP_KEY, JSON.stringify(cloudDB));
+        ACTIVE_DB = cloudDB;
+      } else {
+        console.warn("La nube respondió, pero no con version 2. Ignorando.");
       }
     } catch(err) {
-      console.warn("Fallo en sincronía inicial con la nube.", err);
-    }
-
-    // Si todo falla (nube offline y no tenemos datos locales)... cargamos el mock vacío por si acaso
-    if (!loadDB()) {
-      try {
-        const initialDB = await loadJSON("data/initial_db.json");
-        if (initialDB) {
-           initialDB.updatedAt = new Date().toISOString();
-           localStorage.setItem(APP_KEY, JSON.stringify(initialDB));
-        }
-      } catch (e) {
-        console.warn("No se encontró initial_db.json fallback.");
-      }
+      console.error("Fallo crítico: No se pudo leer Google Sheets.", err);
+      alert("Atención: No se pudieron cargar los datos de la nube. Revise los permisos del enlace.");
     }
 
     // DB
