@@ -8,7 +8,10 @@
 (function () {
   "use strict";
 
-  const APP_KEY = "materialidad_instrument_app_v1";
+  const APP_KEY = "materialidad_instrument_app_v2";
+  const LEGACY_APP_KEY = "materialidad_instrument_app_v1";
+  const SYNC_QUEUE_KEY = "materialidad_instrument_sync_queue_v1";
+  const CURRENT_SCHEMA_VERSION = 2;
   const DATA = {
     topics: [],
     scale: [],
@@ -43,78 +46,163 @@
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbx4I7BLRHUkwPKhzR-mHdveboNEUNn0XeYNP8hX99GF_FoCFwOla94cM2HW73A_cZ_hRA/exec";
 
-  // ---------------------------------------------------------------------------
-  // Sincronización Cloud (Google Sheets)
-  // ---------------------------------------------------------------------------
-  let isSyncing = false;
 
-  function showSyncPill(msg) {
-    let p = document.getElementById("sync-pill");
-    if (!p) {
-      p = document.createElement("div");
-      p.id = "sync-pill";
-      p.style.position = "fixed";
-      p.style.bottom = "20px";
-      p.style.right = "20px";
-      p.style.background = "var(--primary)";
-      p.style.color = "white";
-      p.style.padding = "8px 16px";
-      p.style.borderRadius = "20px";
-      p.style.fontSize = "13px";
-      p.style.fontWeight = "bold";
-      p.style.zIndex = "9999";
-      p.style.boxShadow = "0 4px 6px -1px rgba(0,0,0,0.1)";
-      p.style.transition = "opacity 0.3s";
-      document.body.appendChild(p);
-    }
-    p.textContent = msg;
-    p.style.opacity = "1";
+// ---------------------------------------------------------------------------
+// Sincronización Cloud (Google Sheets)
+// ---------------------------------------------------------------------------
+let isSyncing = false;
+let configSyncTimer = null;
+
+function showSyncPill(msg) {
+  let p = document.getElementById("sync-pill");
+  if (!p) {
+    p = document.createElement("div");
+    p.id = "sync-pill";
+    p.style.position = "fixed";
+    p.style.bottom = "20px";
+    p.style.right = "20px";
+    p.style.background = "var(--primary)";
+    p.style.color = "white";
+    p.style.padding = "8px 16px";
+    p.style.borderRadius = "20px";
+    p.style.fontSize = "13px";
+    p.style.fontWeight = "bold";
+    p.style.zIndex = "9999";
+    p.style.boxShadow = "0 4px 6px -1px rgba(0,0,0,0.1)";
+    p.style.transition = "opacity 0.3s";
+    document.body.appendChild(p);
   }
+  p.textContent = msg;
+  p.style.opacity = "1";
+}
 
-  function hideSyncPill() {
-    const p = document.getElementById("sync-pill");
-    if (p) p.style.opacity = "0";
+function hideSyncPill() {
+  const p = document.getElementById("sync-pill");
+  if (p) p.style.opacity = "0";
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
   }
+}
 
-  async function fetchCloudDB() {
-    showSyncPill("Conectando con la nube...");
+function loadSyncQueue() {
+  try {
+    const raw = localStorage.getItem(SYNC_QUEUE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.warn("No se pudo leer la cola de sincronización.", err);
+    return [];
+  }
+}
+
+function saveSyncQueue(queue) {
+  try {
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue || []));
+  } catch (err) {
+    console.warn("No se pudo guardar la cola de sincronización.", err);
+  }
+}
+
+function enqueueSync(payload) {
+  const queue = loadSyncQueue();
+  queue.push({ ...payload, queuedAt: nowISO() });
+  saveSyncQueue(queue);
+}
+
+async function postCloudPayload(payload) {
+  const res = await fetchWithTimeout(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: { "Content-Type": "text/plain;charset=utf-8" }
+  }, 15000);
+  if (!res.ok) throw new Error(`Fallo al guardar (${res.status})`);
+  return res;
+}
+
+async function fetchCloudDB() {
+  showSyncPill("Conectando con la nube...");
+  try {
+    const r = await fetchWithTimeout(GAS_URL + "?t=" + Date.now(), {}, 12000);
+    if (!r.ok) throw new Error("Network response was not ok");
+    const data = await r.json();
+    hideSyncPill();
+    return data;
+  } catch (err) {
+    console.warn("Fallo al leer la nube:", err);
+    showSyncPill("Modo offline");
+    setTimeout(() => hideSyncPill(), 3000);
+    return null;
+  }
+}
+
+async function flushSyncQueue() {
+  const queue = loadSyncQueue();
+  if (!queue.length || isSyncing) return;
+
+  isSyncing = true;
+  showSyncPill(`Sincronizando pendientes (${queue.length})...`);
+  const pending = [];
+
+  for (const payload of queue) {
     try {
-      const r = await fetch(GAS_URL + "?t=" + Date.now());
-      if (!r.ok) throw new Error("Network response was not ok");
-      const data = await r.json();
-      hideSyncPill();
-      return data;
+      await postCloudPayload(payload);
     } catch (err) {
-      console.warn("Fallo al leer la nube:", err);
-      showSyncPill("Modo Offline");
-      setTimeout(() => hideSyncPill(), 3000);
-      return null;
+      pending.push(payload);
     }
   }
 
-  async function syncToCloudRecord(type, data) {
-    if (isSyncing) return;
-    isSyncing = true;
-    showSyncPill("Guardando en la nube...");
-    try {
-      const res = await fetch(GAS_URL, {
-        method: "POST",
-        body: JSON.stringify({ type: type, data: data }),
-        headers: { "Content-Type": "text/plain;charset=utf-8" }
-      });
-      if (!res.ok) throw new Error("Fallo al guardar");
-      showSyncPill("Nube actualizada ✔");
-    } catch (err) {
-      console.error(err);
-      showSyncPill("Guardado local (Nube inaccesible)");
-    } finally {
-      setTimeout(() => hideSyncPill(), 3000);
-      isSyncing = false;
-    }
+  saveSyncQueue(pending);
+  if (pending.length === 0) showSyncPill("Sincronización completa ✔");
+  else showSyncPill(`Pendientes por sincronizar: ${pending.length}`);
+
+  setTimeout(() => hideSyncPill(), 3500);
+  isSyncing = false;
+}
+
+async function syncToCloudRecord(type, data) {
+  const payload = { type, data };
+  if (isSyncing) {
+    enqueueSync(payload);
+    return;
   }
 
-  // ---------------------------------------------------------------------------
-  // Utilidades
+  isSyncing = true;
+  showSyncPill("Guardando en la nube...");
+  try {
+    await postCloudPayload(payload);
+    showSyncPill("Nube actualizada ✔");
+  } catch (err) {
+    console.error(err);
+    enqueueSync(payload);
+    showSyncPill("Guardado local, nube pendiente");
+  } finally {
+    setTimeout(() => hideSyncPill(), 3000);
+    isSyncing = false;
+  }
+}
+
+function scheduleConfigSync(db) {
+  clearTimeout(configSyncTimer);
+  configSyncTimer = setTimeout(() => {
+    syncToCloudRecord("config", {
+      params: db.params,
+      editions: db.editions,
+      currentEditionId: db.currentEditionId,
+      updatedAt: db.updatedAt,
+      version: db.version
+    });
+  }, 500);
+}
+
+// ---------------------------------------------------------------------------
+// Utilidades
   // ---------------------------------------------------------------------------
   function uuidv4() {
     // RFC4122 v4 (simplificado)
@@ -205,59 +293,282 @@
     return await res.json();
   }
 
-  // ---------------------------------------------------------------------------
-  // Base en Memoria (Stateless Cloud)
-  // ---------------------------------------------------------------------------
-  let ACTIVE_DB = null;
 
-  function saveDB(db) {
-    db.updatedAt = new Date().toISOString();
-    ACTIVE_DB = db;
-    // Sincronizar configuraciones generales (nunca interfiere con las filas P0x)
-    syncToCloudRecord("config", {
-      params: db.params,
-      editions: db.editions,
-      currentEditionId: db.currentEditionId
+async function loadOptionalJSON(path) {
+  try {
+    return await loadJSON(path);
+  } catch {
+    return null;
+  }
+}
+
+function safeParseJSON(text, fallback = null) {
+  try {
+    return text ? JSON.parse(text) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function cloneDeep(obj) {
+  return obj === undefined ? undefined : JSON.parse(JSON.stringify(obj));
+}
+
+function sanitizeText(value, maxLen = 4000) {
+  return String(value || "").trim().slice(0, maxLen);
+}
+
+function sanitizeRating(value) {
+  const n = Number(value);
+  if (!isFinite(n)) return null;
+  if (n < 1 || n > 5) return null;
+  return n;
+}
+
+function persistLocalDB(db) {
+  try {
+    localStorage.setItem(APP_KEY, JSON.stringify(db));
+    localStorage.removeItem(LEGACY_APP_KEY);
+  } catch (err) {
+    console.warn("No se pudo persistir la base local.", err);
+    showSyncPill("Aviso, navegador sin espacio para guardar");
+    setTimeout(() => hideSyncPill(), 3500);
+  }
+}
+
+function normalizeEditionRow(row) {
+  return {
+    id: sanitizeText(row && row.id ? row.id : uuidv4(), 120),
+    name: sanitizeText(row && row.name ? row.name : `Edición ${new Date().getFullYear()}`, 120),
+    startDate: row && row.startDate ? row.startDate : nowISO(),
+    endDate: row && row.endDate ? row.endDate : null,
+    status: row && row.status === "closed" ? "closed" : "open",
+    nextDueDate: row && row.nextDueDate ? row.nextDueDate : addYears(row && row.startDate ? row.startDate : nowISO(), 2),
+  };
+}
+
+function weightedMeanFromRow(row, weights, keys) {
+  let num = 0;
+  let den = 0;
+  for (const key of keys) {
+    const w = Number(weights[key] || 0);
+    const v = sanitizeRating(row[key]);
+    if (w > 0 && v !== null) {
+      num += w * v;
+      den += w;
+    }
+  }
+  return den > 0 ? num / den : null;
+}
+
+function normalizeInternalTable(table, params) {
+  const out = {};
+  const topicIds = DATA.topics.length ? new Set(DATA.topics.map((t) => t.tema_id)) : null;
+  const wImpact = normalizeWeights((params && params.wImpact) || DEFAULT_PARAMS.wImpact);
+  const wFin = normalizeWeights((params && params.wFin) || DEFAULT_PARAMS.wFin);
+  const validImpactKeys = ["severidad", "alcance", "irremediabilidad", "probabilidad"];
+  const validFinKeys = ["impacto_financiero", "probabilidad_financiera"];
+
+  Object.entries(table || {}).forEach(([tid, row]) => {
+    if (topicIds && !topicIds.has(tid)) return;
+    const safe = {
+      impacto: sanitizeRating(row && row.impacto),
+      financiero: sanitizeRating(row && row.financiero),
+    };
+    for (const key of validImpactKeys.concat(validFinKeys)) {
+      const v = sanitizeRating(row && row[key]);
+      if (v !== null) safe[key] = v;
+    }
+    if (row && row.horizonte) safe.horizonte = sanitizeText(row.horizonte, 20);
+    if (safe.impacto === null) safe.impacto = weightedMeanFromRow(safe, wImpact, validImpactKeys);
+    if (safe.financiero === null) safe.financiero = weightedMeanFromRow(safe, wFin, validFinKeys);
+    if (safe.impacto !== null || safe.financiero !== null || validImpactKeys.some((k) => safe[k] !== undefined) || validFinKeys.some((k) => safe[k] !== undefined)) {
+      out[tid] = safe;
+    }
+  });
+  return out;
+}
+
+function normalizeExternalRow(row) {
+  const topicIds = DATA.topics.length ? new Set(DATA.topics.map((t) => t.tema_id)) : null;
+  const ratings = {};
+  Object.entries((row && row.ratings) || {}).forEach(([k, v]) => {
+    if (topicIds && !topicIds.has(k)) return;
+    const sv = sanitizeRating(v);
+    if (sv !== null) ratings[k] = sv;
+  });
+  return {
+    id: sanitizeText(row && row.id ? row.id : uuidv4(), 120),
+    ts: row && row.ts ? row.ts : nowISO(),
+    editionId: sanitizeText(row && row.editionId ? row.editionId : "", 120),
+    grupo: sanitizeText(row && row.grupo, 200),
+    sector: sanitizeText(row && row.sector, 300),
+    organizacion: sanitizeText(row && row.organizacion, 300),
+    contacto: sanitizeText(row && row.contacto, 300),
+    percepcion: sanitizeText(row && row.percepcion, 200),
+    comentarios: sanitizeText(row && row.comentarios, 4000),
+    ratings,
+  };
+}
+
+function normalizeInternalRow(row, params) {
+  return {
+    id: sanitizeText(row && row.id ? row.id : uuidv4(), 120),
+    ts: row && row.ts ? row.ts : nowISO(),
+    editionId: sanitizeText(row && row.editionId ? row.editionId : "", 120),
+    area: sanitizeText(row && row.area, 300),
+    rol: sanitizeText(row && row.rol, 300),
+    comentarios: sanitizeText(row && row.comentarios, 4000),
+    table: normalizeInternalTable((row && row.table) || {}, params),
+  };
+}
+
+function dedupeRows(rows, stampKey = "ts") {
+  const map = new Map();
+  (rows || []).forEach((row) => {
+    if (!row || !row.id) return;
+    const prev = map.get(row.id);
+    if (!prev) {
+      map.set(row.id, row);
+      return;
+    }
+    const prevStamp = String(prev[stampKey] || "");
+    const currStamp = String(row[stampKey] || "");
+    if (currStamp >= prevStamp) map.set(row.id, row);
+  });
+  return Array.from(map.values()).sort((a, b) => String(a[stampKey] || "").localeCompare(String(b[stampKey] || "")));
+}
+
+function migrateDB(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const params = {
+    ...cloneDeep(DEFAULT_PARAMS),
+    ...(raw.params || {})
+  };
+  params.wImpact = normalizeWeights({ ...(DEFAULT_PARAMS.wImpact || {}), ...((raw.params && raw.params.wImpact) || {}) });
+  params.wFin = normalizeWeights({ ...(DEFAULT_PARAMS.wFin || {}), ...((raw.params && raw.params.wFin) || {}) });
+  params.tauImpact = Number(raw.params && raw.params.tauImpact !== undefined ? raw.params.tauImpact : DEFAULT_PARAMS.tauImpact);
+  params.tauFin = Number(raw.params && raw.params.tauFin !== undefined ? raw.params.tauFin : DEFAULT_PARAMS.tauFin);
+  params.ruleDouble = (raw.params && raw.params.ruleDouble === "OR") ? "OR" : "AND";
+  params.groupFilter = sanitizeText(raw.params && raw.params.groupFilter ? raw.params.groupFilter : DEFAULT_PARAMS.groupFilter, 120) || "TODOS";
+  params.stakeWeightByN = raw.params && raw.params.stakeWeightByN !== undefined ? !!raw.params.stakeWeightByN : DEFAULT_PARAMS.stakeWeightByN;
+
+  let editions = Array.isArray(raw.editions) ? raw.editions.map(normalizeEditionRow) : [];
+  if (editions.length === 0) {
+    const start = nowISO();
+    const id = uuidv4();
+    editions = [{ id, name: `Edición ${new Date().getFullYear()}`, startDate: start, endDate: null, status: "open", nextDueDate: addYears(start, 2) }];
+  }
+
+  let currentEditionId = sanitizeText(raw.currentEditionId || "", 120);
+  if (!currentEditionId || !editions.some((e) => e.id === currentEditionId)) currentEditionId = editions[0].id;
+
+  const externalResponses = dedupeRows((raw.externalResponses || []).map(normalizeExternalRow));
+  const internalAssessments = dedupeRows((raw.internalAssessments || []).map((row) => normalizeInternalRow(row, params)));
+
+  const emails = typeof raw.emails === "object" && raw.emails ? {
+    externa: sanitizeText(raw.emails.externa, 4000),
+    interna: sanitizeText(raw.emails.interna, 4000),
+  } : { externa: "", interna: "" };
+
+  return {
+    version: CURRENT_SCHEMA_VERSION,
+    updatedAt: raw.updatedAt || nowISO(),
+    editions,
+    currentEditionId,
+    externalResponses,
+    internalAssessments,
+    params,
+    lastScenarioId: sanitizeText(raw.lastScenarioId || "base_moderado", 120) || "base_moderado",
+    emails,
+  };
+}
+
+function mergeDBs(...sources) {
+  const valid = sources.map(migrateDB).filter(Boolean);
+  if (!valid.length) return null;
+
+  const base = cloneDeep(valid[0]);
+  for (let i = 1; i < valid.length; i++) {
+    const src = valid[i];
+    const editionMap = new Map(base.editions.map((e) => [e.id, e]));
+    src.editions.forEach((e) => {
+      const prev = editionMap.get(e.id);
+      if (!prev || String(e.startDate || "") >= String(prev.startDate || "")) editionMap.set(e.id, e);
+    });
+    base.editions = Array.from(editionMap.values()).sort((a, b) => String(a.startDate || "").localeCompare(String(b.startDate || "")));
+    base.externalResponses = dedupeRows([...(base.externalResponses || []), ...(src.externalResponses || [])]);
+    base.internalAssessments = dedupeRows([...(base.internalAssessments || []), ...(src.internalAssessments || [])]);
+    if (String(src.updatedAt || "") >= String(base.updatedAt || "")) {
+      base.params = src.params;
+      base.lastScenarioId = src.lastScenarioId;
+      base.currentEditionId = src.currentEditionId || base.currentEditionId;
+      base.emails = src.emails || base.emails;
+      base.updatedAt = src.updatedAt;
+    }
+  }
+
+  if (!base.editions.some((e) => e.id === base.currentEditionId)) {
+    base.currentEditionId = base.editions[0].id;
+  }
+  base.version = CURRENT_SCHEMA_VERSION;
+  return base;
+}
+
+function loadLocalDB() {
+  const primary = safeParseJSON(localStorage.getItem(APP_KEY), null);
+  const legacy = safeParseJSON(localStorage.getItem(LEGACY_APP_KEY), null);
+  return mergeDBs(primary, legacy);
+}
+
+function getCurrentEdition(db) {
+  return (db && db.editions || []).find((e) => e.id === db.currentEditionId) || null;
+}
+
+function isEditionOpen(db, editionId = null) {
+  const id = editionId || (db ? db.currentEditionId : null);
+  const edition = (db && db.editions || []).find((e) => e.id === id);
+  return !!(edition && edition.status === "open");
+}
+
+
+// ---------------------------------------------------------------------------
+// Base en Memoria (offline-first con sincronización diferida)
+// ---------------------------------------------------------------------------
+let ACTIVE_DB = null;
+
+function saveDB(db, options = {}) {
+  const safeDb = migrateDB(db) || migrateDB({});
+  safeDb.updatedAt = new Date().toISOString();
+  ACTIVE_DB = safeDb;
+  persistLocalDB(safeDb);
+  if (!options.skipConfigSync) scheduleConfigSync(safeDb);
+  return safeDb;
+}
+
+function ensureDB() {
+  let db = ACTIVE_DB || loadLocalDB();
+  if (!db) {
+    db = migrateDB({
+      version: CURRENT_SCHEMA_VERSION,
+      editions: [],
+      currentEditionId: null,
+      externalResponses: [],
+      internalAssessments: [],
+      params: cloneDeep(DEFAULT_PARAMS),
+      lastScenarioId: "base_moderado",
+      emails: { externa: "", interna: "" }
     });
   }
 
-  function ensureDB() {
-    let db = ACTIVE_DB;
-    if (!db) {
-      db = {
-        version: 1,
-        editions: [],
-        currentEditionId: null,
-        externalResponses: [],
-        internalAssessments: [],
-        params: { ...DEFAULT_PARAMS },
-        lastScenarioId: "base_moderado",
-      };
-    }
-
-    if (!db.editions || db.editions.length === 0) {
-      const y = new Date().getFullYear();
-      const id = uuidv4();
-      const start = nowISO();
-      db.editions = [
-        {
-          id,
-          name: `Edición ${y}`,
-          startDate: start,
-          endDate: null,
-          status: "open",
-          nextDueDate: addYears(start, 2),
-        },
-      ];
-      db.currentEditionId = id;
-    }
-
-    if (!db.currentEditionId) db.currentEditionId = db.editions[0].id;
-    if (!db.params) db.params = { ...DEFAULT_PARAMS };
-
-    saveDB(db);
-    return db;
+  if (!db.currentEditionId || !db.editions.some((e) => e.id === db.currentEditionId)) {
+    db.currentEditionId = db.editions[0].id;
   }
+
+  saveDB(db, { skipConfigSync: true });
+  return ACTIVE_DB;
+}
+
 
   // ---------------------------------------------------------------------------
   // Cálculo de indicadores
@@ -315,71 +626,73 @@
     return out;
   }
 
-  function computeInternalByTheme(db, editionId) {
-    // Devuelve: tema_id -> promedios de dims y scores
-    const topics = DATA.topics.map((t) => t.tema_id);
-    const out = {};
-    for (const tid of topics) {
-      out[tid] = {
-        tema_id: tid,
-        n: 0,
-        dims: {
-          impacto: { n: 0, sum: 0, mean: null },
-          financiero: { n: 0, sum: 0, mean: null }
-        }
-      };
-    }
 
-    const rows = db.internalAssessments.filter((r) => r.editionId === editionId);
-    for (const r of rows) {
-      const table = r.table || {};
-      for (const tid of topics) {
-        const row = table[tid];
-        if (!row) continue;
+function computeInternalByTheme(db, editionId, params) {
+  // Devuelve: tema_id -> promedios de dims y scores
+  const topics = DATA.topics.map((t) => t.tema_id);
+  const out = {};
+  const wImpact = normalizeWeights((params && params.wImpact) || DEFAULT_PARAMS.wImpact);
+  const wFin = normalizeWeights((params && params.wFin) || DEFAULT_PARAMS.wFin);
 
-        let imp = row.impacto;
-        let fin = row.financiero;
-        let any = false;
-        
-        // Fallback para datos antiguos si existen
-        if (imp === undefined && row.severidad !== undefined) {
-           const vs = [row.severidad, row.alcance, row.irremediabilidad, row.probabilidad].filter(isFinite);
-           imp = vs.length > 0 ? vs.reduce((a,b)=>a+b,0)/vs.length : null;
-        }
-        if (fin === undefined && row.impacto_financiero !== undefined) {
-           const vf = [row.impacto_financiero, row.probabilidad_financiera].filter(isFinite);
-           fin = vf.length > 0 ? vf.reduce((a,b)=>a+b,0)/vf.length : null;
-        }
-
-        if (isFinite(imp)) {
-          out[tid].dims.impacto.n += 1;
-          out[tid].dims.impacto.sum += Number(imp);
-          any = true;
-        }
-        if (isFinite(fin)) {
-          out[tid].dims.financiero.n += 1;
-          out[tid].dims.financiero.sum += Number(fin);
-          any = true;
-        }
-        if (any) out[tid].n += 1;
+  for (const tid of topics) {
+    out[tid] = {
+      tema_id: tid,
+      n: 0,
+      dims: {
+        impacto: { n: 0, sum: 0, mean: null },
+        financiero: { n: 0, sum: 0, mean: null }
       }
-    }
-
-    for (const tid of topics) {
-      for (const k of Object.keys(out[tid].dims)) {
-        const d = out[tid].dims[k];
-        d.mean = d.n > 0 ? d.sum / d.n : null;
-      }
-    }
-    return out;
+    };
   }
 
-  function computeScores(db) {
+  const rows = db.internalAssessments.filter((r) => r.editionId === editionId);
+  for (const r of rows) {
+    const table = r.table || {};
+    for (const tid of topics) {
+      const row = table[tid];
+      if (!row) continue;
+
+      let imp = sanitizeRating(row.impacto);
+      let fin = sanitizeRating(row.financiero);
+      let any = false;
+
+      if (imp === null) {
+        imp = weightedMeanFromRow(row, wImpact, ["severidad", "alcance", "irremediabilidad", "probabilidad"]);
+      }
+      if (fin === null) {
+        fin = weightedMeanFromRow(row, wFin, ["impacto_financiero", "probabilidad_financiera"]);
+      }
+
+      if (imp !== null) {
+        out[tid].dims.impacto.n += 1;
+        out[tid].dims.impacto.sum += Number(imp);
+        any = true;
+      }
+      if (fin !== null) {
+        out[tid].dims.financiero.n += 1;
+        out[tid].dims.financiero.sum += Number(fin);
+        any = true;
+      }
+      if (any) out[tid].n += 1;
+    }
+  }
+
+  for (const tid of topics) {
+    for (const k of Object.keys(out[tid].dims)) {
+      const d = out[tid].dims[k];
+      d.mean = d.n > 0 ? d.sum / d.n : null;
+    }
+  }
+  return out;
+}
+
+function computeScores(db) {
+
     const editionId = db.currentEditionId;
     const params = getParams(db);
 
     const stake = computeStakeholderByTheme(db, editionId);
-    const internal = computeInternalByTheme(db, editionId);
+    const internal = computeInternalByTheme(db, editionId, params);
 
     const rows = [];
     for (const t of DATA.topics) {
@@ -659,32 +972,33 @@
     document.getElementById("extProgressBar").value = answered;
   }
 
-  function updateInternalProgress() {
-    let complete = 0;
-    const draft = {};
-    for (const t of DATA.topics) {
-      const inputs = document.querySelectorAll(`input[name^="int_${t.tema_id}_"]:checked`);
-      if (inputs.length > 0) complete += 1;
-    }
-    
-    // Autosave draft
-    const checkedBoxes = document.querySelectorAll('#internalCardsContainer input[type="radio"]:checked');
-    checkedBoxes.forEach(r => draft[r.name] = r.value);
-    
-    const area = document.getElementById("intArea");
-    const rol = document.getElementById("intRol");
-    const comentarios = document.getElementById("intComentarios");
-    if (area) draft.intArea = area.value;
-    if (rol) draft.intRol = rol.value;
-    if (comentarios) draft.intComentarios = comentarios.value;
-    
-    localStorage.setItem("paracel_internal_draft", JSON.stringify(draft));
 
-    document.getElementById("intProgress").textContent = `${complete} / ${DATA.topics.length}`;
-    document.getElementById("intProgressBar").value = complete;
+function updateInternalProgress() {
+  let complete = 0;
+  const draft = {};
+  for (const t of DATA.topics) {
+    const impactChecked = document.querySelector(`input[name="int_${t.tema_id}_impacto"]:checked`);
+    const finChecked = document.querySelector(`input[name="int_${t.tema_id}_financiero"]:checked`);
+    if (impactChecked && finChecked) complete += 1;
   }
 
-  function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector) {
+  const checkedBoxes = document.querySelectorAll('#internalCardsContainer input[type="radio"]:checked');
+  checkedBoxes.forEach(r => draft[r.name] = r.value);
+
+  const area = document.getElementById("intArea");
+  const rol = document.getElementById("intRol");
+  const comentarios = document.getElementById("intComentarios");
+  if (area) draft.intArea = area.value;
+  if (rol) draft.intRol = rol.value;
+  if (comentarios) draft.intComentarios = comentarios.value;
+
+  localStorage.setItem("paracel_internal_draft", JSON.stringify(draft));
+
+  document.getElementById("intProgress").textContent = `${complete} / ${DATA.topics.length}`;
+  document.getElementById("intProgressBar").value = complete;
+}
+
+function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector) {
     const inp = document.getElementById(inputId);
     inp.addEventListener("input", () => {
       const q = inp.value.trim().toLowerCase();
@@ -880,19 +1194,26 @@
       });
     }
 
+    let isSubmittingExternal = false;
+
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
+      if (isSubmittingExternal) return;
       const db = ensureDB();
+      if (!isEditionOpen(db)) {
+        alert("La edición activa está cerrada. Abra o cree una nueva edición antes de registrar respuestas.");
+        return;
+      }
 
-      const grupo = grp.value;
-      const organizacion = org.value.trim();
-      const sector = st.value.trim();
-      const contacto = ce.value.trim();
+      const grupo = sanitizeText(grp.value, 200);
+      const organizacion = sanitizeText(org.value, 300);
+      const sector = sanitizeText(st.value, 300);
+      const contacto = sanitizeText(ce.value, 300);
       // Wait, there's percepcion and comentarios normally, but if not in DOM, it's ok string:
       const rawPerc = document.getElementById("extPercepcion");
-      const percepcion = rawPerc ? rawPerc.value.trim() : "";
+      const percepcion = rawPerc ? sanitizeText(rawPerc.value, 200) : "";
       const rawCom = document.getElementById("extComentarios");
-      const comentarios = rawCom ? rawCom.value.trim() : "";
+      const comentarios = rawCom ? sanitizeText(rawCom.value, 4000) : "";
 
       if (!grupo) {
         alert("Seleccione su grupo de interés.");
@@ -914,7 +1235,7 @@
         return;
       }
 
-      const row = {
+      const row = normalizeExternalRow({
         id: uuidv4(),
         ts: nowISO(),
         editionId: db.currentEditionId,
@@ -925,16 +1246,21 @@
         percepcion,
         comentarios,
         ratings,
-      };
+      });
 
       db.externalResponses.push(row);
       saveDB(db);
       populateDatalists(db);
 
       const btn = form.querySelector('button[type="submit"]');
+      isSubmittingExternal = true;
       if (btn) btn.disabled = true;
-      await syncToCloudRecord("externa", row);
-      if (btn) btn.disabled = false;
+      try {
+        await syncToCloudRecord("externa", row);
+      } finally {
+        if (btn) btn.disabled = false;
+        isSubmittingExternal = false;
+      }
 
       form.reset();
       document.querySelectorAll('#extTopics input[type="radio"]').forEach((r) => (r.checked = false));
@@ -997,13 +1323,20 @@
       updateInternalProgress();
     });
 
+    let isSubmittingExternal = false;
+
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
+      if (isSubmittingExternal) return;
       const db = ensureDB();
+      if (!isEditionOpen(db)) {
+        alert("La edición activa está cerrada. Abra o cree una nueva edición antes de registrar respuestas.");
+        return;
+      }
 
-      const area = intArea.value.trim();
-      const rol = intRol.value.trim();
-      const comentarios = intComentarios.value.trim();
+      const area = sanitizeText(intArea.value, 300);
+      const rol = sanitizeText(intRol.value, 300);
+      const comentarios = sanitizeText(intComentarios.value, 4000);
 
       if (!area) {
         alert("Debe completar el área evaluadora.");
@@ -1046,7 +1379,7 @@
         return;
       }
 
-      const row = {
+      const row = normalizeInternalRow({
         id: uuidv4(),
         ts: nowISO(),
         editionId: db.currentEditionId,
@@ -1054,16 +1387,21 @@
         rol,
         comentarios,
         table,
-      };
+      }, db.params);
 
       db.internalAssessments.push(row);
       saveDB(db);
       populateDatalists(db);
 
       const btn = form.querySelector('button[type="submit"]');
+      isSubmittingInternal = true;
       if (btn) btn.disabled = true;
-      await syncToCloudRecord("interna", row);
-      if (btn) btn.disabled = false;
+      try {
+        await syncToCloudRecord("interna", row);
+      } finally {
+        if (btn) btn.disabled = false;
+        isSubmittingInternal = false;
+      }
 
       form.reset();
       document.querySelectorAll('#internalCardsContainer input[type="radio"]').forEach((r) => (r.checked = false));
@@ -1147,8 +1485,10 @@
   // Render KPIs, tablas y gráficos
   // ---------------------------------------------------------------------------
   function renderKPIs(db) {
-    const extN = db.externalResponses.filter((r) => r.editionId === db.currentEditionId).length;
-    const intN = db.internalAssessments.filter((r) => r.editionId === db.currentEditionId).length;
+    const currentExt = db.externalResponses.filter((r) => r.editionId === db.currentEditionId);
+    const currentInt = db.internalAssessments.filter((r) => r.editionId === db.currentEditionId);
+    const extN = currentExt.length;
+    const intN = currentInt.length;
     document.getElementById("kpiExternalN").textContent = String(extN);
     document.getElementById("kpiInternalN").textContent = String(intN);
     document.getElementById("kpiThemesN").textContent = String(DATA.topics.length);
@@ -1158,8 +1498,13 @@
       document.getElementById("editionPill").textContent = `${edition.name} · ${edition.status.toUpperCase()}`;
       const due = edition.nextDueDate ? new Date(edition.nextDueDate) : null;
       const now = new Date();
+      const pendingSync = loadSyncQueue().length;
+      const extIncomplete = currentExt.filter((r) => Object.keys(r.ratings || {}).length < DATA.topics.length).length;
+      const intIncomplete = currentInt.filter((r) => Object.keys(r.table || {}).length < DATA.topics.length).length;
       let msg = `Ciclo bianual: próxima edición sugerida ${edition.nextDueDate ? edition.nextDueDate.slice(0, 10) : "(no definida)"}.`;
       if (due && due <= now) msg = `Atención: la edición bianual está vencida. Se recomienda crear una nueva edición.`;
+      msg += ` Pendientes de sincronización: ${pendingSync}. Registros con integridad parcial en esta edición, externos: ${extIncomplete}, internos: ${intIncomplete}.`;
+      if (edition.status !== "open") msg += " La edición activa está cerrada para nuevas capturas.";
       document.getElementById("cycleBanner").textContent = msg;
     }
   }
@@ -1341,7 +1686,7 @@
     const gf = params.groupFilter && params.groupFilter !== "TODOS" ? params.groupFilter : "TODOS";
     const exec = [
       `Con base en la edición activa (${edition ? edition.name : "sin nombre"}), se registraron ${extN} respuestas externas y ${intN} evaluaciones internas.`,
-      `Los scores internos se calcularon por combinación ponderada de severidad, alcance, irremediabilidad y probabilidad (impacto), y de impacto financiero y probabilidad financiera (financiero).`,
+      `Los scores internos se calcularon con el puntaje directo de impacto y financiero cuando la evaluación fue resumida, o por combinación ponderada de dimensiones cuando existió desglose detallado legado.`,
       `Parámetros vigentes: regla ${params.ruleDouble}, umbrales τ_impacto=${fmt(params.tauImpact,1)} y τ_financiero=${fmt(params.tauFin,1)}.`,
       `Filtro de stakeholders en tablero: ${gf}.`,
       `Resultado: ${doubleRows.length} temas califican como doble materialidad según la regla y umbrales definidos.`
@@ -1408,7 +1753,6 @@
     const edition = db.editions.find((e) => e.id === db.currentEditionId);
     const prefix = edition ? edition.name.replace(/\s+/g, "_") : "edicion";
 
-    // matriz (ranking)
     downloadCSV(`${prefix}_matriz.csv`, rows.map((r) => ({
       tema_id: r.tema_id,
       tema_nombre: r.tema_nombre,
@@ -1421,32 +1765,64 @@
       double_mat: r.double_mat ? 1 : 0,
     })));
 
-    // externos raw
-    downloadCSV(`${prefix}_externos_raw.csv`, db.externalResponses
-      .filter((x) => x.editionId === db.currentEditionId)
-      .map((x) => ({
+    const externalRows = db.externalResponses.filter((x) => x.editionId === db.currentEditionId);
+    const internalRows = db.internalAssessments.filter((x) => x.editionId === db.currentEditionId);
+
+    downloadCSV(`${prefix}_externos_raw.csv`, externalRows.map((x) => ({
+      id: x.id,
+      ts: x.ts,
+      grupo: x.grupo,
+      sector: x.sector,
+      organizacion: x.organizacion,
+      contacto: x.contacto,
+      percepcion: x.percepcion,
+      comentarios: x.comentarios,
+      items: Object.keys(x.ratings || {}).length,
+    })));
+
+    downloadCSV(`${prefix}_externos_detalle.csv`, externalRows.flatMap((x) =>
+      DATA.topics.map((t) => ({
         id: x.id,
         ts: x.ts,
         grupo: x.grupo,
-        sector: x.sector,
         organizacion: x.organizacion,
-        contacto: x.contacto,
-        percepcion: x.percepcion,
-        comentarios: x.comentarios,
-        items: Object.keys(x.ratings || {}).length,
-      })));
+        tema_id: t.tema_id,
+        tema_nombre: t.tema_nombre,
+        rating: x.ratings && x.ratings[t.tema_id] !== undefined ? x.ratings[t.tema_id] : "",
+      }))
+    ));
 
-    // internos raw
-    downloadCSV(`${prefix}_internos_raw.csv`, db.internalAssessments
-      .filter((x) => x.editionId === db.currentEditionId)
-      .map((x) => ({
-        id: x.id,
-        ts: x.ts,
-        area: x.area,
-        rol: x.rol,
-        comentarios: x.comentarios,
-        temas: Object.keys(x.table || {}).length,
-      })));
+    downloadCSV(`${prefix}_internos_raw.csv`, internalRows.map((x) => ({
+      id: x.id,
+      ts: x.ts,
+      area: x.area,
+      rol: x.rol,
+      comentarios: x.comentarios,
+      temas: Object.keys(x.table || {}).length,
+    })));
+
+    downloadCSV(`${prefix}_internos_detalle.csv`, internalRows.flatMap((x) =>
+      DATA.topics.map((t) => {
+        const row = (x.table || {})[t.tema_id] || {};
+        return {
+          id: x.id,
+          ts: x.ts,
+          area: x.area,
+          rol: x.rol,
+          tema_id: t.tema_id,
+          tema_nombre: t.tema_nombre,
+          impacto: row.impacto ?? "",
+          financiero: row.financiero ?? "",
+          severidad: row.severidad ?? "",
+          alcance: row.alcance ?? "",
+          irremediabilidad: row.irremediabilidad ?? "",
+          probabilidad: row.probabilidad ?? "",
+          impacto_financiero: row.impacto_financiero ?? "",
+          probabilidad_financiera: row.probabilidad_financiera ?? "",
+          horizonte: row.horizonte ?? "",
+        };
+      })
+    ));
   }
 
   // ---------------------------------------------------------------------------
@@ -1527,6 +1903,11 @@ Equipo PARACEL`;
       const ok = confirm("¿Borrar todos los datos del navegador? Esta acción no se puede deshacer.");
       if (!ok) return;
       localStorage.removeItem(APP_KEY);
+      localStorage.removeItem(LEGACY_APP_KEY);
+      localStorage.removeItem(SYNC_QUEUE_KEY);
+      localStorage.removeItem("paracel_external_draft");
+      localStorage.removeItem("paracel_internal_draft");
+      ACTIVE_DB = null;
       const fresh = ensureDB();
       syncParamsToUI(fresh);
       renderEditionSelects(fresh);
@@ -1585,7 +1966,8 @@ Equipo PARACEL`;
       }
       const ok = confirm("¿Restaurar la base desde este JSON? Reemplazará los datos actuales.");
       if (!ok) return;
-      localStorage.setItem(APP_KEY, JSON.stringify(obj));
+      localStorage.setItem(APP_KEY, JSON.stringify(migrateDB(obj)));
+      ACTIVE_DB = null;
       const db2 = ensureDB();
       syncParamsToUI(db2);
       renderEditionSelects(db2);
@@ -1791,7 +2173,7 @@ Equipo PARACEL`;
       const u = document.getElementById("sysUser").value;
       const p = document.getElementById("sysPass").value;
       let newRole = null;
-      if (u === "user" && p === "123") newRole = "admin";
+      if (u === "admin" && p === "paracel2026") newRole = "admin";
       else if (u === "encuesta" && p === "paracel") newRole = "externa";
       else if (u === "comite" && p === "paracel") newRole = "interna";
 
@@ -1888,23 +2270,27 @@ Equipo PARACEL`;
     updateInternalProgress();
     applyTopicSearch("topicSearchInt", "#internalCardsContainer", ".topic-block", ".topic-title-block");
 
-    // ----------------------------------------------------
-    // LECTURA NATIVA DESDE GOOGLE SHEETS
-    // ----------------------------------------------------
-    try {
-      const cloudDB = await fetchCloudDB();
-      if (cloudDB && cloudDB.version === 2) {
-        ACTIVE_DB = cloudDB;
-      } else {
-        console.warn("La nube respondió, pero no con version 2. Ignorando.");
-      }
-    } catch(err) {
-      console.error("Fallo crítico: No se pudo leer Google Sheets.", err);
-      alert("Atención: No se pudieron cargar los datos de la nube. Revise los permisos del enlace.");
-    }
 
-    // DB
-    const db = ensureDB();
+// ----------------------------------------------------
+// Carga y conciliación de datos (local, inicial y nube)
+// ----------------------------------------------------
+const initialDB = await loadOptionalJSON("data/initial_db.json");
+const localDB = loadLocalDB();
+let mergedDB = mergeDBs(initialDB, localDB);
+
+try {
+  const cloudDB = await fetchCloudDB();
+  if (cloudDB) mergedDB = mergeDBs(mergedDB, cloudDB);
+} catch(err) {
+  console.error("Fallo crítico: No se pudo leer Google Sheets.", err);
+  alert("Atención: No se pudieron cargar los datos de la nube. La aplicación continuará en modo local.");
+}
+
+if (mergedDB) {
+  ACTIVE_DB = saveDB(mergedDB, { skipConfigSync: true });
+}
+
+const db = ensureDB();
     populateDatalists(db);
 
     // asignar escenario al cargar
@@ -1929,6 +2315,9 @@ Equipo PARACEL`;
     if (!db.params || !db.params.wImpact) applyScenario(sc);
 
     renderAll(db);
+    flushSyncQueue();
+
+    window.addEventListener("online", () => flushSyncQueue());
 
     // listeners para cambios de escenario en UI inicial (ya conectados)
     // update kpis on load

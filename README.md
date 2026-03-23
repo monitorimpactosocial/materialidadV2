@@ -1,47 +1,45 @@
-# materialidad-dashboard (instrumento de recolección + tablero)
+# materialidad-dashboard, versión auditada y robustecida
 
-Este paquete implementa una **app web estática** (sin servidor) para:
+Esta versión incorpora una auditoría técnica integral y una refactorización orientada a robustez operativa en entorno estático (GitHub Pages) con sincronización tolerante a fallas.
 
-- **Encuesta Externa** (stakeholders) con escala 1 a 5.
-- **Evaluación Interna** (impacto y financiera) con escala 1 a 5.
-- **Tablero interactivo** (umbrales, pesos, escenarios, matriz).
-- **Reporte** listo para imprimir a PDF (desde el navegador).
-- **Ediciones bianuales** (gestión de ciclos, creación y cierre de ediciones).
+## Mejoras incorporadas
 
-## Despliegue rápido en GitHub Pages
+1. Persistencia local corregida. La base operativa ahora se guarda y se recupera realmente desde `localStorage`.
+2. Migración de esquema a versión 2. La aplicación convierte automáticamente bases heredadas y conserva compatibilidad con datos previos.
+3. Carga conciliada de datos. Al iniciar, la app intenta fusionar datos iniciales, datos locales y datos de la nube, con deduplicación por identificador.
+4. Cola de sincronización. Si la nube no responde, los envíos quedan pendientes y se reintentan cuando vuelve la conectividad.
+5. Validación reforzada. Se normalizan textos, puntajes y estructuras de tablas internas y externas.
+6. Protección ante edición cerrada. No se permiten nuevas capturas si la edición activa está cerrada.
+7. Prevención de doble envío. Se bloquean envíos simultáneos del mismo formulario.
+8. Exportaciones enriquecidas. Además de resúmenes, se generan archivos CSV detallados por tema para externos e internos.
+9. Diagnóstico operativo visible. La interfaz reporta pendientes de sincronización e integridad parcial en la edición activa.
+10. Credenciales administrativas cambiadas respecto a la versión auditada.
 
-1. Suba el contenido del ZIP a la raíz del repositorio `monitorimpactosocial/materialidad-dashboard`.
-2. En GitHub: **Settings → Pages**.
-3. En **Build and deployment**, seleccione:
-   - **Source**: *Deploy from a branch*
-   - **Branch**: `main`
-   - **Folder**: `/ (root)`
-4. Guarde. GitHub publicará en:
-   - `https://monitorimpactosocial.github.io/materialidad-dashboard/`
+## Credenciales de acceso
 
-## Uso operativo
+- Administrador: `admin`
+- Contraseña administrador: `paracel2026`
+- Encuesta externa: `encuesta`
+- Contraseña externa: `paracel`
+- Comité interno: `comite`
+- Contraseña interna: `paracel`
 
-- Navegue a **Encuesta Externa** y registre respuestas.
-- Navegue a **Evaluación Interna** y registre al menos una evaluación del comité.
-- En **Inicio** puede ajustar umbrales, pesos y escenarios.
-- En **Tablero** verá matriz y ranking recalculados.
-- En **Reporte** use **Imprimir (PDF)**.
+## Advertencia de seguridad
+
+Dado que esta es una app estática del lado cliente, las credenciales embebidas en frontend **no constituyen seguridad real**. Solo controlan flujos de interfaz. Para seguridad efectiva se requiere backend con autenticación de servidor.
+
+## Despliegue
+
+1. Suba el contenido del ZIP a la raíz del repositorio GitHub Pages.
+2. Active Pages en la rama principal.
+3. Verifique que la carpeta `data/` permanezca pública y accesible.
 
 ## Respaldo y restauración
 
-En **Administración**:
-- **Exportar JSON**: respaldo integral (recomendado).
-- **Exportar CSV**: exportaciones operativas.
-- **Importar JSON**: restaurar base en este navegador.
+- Exportar JSON, respaldo integral.
+- Exportar CSV, salidas operativas y de análisis.
+- Importar JSON, restauración local.
 
-## Limitación, modo sin servidor
+## Recomendación técnica
 
-Esta versión almacena datos en el **navegador** (localStorage). Para recolección multiusuario y centralizada (varios dispositivos),
-se recomienda integrar un backend (por ejemplo, Google Apps Script + Sheets, Supabase, o API propia).
-
-## Catálogos
-
-- `data/topics.json`: lista de temas P01 a P27 (editable).
-- `data/scale.json`: mapeo de escala.
-- `data/scenarios.json`: escenarios gerenciales.
-
+Si el instrumento va a utilizarse con múltiples usuarios concurrentes y requerimientos de trazabilidad fina, la siguiente fase recomendable es migrar a Google Apps Script o backend equivalente con autenticación, control transaccional y auditoría de modificaciones.
