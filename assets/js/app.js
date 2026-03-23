@@ -365,7 +365,7 @@
       return bf - af;
     });
 
-    return { rows, stake, internal, wI, wF };
+    return { rows, stake, internal };
   }
 
   // ---------------------------------------------------------------------------
