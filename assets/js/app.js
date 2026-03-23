@@ -92,21 +92,21 @@
     }
   }
 
-  async function syncToCloud(db) {
+  async function syncToCloudRecord(type, data) {
     if (isSyncing) return;
     isSyncing = true;
     showSyncPill("Guardando en la nube...");
     try {
       const res = await fetch(GAS_URL, {
         method: "POST",
-        body: JSON.stringify({ db: db }),
+        body: JSON.stringify({ type: type, data: data }),
         headers: { "Content-Type": "text/plain;charset=utf-8" }
       });
       if (!res.ok) throw new Error("Fallo al guardar");
       showSyncPill("Nube actualizada ✔");
     } catch (err) {
       console.error(err);
-      showSyncPill("Guardado local (Nube inactiva)");
+      showSyncPill("Guardado local (Nube inaccesible)");
     } finally {
       setTimeout(() => hideSyncPill(), 3000);
       isSyncing = false;
@@ -221,7 +221,12 @@
   function saveDB(db) {
     db.updatedAt = new Date().toISOString();
     localStorage.setItem(APP_KEY, JSON.stringify(db));
-    syncToCloud(db);
+    // Sincronizar configuraciones generales (nunca interfiere con las filas P0x)
+    syncToCloudRecord("config", {
+      params: db.params,
+      editions: db.editions,
+      currentEditionId: db.currentEditionId
+    });
   }
 
   function ensureDB() {
@@ -883,7 +888,7 @@
       });
     }
 
-    form.addEventListener("submit", (ev) => {
+    form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const db = ensureDB();
 
@@ -933,6 +938,11 @@
       db.externalResponses.push(row);
       saveDB(db);
       populateDatalists(db);
+
+      const btn = form.querySelector('button[type="submit"]');
+      if (btn) btn.disabled = true;
+      await syncToCloudRecord("externa", row);
+      if (btn) btn.disabled = false;
 
       form.reset();
       document.querySelectorAll('#extTopics input[type="radio"]').forEach((r) => (r.checked = false));
@@ -995,7 +1005,7 @@
       updateInternalProgress();
     });
 
-    form.addEventListener("submit", (ev) => {
+    form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const db = ensureDB();
 
@@ -1057,6 +1067,11 @@
       db.internalAssessments.push(row);
       saveDB(db);
       populateDatalists(db);
+
+      const btn = form.querySelector('button[type="submit"]');
+      if (btn) btn.disabled = true;
+      await syncToCloudRecord("interna", row);
+      if (btn) btn.disabled = false;
 
       form.reset();
       document.querySelectorAll('#internalCardsContainer input[type="radio"]').forEach((r) => (r.checked = false));
@@ -1887,19 +1902,15 @@ Equipo PARACEL`;
     try {
       const cloudDB = await fetchCloudDB();
       // Si la nube nos devuelve una base de datos válida, la adoptamos,
-      // sobreescribiendo lo local para garantizar sincronía global.
-      if (cloudDB && cloudDB.version) {
+      // sobreescribiendo lo local para garantizar sincronía global directa.
+      if (cloudDB && cloudDB.version === 2) {
         localStorage.setItem(APP_KEY, JSON.stringify(cloudDB));
-      } else if (cloudDB && !cloudDB.version) {
-        // La nube acaba de crearse y está vacía. Si tenemos algo local, lo sembramos.
-        const local = loadDB();
-        if (local && local.version) syncToCloud(local);
       }
     } catch(err) {
       console.warn("Fallo en sincronía inicial con la nube.", err);
     }
 
-    // Pre-carga offline de datos históricos SOLO si la base sigue vacía
+    // Si todo falla (nube offline y no tenemos datos locales)... cargamos el mock vacío por si acaso
     if (!loadDB()) {
       try {
         const initialDB = await loadJSON("data/initial_db.json");
@@ -1908,7 +1919,7 @@ Equipo PARACEL`;
            localStorage.setItem(APP_KEY, JSON.stringify(initialDB));
         }
       } catch (e) {
-        console.warn("No se encontró initial_db.json");
+        console.warn("No se encontró initial_db.json fallback.");
       }
     }
 
