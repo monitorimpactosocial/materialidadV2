@@ -191,6 +191,7 @@ async function syncToCloudRecord(type, data) {
     await postCloudPayload(payload);
     showSyncPill("Nube actualizada ✔");
   } catch (err) {
+    alert("FALLA DE RED O NAVEGADOR AL ENVIAR: " + (err.message || String(err)));
     console.error(err);
     enqueueSync(payload);
     showSyncPill("Guardado local, nube pendiente");
