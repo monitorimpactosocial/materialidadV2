@@ -506,34 +506,40 @@
 
     if (DATA.topics.length === 0) return;
 
-    const card = document.createElement("div");
-    card.className = "dim-card";
+    for (const dim of DIMENSIONS) {
+      const dimTopics = DATA.topics.filter((t) => dim.range.includes(t.tema_id));
+      if (dimTopics.length === 0) continue;
 
-    let html = `
-      <div class="dim-bulk-row" style="background:rgba(0,0,0,0.02); padding:8px 16px; border-bottom:1px solid rgba(0,0,0,0.05); display:flex; gap:8px; align-items:center;">
-        <span style="font-size:12px; font-weight:700; color:var(--muted);">Rellenar bloque con:</span>
-        ${[1, 2, 3, 4, 5].map(v => `<button type="button" class="btn btn-small btn-ghost btn-mark-ext" data-val="${v}">Todos en ${v}</button>`).join("")}
-      </div>
-      <div class="table-matrix-wrap">
-        <table class="table-matrix">
-          <thead>
-            <tr>
-              <th>Tema a Evaluar</th>
-              <th style="width: 250px; text-align: center;">Puntaje</th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
+      const card = document.createElement("div");
+      card.className = `dim-card ${dim.class}`;
 
-    for (const t of DATA.topics) {
-      html += `<tr class="topic-block" data-tid="${t.tema_id}">
-        <td class="topic-title-block" style="vertical-align: middle;">${t.tema_id} · ${t.tema_nombre}</td>
-        <td style="text-align: center; vertical-align: middle; padding: 12px;">${mkPillsCompactExternal(t.tema_id, scale5)}</td>
-      </tr>`;
+      let html = `
+        <div class="dim-header">${dim.title}</div>
+        <div class="dim-bulk-row" style="background:rgba(0,0,0,0.02); padding:8px 16px; border-bottom:1px solid rgba(0,0,0,0.05); display:flex; gap:8px; align-items:center;">
+          <span style="font-size:12px; font-weight:700; color:var(--muted);">Rellenar bloque con:</span>
+          ${[1, 2, 3, 4, 5].map(v => `<button type="button" class="btn btn-small btn-ghost btn-mark-ext" data-val="${v}">Todos en ${v}</button>`).join("")}
+        </div>
+        <div class="table-matrix-wrap">
+          <table class="table-matrix">
+            <thead>
+              <tr>
+                <th>Tema a Evaluar</th>
+                <th style="width: 250px; text-align: center;">Puntaje</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      for (const t of dimTopics) {
+        html += `<tr class="topic-block" data-tid="${t.tema_id}">
+          <td class="topic-title-block" style="vertical-align: middle;">${t.tema_id} · ${t.tema_nombre}</td>
+          <td style="text-align: center; vertical-align: middle; padding: 12px;">${mkPillsCompactExternal(t.tema_id, scale5)}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+      card.innerHTML = html;
+      container.appendChild(card);
     }
-    html += `</tbody></table></div>`;
-    card.innerHTML = html;
-    container.appendChild(card);
 
     container.querySelectorAll('.btn-mark-ext').forEach((btn) => {
       btn.addEventListener('click', () => {
