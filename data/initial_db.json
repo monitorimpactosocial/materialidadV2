@@ -8,6 +8,14 @@
       "endDate": null,
       "status": "open",
       "nextDueDate": "2028-03-19T10:22:30.671787Z"
+    },
+    {
+      "id": "4a52d8a1-d2fe-4588-a400-396c72371ea1",
+      "name": "2026",
+      "startDate": "2026-03-20T14:59:16.138Z",
+      "endDate": null,
+      "status": "open",
+      "nextDueDate": "2028-03-20T14:59:16.138Z"
     }
   ],
   "currentEditionId": "edicion-historica",
@@ -4047,11 +4055,862 @@
         "P26": 5,
         "P27": 5
       }
+    },
+    {
+      "id": "8787ff2f-f118-4536-b015-52a92a7d99fe",
+      "ts": "2026-03-20T14:57:12.919Z",
+      "editionId": "edicion-historica",
+      "grupo": "Componente Industrial",
+      "sector": "PROVEEDOR",
+      "organizacion": "PRUEBA",
+      "contacto": "099915263",
+      "percepcion": "NEUTRAL",
+      "comentarios": "PRUEBA",
+      "ratings": {
+        "P01": 5,
+        "P02": 3,
+        "P03": 5,
+        "P04": 3,
+        "P05": 4,
+        "P06": 3,
+        "P07": 2,
+        "P08": 3,
+        "P09": 2,
+        "P10": 3,
+        "P11": 1,
+        "P12": 3,
+        "P13": 1,
+        "P14": 3,
+        "P15": 1,
+        "P16": 3,
+        "P17": 1,
+        "P18": 2,
+        "P19": 1,
+        "P20": 2,
+        "P21": 1,
+        "P22": 1,
+        "P24": 1,
+        "P26": 1
+      }
+    },
+    {
+      "id": "77659a0a-ce91-4373-9df5-7c0b3e76d2e6",
+      "ts": "2026-03-20T15:20:32.497Z",
+      "editionId": "4a52d8a1-d2fe-4588-a400-396c72371ea1",
+      "grupo": "Componente Forestal",
+      "sector": "PROVEEDOR",
+      "organizacion": "PRUEBA",
+      "contacto": "155896",
+      "percepcion": "POSITIVA",
+      "comentarios": "PRUEBA",
+      "ratings": {
+        "P01": 4,
+        "P02": 3,
+        "P03": 4,
+        "P04": 3,
+        "P05": 4,
+        "P06": 3,
+        "P07": 3,
+        "P08": 3,
+        "P09": 3,
+        "P10": 3,
+        "P11": 3,
+        "P12": 3,
+        "P13": 3,
+        "P14": 3,
+        "P15": 2,
+        "P16": 3,
+        "P17": 3,
+        "P18": 3,
+        "P19": 3,
+        "P20": 3,
+        "P21": 3,
+        "P22": 3,
+        "P23": 3,
+        "P24": 2,
+        "P25": 2,
+        "P26": 2,
+        "P27": 2
+      }
+    },
+    {
+      "id": "dd9eeb1c-a1bd-4d2c-8e26-86f1871cea10",
+      "ts": "2026-03-23T15:55:34.276Z",
+      "editionId": "edicion-historica",
+      "grupo": "Componente Forestal",
+      "sector": "COMUNIDAD INDÍGENA",
+      "organizacion": "ASOCIACIÓN DE INGENIEROS Y ARQUITECTOS",
+      "contacto": "155896",
+      "percepcion": "POSITIVA",
+      "comentarios": "prueba",
+      "ratings": {
+        "P01": 3,
+        "P02": 3,
+        "P03": 3,
+        "P04": 3,
+        "P05": 3,
+        "P06": 3,
+        "P07": 3,
+        "P08": 3,
+        "P09": 3,
+        "P10": 3,
+        "P11": 3,
+        "P12": 3,
+        "P13": 3,
+        "P14": 3,
+        "P15": 3,
+        "P16": 3,
+        "P17": 3,
+        "P18": 3,
+        "P19": 3,
+        "P20": 3,
+        "P21": 3,
+        "P22": 3,
+        "P23": 3,
+        "P24": 3,
+        "P25": 3,
+        "P26": 3,
+        "P27": 3
+      }
     }
   ],
-  "internalAssessments": [],
+  "internalAssessments": [
+    {
+      "id": "ace41635-d886-45c0-92fc-31ec0bdee7a5",
+      "ts": "2026-03-20T15:36:48.821Z",
+      "editionId": "4a52d8a1-d2fe-4588-a400-396c72371ea1",
+      "area": "FINANZAS",
+      "rol": "PRUEBA",
+      "comentarios": "SIGUE SIENDO SUPER TEDIOSO",
+      "table": {
+        "P01": {
+          "severidad": 1,
+          "alcance": 2,
+          "irremediabilidad": 4,
+          "probabilidad": 3,
+          "impacto_financiero": 4,
+          "probabilidad_financiera": 3,
+          "horizonte": "MEDIO"
+        },
+        "P02": {
+          "severidad": 2,
+          "alcance": 2,
+          "irremediabilidad": 4,
+          "probabilidad": 3,
+          "impacto_financiero": 4,
+          "probabilidad_financiera": 4,
+          "horizonte": "MEDIO"
+        },
+        "P03": {
+          "severidad": 2,
+          "alcance": 2,
+          "irremediabilidad": 3,
+          "probabilidad": 3,
+          "impacto_financiero": 2,
+          "probabilidad_financiera": 3,
+          "horizonte": "MEDIO"
+        },
+        "P04": {
+          "severidad": 2,
+          "alcance": 2,
+          "irremediabilidad": 3,
+          "probabilidad": 4,
+          "impacto_financiero": 2,
+          "probabilidad_financiera": 3,
+          "horizonte": "MEDIO"
+        },
+        "P05": {
+          "severidad": 2,
+          "alcance": 4,
+          "irremediabilidad": 3,
+          "probabilidad": 3,
+          "impacto_financiero": 4,
+          "probabilidad_financiera": 4,
+          "horizonte": "MEDIO"
+        },
+        "P06": {
+          "severidad": 2,
+          "alcance": 5,
+          "irremediabilidad": 5,
+          "probabilidad": 3,
+          "impacto_financiero": 3,
+          "probabilidad_financiera": 2,
+          "horizonte": "MEDIO"
+        },
+        "P07": {
+          "severidad": 2,
+          "alcance": 4,
+          "irremediabilidad": 4,
+          "probabilidad": 2,
+          "impacto_financiero": 2,
+          "probabilidad_financiera": 2,
+          "horizonte": "MEDIO"
+        },
+        "P08": {
+          "severidad": 3,
+          "alcance": 3,
+          "irremediabilidad": 4,
+          "probabilidad": 3,
+          "impacto_financiero": 3,
+          "probabilidad_financiera": 3,
+          "horizonte": "CORTO"
+        },
+        "P09": {
+          "severidad": 3,
+          "alcance": 5,
+          "irremediabilidad": 2,
+          "probabilidad": 4,
+          "impacto_financiero": 2,
+          "probabilidad_financiera": 2,
+          "horizonte": "CORTO"
+        },
+        "P10": {
+          "severidad": 3,
+          "alcance": 3,
+          "irremediabilidad": 4,
+          "probabilidad": 3,
+          "impacto_financiero": 3,
+          "probabilidad_financiera": 3,
+          "horizonte": "MEDIO"
+        },
+        "P11": {
+          "severidad": 4,
+          "alcance": 3,
+          "irremediabilidad": 3,
+          "probabilidad": 4,
+          "impacto_financiero": 4,
+          "probabilidad_financiera": 3,
+          "horizonte": "LARGO"
+        },
+        "P12": {
+          "severidad": 4,
+          "alcance": null,
+          "irremediabilidad": 3,
+          "probabilidad": null,
+          "impacto_financiero": null,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        },
+        "P13": {
+          "severidad": 3,
+          "alcance": 5,
+          "irremediabilidad": null,
+          "probabilidad": 3,
+          "impacto_financiero": null,
+          "probabilidad_financiera": 2,
+          "horizonte": "MEDIO"
+        },
+        "P14": {
+          "severidad": 4,
+          "alcance": 3,
+          "irremediabilidad": null,
+          "probabilidad": null,
+          "impacto_financiero": 5,
+          "probabilidad_financiera": 3,
+          "horizonte": null
+        },
+        "P15": {
+          "severidad": null,
+          "alcance": 3,
+          "irremediabilidad": null,
+          "probabilidad": null,
+          "impacto_financiero": 3,
+          "probabilidad_financiera": null,
+          "horizonte": "MEDIO"
+        },
+        "P16": {
+          "severidad": null,
+          "alcance": null,
+          "irremediabilidad": 3,
+          "probabilidad": null,
+          "impacto_financiero": null,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        },
+        "P17": {
+          "severidad": null,
+          "alcance": null,
+          "irremediabilidad": 2,
+          "probabilidad": null,
+          "impacto_financiero": null,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        },
+        "P18": {
+          "severidad": null,
+          "alcance": null,
+          "irremediabilidad": 3,
+          "probabilidad": null,
+          "impacto_financiero": null,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        },
+        "P19": {
+          "severidad": null,
+          "alcance": null,
+          "irremediabilidad": 1,
+          "probabilidad": null,
+          "impacto_financiero": null,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        },
+        "P20": {
+          "severidad": null,
+          "alcance": null,
+          "irremediabilidad": null,
+          "probabilidad": 5,
+          "impacto_financiero": null,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        },
+        "P21": {
+          "severidad": null,
+          "alcance": null,
+          "irremediabilidad": null,
+          "probabilidad": null,
+          "impacto_financiero": 4,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        },
+        "P23": {
+          "severidad": null,
+          "alcance": null,
+          "irremediabilidad": 2,
+          "probabilidad": null,
+          "impacto_financiero": null,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        },
+        "P24": {
+          "severidad": null,
+          "alcance": null,
+          "irremediabilidad": 5,
+          "probabilidad": null,
+          "impacto_financiero": null,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        },
+        "P25": {
+          "severidad": null,
+          "alcance": null,
+          "irremediabilidad": 3,
+          "probabilidad": null,
+          "impacto_financiero": null,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        },
+        "P26": {
+          "severidad": null,
+          "alcance": null,
+          "irremediabilidad": null,
+          "probabilidad": 3,
+          "impacto_financiero": null,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        },
+        "P27": {
+          "severidad": null,
+          "alcance": null,
+          "irremediabilidad": null,
+          "probabilidad": 3,
+          "impacto_financiero": null,
+          "probabilidad_financiera": null,
+          "horizonte": null
+        }
+      }
+    },
+    {
+      "id": "f1cc6953-8b58-4bd8-ad97-e92b1398e096",
+      "ts": "2026-03-20T16:01:55.734Z",
+      "editionId": "edicion-historica",
+      "area": "FINANZAS",
+      "rol": "PRUEBA",
+      "comentarios": "prueba",
+      "table": {
+        "P01": {
+          "severidad": 3,
+          "alcance": 3,
+          "irremediabilidad": 3,
+          "probabilidad": 3,
+          "impacto_financiero": 3,
+          "probabilidad_financiera": 3,
+          "horizonte": "MEDIO"
+        },
+        "P02": {
+          "severidad": 3,
+          "alcance": 3,
+          "irremediabilidad": 3,
+          "probabilidad": 3,
+          "impacto_financiero": 3,
+          "probabilidad_financiera": 3,
+          "horizonte": "MEDIO"
+        },
+        "P03": {
+          "severidad": 3,
+          "alcance": 3,
+          "irremediabilidad": 3,
+          "probabilidad": 3,
+          "impacto_financiero": 3,
+          "probabilidad_financiera": 3,
+          "horizonte": "MEDIO"
+        },
+        "P04": {
+          "severidad": 3,
+          "alcance": 3,
+          "irremediabilidad": 3,
+          "probabilidad": 3,
+          "impacto_financiero": 3,
+          "probabilidad_financiera": 3,
+          "horizonte": "MEDIO"
+        },
+        "P05": {
+          "severidad": 3,
+          "alcance": 3,
+          "irremediabilidad": 3,
+          "probabilidad": 3,
+          "impacto_financiero": 3,
+          "probabilidad_financiera": 3,
+          "horizonte": "MEDIO"
+        },
+        "P06": {
+          "severidad": 4,
+          "alcance": 4,
+          "irremediabilidad": 4,
+          "probabilidad": 4,
+          "impacto_financiero": 4,
+          "probabilidad_financiera": 4,
+          "horizonte": "CORTO"
+        },
+        "P07": {
+          "severidad": 4,
+          "alcance": 4,
+          "irremediabilidad": 4,
+          "probabilidad": 4,
+          "impacto_financiero": 4,
+          "probabilidad_financiera": 4,
+          "horizonte": "CORTO"
+        },
+        "P08": {
+          "severidad": 5,
+          "alcance": 5,
+          "irremediabilidad": 5,
+          "probabilidad": 5,
+          "impacto_financiero": 5,
+          "probabilidad_financiera": 5,
+          "horizonte": "LARGO"
+        },
+        "P09": {
+          "severidad": 5,
+          "alcance": 5,
+          "irremediabilidad": 5,
+          "probabilidad": 5,
+          "impacto_financiero": 5,
+          "probabilidad_financiera": 5,
+          "horizonte": "LARGO"
+        },
+        "P10": {
+          "severidad": 5,
+          "alcance": 5,
+          "irremediabilidad": 5,
+          "probabilidad": 5,
+          "impacto_financiero": 5,
+          "probabilidad_financiera": 5,
+          "horizonte": "LARGO"
+        },
+        "P11": {
+          "severidad": 5,
+          "alcance": 5,
+          "irremediabilidad": 5,
+          "probabilidad": 5,
+          "impacto_financiero": 5,
+          "probabilidad_financiera": 5,
+          "horizonte": "LARGO"
+        },
+        "P12": {
+          "severidad": 4,
+          "alcance": 4,
+          "irremediabilidad": 4,
+          "probabilidad": 4,
+          "impacto_financiero": 4,
+          "probabilidad_financiera": 4,
+          "horizonte": "CORTO"
+        },
+        "P13": {
+          "severidad": 4,
+          "alcance": 4,
+          "irremediabilidad": 4,
+          "probabilidad": 4,
+          "impacto_financiero": 4,
+          "probabilidad_financiera": 4,
+          "horizonte": "MEDIO"
+        },
+        "P14": {
+          "severidad": 4,
+          "alcance": 4,
+          "irremediabilidad": 4,
+          "probabilidad": 4,
+          "impacto_financiero": 4,
+          "probabilidad_financiera": 4,
+          "horizonte": "MEDIO"
+        },
+        "P15": {
+          "severidad": 4,
+          "alcance": 4,
+          "irremediabilidad": 4,
+          "probabilidad": 4,
+          "impacto_financiero": 4,
+          "probabilidad_financiera": 4,
+          "horizonte": "MEDIO"
+        },
+        "P16": {
+          "severidad": 5,
+          "alcance": 5,
+          "irremediabilidad": 5,
+          "probabilidad": 5,
+          "impacto_financiero": 5,
+          "probabilidad_financiera": 5,
+          "horizonte": "LARGO"
+        },
+        "P17": {
+          "severidad": 5,
+          "alcance": 5,
+          "irremediabilidad": 5,
+          "probabilidad": 5,
+          "impacto_financiero": 5,
+          "probabilidad_financiera": 5,
+          "horizonte": "LARGO"
+        },
+        "P18": {
+          "severidad": 5,
+          "alcance": 5,
+          "irremediabilidad": 5,
+          "probabilidad": 5,
+          "impacto_financiero": 5,
+          "probabilidad_financiera": 5,
+          "horizonte": "LARGO"
+        },
+        "P19": {
+          "severidad": 1,
+          "alcance": 1,
+          "irremediabilidad": 1,
+          "probabilidad": 1,
+          "impacto_financiero": 1,
+          "probabilidad_financiera": 1,
+          "horizonte": "CORTO"
+        },
+        "P20": {
+          "severidad": 1,
+          "alcance": 1,
+          "irremediabilidad": 1,
+          "probabilidad": 1,
+          "impacto_financiero": 1,
+          "probabilidad_financiera": 1,
+          "horizonte": "CORTO"
+        },
+        "P21": {
+          "severidad": 1,
+          "alcance": 1,
+          "irremediabilidad": 1,
+          "probabilidad": 1,
+          "impacto_financiero": 1,
+          "probabilidad_financiera": 1,
+          "horizonte": "CORTO"
+        },
+        "P22": {
+          "severidad": 1,
+          "alcance": 1,
+          "irremediabilidad": 1,
+          "probabilidad": 1,
+          "impacto_financiero": 1,
+          "probabilidad_financiera": 1,
+          "horizonte": "CORTO"
+        },
+        "P23": {
+          "severidad": 1,
+          "alcance": 1,
+          "irremediabilidad": 1,
+          "probabilidad": 1,
+          "impacto_financiero": 1,
+          "probabilidad_financiera": 1,
+          "horizonte": "CORTO"
+        },
+        "P24": {
+          "severidad": 1,
+          "alcance": 1,
+          "irremediabilidad": 1,
+          "probabilidad": 1,
+          "impacto_financiero": 1,
+          "probabilidad_financiera": 1,
+          "horizonte": "MEDIO"
+        },
+        "P25": {
+          "severidad": 1,
+          "alcance": 1,
+          "irremediabilidad": 1,
+          "probabilidad": 1,
+          "impacto_financiero": 1,
+          "probabilidad_financiera": 1,
+          "horizonte": "MEDIO"
+        },
+        "P26": {
+          "severidad": 1,
+          "alcance": 1,
+          "irremediabilidad": 1,
+          "probabilidad": 1,
+          "impacto_financiero": 1,
+          "probabilidad_financiera": 1,
+          "horizonte": "MEDIO"
+        },
+        "P27": {
+          "severidad": 1,
+          "alcance": 1,
+          "irremediabilidad": 1,
+          "probabilidad": 1,
+          "impacto_financiero": 1,
+          "probabilidad_financiera": 1,
+          "horizonte": "MEDIO"
+        }
+      }
+    },
+    {
+      "id": "54823a13-24a0-4ade-87a7-5a7c4ff30f71",
+      "ts": "2026-03-23T15:56:14.612Z",
+      "editionId": "edicion-historica",
+      "area": "Asuntos Jurídicos & Regulatorios",
+      "rol": "Gerentes",
+      "comentarios": "prueba",
+      "table": {
+        "P01": {
+          "impacto": 5,
+          "financiero": 5
+        },
+        "P02": {
+          "impacto": 5,
+          "financiero": 5
+        },
+        "P03": {
+          "impacto": 5,
+          "financiero": 5
+        },
+        "P04": {
+          "impacto": 5,
+          "financiero": 5
+        },
+        "P05": {
+          "impacto": 5,
+          "financiero": 5
+        },
+        "P06": {
+          "impacto": 4,
+          "financiero": 4
+        },
+        "P07": {
+          "impacto": 4,
+          "financiero": 4
+        },
+        "P08": {
+          "impacto": 3,
+          "financiero": 3
+        },
+        "P09": {
+          "impacto": 3,
+          "financiero": 3
+        },
+        "P10": {
+          "impacto": 3,
+          "financiero": 3
+        },
+        "P11": {
+          "impacto": 3,
+          "financiero": 3
+        },
+        "P12": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P13": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P14": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P15": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P16": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P17": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P18": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P19": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P20": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P21": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P22": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P23": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P24": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P25": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P26": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P27": {
+          "impacto": 1,
+          "financiero": 1
+        }
+      }
+    },
+    {
+      "id": "c630d1ff-af1d-45f0-abe7-f81bf4668d57",
+      "ts": "2026-03-23T16:13:47.803Z",
+      "editionId": "edicion-historica",
+      "area": "Compras",
+      "rol": "Gerentes",
+      "comentarios": "PRUEBA DIEGO",
+      "table": {
+        "P01": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P02": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P03": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P04": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P05": {
+          "impacto": 1,
+          "financiero": 1
+        },
+        "P06": {
+          "impacto": 3,
+          "financiero": 3
+        },
+        "P07": {
+          "impacto": 3,
+          "financiero": 3
+        },
+        "P08": {
+          "impacto": 4,
+          "financiero": 4
+        },
+        "P09": {
+          "impacto": 4,
+          "financiero": 4
+        },
+        "P10": {
+          "impacto": 4,
+          "financiero": 4
+        },
+        "P11": {
+          "impacto": 4,
+          "financiero": 4
+        },
+        "P12": {
+          "impacto": 5,
+          "financiero": 5
+        },
+        "P13": {
+          "impacto": 5,
+          "financiero": 5
+        },
+        "P14": {
+          "impacto": 5,
+          "financiero": 5
+        },
+        "P15": {
+          "impacto": 5,
+          "financiero": 5
+        },
+        "P16": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P17": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P18": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P19": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P20": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P21": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P22": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P23": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P24": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P25": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P26": {
+          "impacto": 2,
+          "financiero": 2
+        },
+        "P27": {
+          "impacto": 2,
+          "financiero": 2
+        }
+      }
+    }
+  ],
   "params": {
-    "tauImpact": 3.5,
+    "tauImpact": 3.8,
     "tauFin": 3.5,
     "ruleDouble": "AND",
     "wImpact": {
@@ -4067,5 +4926,9 @@
     "stakeWeightByN": true,
     "groupFilter": "TODOS"
   },
-  "lastScenarioId": "base_moderado"
+  "lastScenarioId": "base_moderado",
+  "emails": {
+    "externa": "dmeza.py@gmail.com, latifi.chelala@paracel.com.py, lia.milillo@paracel.com.py, diego.meza@paracel.com.py",
+    "interna": "diego.meza@paracel.com.py, lia.milillo@paracel.com.py, latifi.chelala@paracel.com.py"
+  }
 }
