@@ -123,6 +123,18 @@ async function postCloudPayload(payload) {
     headers: { "Content-Type": "text/plain;charset=utf-8" }
   }, 15000);
   if (!res.ok) throw new Error(`Fallo al guardar (${res.status})`);
+  
+  // NATIVELY CATCH GAS SILENT ERRORS
+  const text = await res.text();
+  try {
+    const json = JSON.parse(text);
+    if (json.status === "error") {
+      alert("ERROR DE SECUENCIA GOOGLE: " + json.message);
+      throw new Error(json.message);
+    }
+  } catch(e) {
+    // Si no es json o falló el parse
+  }
   return res;
 }
 
