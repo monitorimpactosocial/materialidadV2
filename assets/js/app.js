@@ -1261,7 +1261,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       });
 
       db.externalResponses.push(row);
-      saveDB(db);
+      saveDB(db, { skipConfigSync: true });
       populateDatalists(db);
 
       const btn = form.querySelector('button[type="submit"]');
@@ -1402,7 +1402,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       }, db.params);
 
       db.internalAssessments.push(row);
-      saveDB(db);
+      saveDB(db, { skipConfigSync: true });
       populateDatalists(db);
 
       const btn = form.querySelector('button[type="submit"]');
