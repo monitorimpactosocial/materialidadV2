@@ -1673,7 +1673,7 @@ Equipo PARACEL`;
 
     const sArea = new Set([
       "Finanzas", "Asuntos Jurídicos & Regulatorios", "Comunicación y Sustentabilidad Social", 
-      "Sustentabilidad Ambiental", "TI", "Talento Humano"
+      "Sustentabilidad Ambiental", "TI", "Talento Humano", "Compras y Logística"
     ]);
     const sRol = new Set([
       "Directores/as", "Gerentes", "Coordinadores/as", "Especialistas", 
