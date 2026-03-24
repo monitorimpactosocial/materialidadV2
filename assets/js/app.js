@@ -2190,7 +2190,7 @@ Equipo PARACEL`;
       const u = document.getElementById("sysUser").value;
       const p = document.getElementById("sysPass").value;
       let newRole = null;
-      if (u === "admin" && p === "paracel2026") newRole = "admin";
+      if (u === "user" && p === "123") newRole = "admin";
       else if (u === "encuesta" && p === "paracel") newRole = "externa";
       else if (u === "comite" && p === "paracel") newRole = "interna";
 
