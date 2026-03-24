@@ -351,7 +351,7 @@ function persistLocalDB(db) {
 
 function normalizeEditionRow(row) {
   return {
-    id: sanitizeText(row && row.id ? row.id : uuidv4(), 120),
+    id: sanitizeText(row && row.id ? row.id : String(new Date().getFullYear()), 120),
     name: sanitizeText(row && row.name ? row.name : `Edición ${new Date().getFullYear()}`, 120),
     startDate: row && row.startDate ? row.startDate : nowISO(),
     endDate: row && row.endDate ? row.endDate : null,
@@ -469,7 +469,7 @@ function migrateDB(raw) {
   let editions = Array.isArray(raw.editions) ? raw.editions.map(normalizeEditionRow) : [];
   if (editions.length === 0) {
     const start = nowISO();
-    const id = uuidv4();
+    const id = String(new Date().getFullYear());
     editions = [{ id, name: `Edición ${new Date().getFullYear()}`, startDate: start, endDate: null, status: "open", nextDueDate: addYears(start, 2) }];
   }
 
@@ -1734,6 +1734,39 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     }
   }
 
+  function renderExternalTop10(db, targetId) {
+    const { rows } = computeScores(db);
+    const topExt = [...rows].filter(r => r.stakeholder_mean !== null)
+                            .sort((a, b) => b.stakeholder_mean - a.stakeholder_mean)
+                            .slice(0, 10);
+    
+    if (topExt.length === 0) return;
+    topExt.reverse();
+
+    const y = topExt.map(r => r.tema_nombre.length > 40 ? r.tema_nombre.substring(0, 37) + '...' : r.tema_nombre);
+    const x = topExt.map(r => r.stakeholder_mean);
+
+    const data = [{
+      type: 'bar',
+      x: x,
+      y: y,
+      orientation: 'h',
+      marker: { color: '#16a34a' },
+      hovertemplate: "Importancia: %{x:.2f}<extra></extra>"
+    }];
+
+    const layout = {
+      margin: { l: 250, r: 20, t: 30, b: 40 },
+      xaxis: { range: [1, 5], title: "Promedio Stakeholders", gridcolor: "rgba(22,163,74,0.10)" },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(255,255,255,0.75)"
+    };
+
+    if (document.getElementById(targetId)) {
+        Plotly.newPlot(targetId, data, layout, { displayModeBar: false, responsive: true });
+    }
+  }
+
   function renderReport(db) {
     const params = getParams(db);
     const edition = db.editions.find((e) => e.id === db.currentEditionId);
@@ -1795,6 +1828,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     }
 
     // plot en reporte
+    renderExternalTop10(db, "plotExternalTop10");
     renderMatrixPlot(db, "plotMatrixReport");
     renderRadarPlot(db, "plotRadarReport");
     renderDimensionPlot(db, "plotDimensionReport");
@@ -1990,8 +2024,9 @@ Equipo PARACEL`;
       const name = document.getElementById("newEditionName").value.trim();
       const db2 = ensureDB();
       const y = new Date().getFullYear();
+      let id = String(name.replace(/\D/g, '') || y);
+      if (id.length > 4) id = id.substring(0, 4);
       const nm = name || `Edición ${y}`;
-      const id = String(name || y);
       
       if (db2.editions.find(e => e.id === id)) {
          alert("Ya existe una edición con ese identificador. Use un nombre distinto (Ej: '2026').");

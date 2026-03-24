@@ -560,10 +560,32 @@
             <h3>1. Resumen ejecutivo</h3>
             <div class="muted" id="repExecutive"></div>
 
-            <h3 class="mt-16">2. Materialidad por Dimensión ISO 26000</h3>
+            <!-- SECCIÓN EXTERNA -->
+            <br clear="all" style="page-break-before:always" />
+            <div style="margin-top: 40px;"></div>
+            <h2 style="color:var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 8px;">SECCIÓN I: Evaluación Externa (Grupos de Interés)</h2>
+            <div class="callout callout-info mt-8" style="background:#f0fdf4; border-left-color:#16a34a;">
+              <p style="margin:0;">Respuestas recolectadas a través del instrumento de encuesta a grupos de interés. Define el "Nivel de Importancia" desde la perspectiva externa de los stakeholders.</p>
+            </div>
+            
+            <h3 class="mt-16">1.1. Top 10 Temas Más Relevantes (Visión Externa)</h3>
+            <div id="plotExternalTop10" class="plot plot-print" style="min-height:300px; margin-bottom: 24px;"></div>
+
+            <!-- SECCIÓN INTERNA -->
+            <br clear="all" style="page-break-before:always" />
+            <div style="margin-top: 40px;"></div>
+            <h2 style="color:var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 8px;">SECCIÓN II: Evaluación Interna (Comité y Expertos)</h2>
+            <div class="callout callout-info mt-8" style="background:#eff6ff; border-left-color:#2563eb;">
+              <p style="margin:0;">Resultados de la calificación de Impacto ASG y Riesgo Financiero provista por el Comité Evaluador Interno.</p>
+            </div>
+
+            <h3 class="mt-16">2.1. Materialidad por Dimensión ISO 26000</h3>
             <div id="plotDimensionReport" class="plot plot-print" style="min-height:300px; margin-bottom: 24px;"></div>
 
-            <h3>3. Top 5 Temas Críticos</h3>
+            <h3 class="mt-16">2.2. Perfil en Radar (Top Temas Internos)</h3>
+            <div id="plotRadarReport" class="plot plot-print"></div>
+
+            <h3 class="mt-16">2.3. Top 5 Temas Críticos</h3>
             <div class="grid-2 mt-8 mb-16" id="repKpisTop5" style="gap:16px;">
               <div class="card card-flat" style="border: 1px solid rgba(6,78,59,0.12); margin:0;">
                 <div class="card-header" style="background: rgba(220, 38, 38, 0.05); padding: 10px 14px; border-bottom: 1px solid rgba(6,78,59,0.08);">
@@ -579,7 +601,18 @@
               </div>
             </div>
 
-            <h3 class="mt-16">4. Temas priorizados (doble materialidad)</h3>
+            <!-- SECCIÓN MATRIZ -->
+            <br clear="all" style="page-break-before:always" />
+            <div style="margin-top: 40px;"></div>
+            <h2 style="color:var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 8px;">SECCIÓN III: Consolidación y Doble Materialidad</h2>
+            <div class="callout callout-info mt-8">
+              <p style="margin:0;">Cruce estratégico que determina la lista final de temas de doble materialidad, integrando la visión externa (tamaño de burbuja) e interna (Ejes X e Y).</p>
+            </div>
+
+            <h3 class="mt-16">3.1. Matriz de Resultados</h3>
+            <div id="plotMatrixReport" class="plot plot-print"></div>
+
+            <h3 class="mt-16">3.2. Temas priorizados (doble materialidad)</h3>
             <div class="table-wrap">
               <table class="table" id="tableReportDouble">
                 <thead>
@@ -594,13 +627,7 @@
               </table>
             </div>
 
-            <h3 class="mt-16">5. Matriz de Resultados</h3>
-            <div id="plotMatrixReport" class="plot plot-print"></div>
-
-            <h3 class="mt-16">6. Perfil en Radar (Top Temas)</h3>
-            <div id="plotRadarReport" class="plot plot-print"></div>
-
-            <h3 class="mt-16">7. Anexo, ranking completo</h3>
+            <h3 class="mt-16">3.3. Anexo, ranking completo</h3>
             <div class="table-wrap">
               <table class="table table-compact" id="tableReportAll">
                 <thead>
