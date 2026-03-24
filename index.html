@@ -508,6 +508,16 @@
             </div>
           </div>
         </div>
+
+        <div class="card mt-16">
+          <div class="card-header">
+            <h2>Perfil de Materialidad (Radar)</h2>
+            <p class="muted">Gráfico de radar comparativo detallando el Score Financiero vs Impacto.</p>
+          </div>
+          <div class="card-body">
+            <div id="plotRadar" class="plot"></div>
+          </div>
+        </div>
       </section>
 
       <!-- REPORTE -->
@@ -587,7 +597,10 @@
             <h3 class="mt-16">5. Matriz de Resultados</h3>
             <div id="plotMatrixReport" class="plot plot-print"></div>
 
-            <h3 class="mt-16">6. Anexo, ranking completo</h3>
+            <h3 class="mt-16">6. Perfil en Radar (Top Temas)</h3>
+            <div id="plotRadarReport" class="plot plot-print"></div>
+
+            <h3 class="mt-16">7. Anexo, ranking completo</h3>
             <div class="table-wrap">
               <table class="table table-compact" id="tableReportAll">
                 <thead>
@@ -712,6 +725,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=14"></script>
+  <script src="assets/js/app.js?v=15"></script>
 </body>
 </html>

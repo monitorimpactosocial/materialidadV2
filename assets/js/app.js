@@ -1622,6 +1622,59 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   function renderDashboard(db) {
     renderMatrixPlot(db, "plotMatrix");
     renderRankingTable(db);
+    renderRadarPlot(db, "plotRadar");
+  }
+
+  function renderRadarPlot(db, targetId) {
+    const { rows } = computeScores(db);
+    const valid = rows.filter(r => r.impact_score !== null && r.fin_score !== null).slice(0, 10);
+    if (valid.length === 0) return;
+
+    // Use full topic name for the polar chart but truncate to keep it from collapsing
+    const theta = valid.map(r => r.tema_nombre.length > 30 ? r.tema_nombre.substring(0, 27) + '...' : r.tema_nombre);
+    const rImpact = valid.map(r => r.impact_score);
+    const rFin = valid.map(r => r.fin_score);
+
+    theta.push(theta[0]);
+    rImpact.push(rImpact[0]);
+    rFin.push(rFin[0]);
+
+    const data = [
+      {
+        type: 'scatterpolar',
+        r: rImpact,
+        theta,
+        fill: 'toself',
+        name: 'Impacto ASG',
+        line: { color: "#059669" },
+        fillcolor: "rgba(5,150,105,0.25)"
+      },
+      {
+        type: 'scatterpolar',
+        r: rFin,
+        theta,
+        fill: 'toself',
+        name: 'Financiero',
+        line: { color: "#2563eb" },
+        fillcolor: "rgba(37,99,235,0.25)"
+      }
+    ];
+
+    const layout = {
+      polar: {
+        radialaxis: { visible: true, range: [0, 5], gridcolor: "rgba(0,0,0,0.1)", dtick: 1 },
+        angularaxis: { gridcolor: "rgba(0,0,0,0.1)", direction: "clockwise" }
+      },
+      showlegend: true,
+      legend: { orientation: "h", x: 0.5, xanchor: "center", y: -0.1 },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(0,0,0,0)",
+      margin: { l: 40, r: 40, t: 30, b: 30 }
+    };
+
+    if (document.getElementById(targetId)) {
+        Plotly.newPlot(targetId, data, layout, { displayModeBar: false, responsive: true });
+    }
   }
 
   function renderDimensionPlot(db, targetId) {
@@ -1743,6 +1796,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
     // plot en reporte
     renderMatrixPlot(db, "plotMatrixReport");
+    renderRadarPlot(db, "plotRadarReport");
     renderDimensionPlot(db, "plotDimensionReport");
     renderTop5KPIs(db);
   }
@@ -1937,7 +1991,13 @@ Equipo PARACEL`;
       const db2 = ensureDB();
       const y = new Date().getFullYear();
       const nm = name || `Edición ${y}`;
-      const id = uuidv4();
+      const id = String(name || y);
+      
+      if (db2.editions.find(e => e.id === id)) {
+         alert("Ya existe una edición con ese identificador. Use un nombre distinto (Ej: '2026').");
+         return;
+      }
+      
       const start = nowISO();
       db2.editions.push({ id, name: nm, startDate: start, endDate: null, status: "open", nextDueDate: addYears(start, 2) });
       db2.currentEditionId = id;
