@@ -2238,39 +2238,60 @@ Equipo PARACEL`;
   // DataLists Poblator
   // ---------------------------------------------------------------------------
   function populateDatalists(db) {
-    const sSect = new Set();
-    const sOrg = new Set();
+    const sSect = new Map();
+    const sOrg = new Map();
     db.externalResponses.forEach(r => {
-      if (r.sector) sSect.add(r.sector.trim());
-      if (r.organizacion) sOrg.add(r.organizacion.trim());
+      if (r.sector) {
+        const val = r.sector.trim();
+        if (val && !sSect.has(val.toLowerCase())) sSect.set(val.toLowerCase(), val);
+      }
+      if (r.organizacion) {
+        const val = r.organizacion.trim();
+        if (val && !sOrg.has(val.toLowerCase())) sOrg.set(val.toLowerCase(), val);
+      }
     });
+
     const lsSect = document.getElementById("listSector");
     lsSect.innerHTML = "";
-    sSect.forEach(v => lsSect.appendChild(new Option(v)));
+    Array.from(sSect.values()).sort((a,b) => a.localeCompare(b)).forEach(v => lsSect.appendChild(new Option(v)));
 
     const lsOrg = document.getElementById("listOrg");
     lsOrg.innerHTML = "";
-    sOrg.forEach(v => lsOrg.appendChild(new Option(v)));
+    Array.from(sOrg.values()).sort((a,b) => a.localeCompare(b)).forEach(v => lsOrg.appendChild(new Option(v)));
 
-    const sArea = new Set([
+    const sArea = new Map();
+    const defaultAreas = [
       "Finanzas", "Asuntos Jurídicos & Regulatorios", "Comunicación y Sustentabilidad Social", 
-      "Sustentabilidad Ambiental", "TI", "Talento Humano", "Compras", "Logística"
-    ]);
-    const sRol = new Set([
+      "Sustentabilidad Ambiental", "TI", "Talento Humano", "Compras", "Logística",
+      "Forestal", "Ingeniería", "Seguridad Corporativa"
+    ];
+    defaultAreas.forEach(def => sArea.set(def.toLowerCase(), def));
+
+    const sRol = new Map();
+    const defaultRoles = [
       "Directores/as", "Gerentes", "Coordinadores/as", "Especialistas", 
       "Supervisores/as", "Analistas / Técnicos/as", "Asistentes", "Operadores/as"
-    ]);
+    ];
+    defaultRoles.forEach(def => sRol.set(def.toLowerCase(), def));
+
     db.internalAssessments.forEach(r => {
-      if (r.area) sArea.add(r.area.trim());
-      if (r.rol) sRol.add(r.rol.trim());
+      if (r.area) {
+        const val = r.area.trim();
+        if (val && !sArea.has(val.toLowerCase())) sArea.set(val.toLowerCase(), val);
+      }
+      if (r.rol) {
+        const val = r.rol.trim();
+        if (val && !sRol.has(val.toLowerCase())) sRol.set(val.toLowerCase(), val);
+      }
     });
+
     const lsArea = document.getElementById("listArea");
     lsArea.innerHTML = "";
-    sArea.forEach(v => lsArea.appendChild(new Option(v)));
+    Array.from(sArea.values()).sort((a,b) => a.localeCompare(b)).forEach(v => lsArea.appendChild(new Option(v)));
 
     const lsRol = document.getElementById("listRol");
     lsRol.innerHTML = "";
-    sRol.forEach(v => lsRol.appendChild(new Option(v)));
+    Array.from(sRol.values()).sort((a,b) => a.localeCompare(b)).forEach(v => lsRol.appendChild(new Option(v)));
   }
 
   // ---------------------------------------------------------------------------
