@@ -437,105 +437,156 @@
     }
   }
 
-  function buildExternalTopics(container) {
-    container.innerHTML = "";
-    const scale = DATA.scale; // [{label,value}]
-    for (const t of DATA.topics) {
-      const card = document.createElement("div");
-      card.className = "topic-card";
-      card.dataset.tid = t.tema_id;
-
-      const title = document.createElement("div");
-      title.className = "topic-title";
-      title.textContent = `${t.tema_id} · ${t.tema_nombre}`;
-      card.appendChild(title);
-
-      const likert = document.createElement("div");
-      likert.className = "likert";
-
-      for (const s of scale) {
-        const id = `ext_${t.tema_id}_${s.value}`;
-        const lab = document.createElement("label");
-        lab.htmlFor = id;
-
-        const inp = document.createElement("input");
-        inp.type = "radio";
-        inp.name = `ext_${t.tema_id}`;
-        inp.id = id;
-        inp.value = String(s.value);
-        inp.addEventListener("change", updateExternalProgress);
-
-        const span = document.createElement("span");
-        span.textContent = s.label.replace("RELEVANTE", "REL.");
-
-        lab.appendChild(inp);
-        lab.appendChild(span);
-        likert.appendChild(lab);
-      }
-
-      card.appendChild(likert);
-      container.appendChild(card);
+  function mkPillsCompactExternal(tid, options) {
+    let html = `<div class="rating-group-matrix" style="justify-content: center;">`;
+    for (const opt of options) {
+      const val = opt.value || opt.v;
+      const id = `ex_${tid}_${val}`.replace(/\s+/g, "");
+      html += `<input type="radio" name="ext_${tid}" id="${id}" value="${val}">`;
+      html += `<label for="${id}" title="${val}" style="width:32px; height:32px; font-size:14px;">${val}</label>`;
     }
+    html += `</div>`;
+    return html;
   }
 
-  function buildInternalTable(tbody) {
-    tbody.innerHTML = "";
-    const mkSel = (tid, key) => {
-      const sel = document.createElement("select");
-      sel.dataset.tid = tid;
-      sel.dataset.key = key;
+  function buildExternalTopics(container) {
+    container.innerHTML = "";
+    const scale5 = [{ v: "1" }, { v: "2" }, { v: "3" }, { v: "4" }, { v: "5" }];
 
-      const o0 = document.createElement("option");
-      o0.value = "";
-      o0.textContent = "";
-      sel.appendChild(o0);
+    for (const dim of DIMENSIONS) {
+      const dimTopics = DATA.topics.filter((t) => dim.range.includes(t.tema_id));
+      if (dimTopics.length === 0) continue;
 
-      for (let i = 1; i <= 5; i++) {
-        const o = document.createElement("option");
-        o.value = String(i);
-        o.textContent = String(i);
-        sel.appendChild(o);
+      const card = document.createElement("div");
+      card.className = `dim-card ${dim.class}`;
+      
+      let html = `
+        <div class="dim-header">${dim.title}</div>
+        <div class="dim-bulk-row" style="background:rgba(0,0,0,0.02); padding:8px 16px; border-bottom:1px solid rgba(0,0,0,0.05); display:flex; gap:8px; align-items:center;">
+          <span style="font-size:12px; font-weight:700; color:var(--muted);">Rellenar bloque con:</span>
+          ${[1, 2, 3, 4, 5].map(v => `<button type="button" class="btn btn-small btn-ghost btn-mark-ext" data-val="${v}">Todos en ${v}</button>`).join("")}
+        </div>
+        <div class="table-matrix-wrap">
+          <table class="table-matrix">
+            <thead>
+              <tr>
+                <th>Tema a Evaluar</th>
+                <th style="width: 250px; text-align: center;">Nivel de Importancia</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      for (const t of dimTopics) {
+        html += `<tr class="topic-block" data-tid="${t.tema_id}">
+          <td class="topic-title-block" style="vertical-align: middle;">${t.tema_id} · ${t.tema_nombre}</td>
+          <td style="text-align: center; vertical-align: middle; padding: 12px;">${mkPillsCompactExternal(t.tema_id, scale5)}</td>
+        </tr>`;
       }
-      sel.addEventListener("change", updateInternalProgress);
-      return sel;
-    };
-
-    const mkHorizon = (tid) => {
-      const sel = document.createElement("select");
-      sel.dataset.tid = tid;
-      sel.dataset.key = "horizonte";
-      for (const h of HORIZONS) {
-        const o = document.createElement("option");
-        o.value = h.v;
-        o.textContent = h.t;
-        sel.appendChild(o);
-      }
-      sel.addEventListener("change", updateInternalProgress);
-      return sel;
-    };
-
-    for (const t of DATA.topics) {
-      const tr = document.createElement("tr");
-      tr.dataset.tid = t.tema_id;
-
-      const td0 = document.createElement("td");
-      td0.textContent = `${t.tema_id} · ${t.tema_nombre}`;
-      tr.appendChild(td0);
-
-      const keys = ["severidad", "alcance", "irremediabilidad", "probabilidad", "impacto_financiero", "probabilidad_financiera"];
-      for (const k of keys) {
-        const td = document.createElement("td");
-        td.className = "center";
-        td.appendChild(mkSel(t.tema_id, k));
-        tr.appendChild(td);
-      }
-
-      const tdH = document.createElement("td");
-      tdH.appendChild(mkHorizon(t.tema_id));
-      tr.appendChild(tdH);
-
-      tbody.appendChild(tr);
+      html += `</tbody></table></div>`;
+      card.innerHTML = html;
+      container.appendChild(card);
     }
+
+    container.querySelectorAll('.btn-mark-ext').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.val;
+        const card = btn.closest('.dim-card');
+        card.querySelectorAll(`input[type="radio"][value="${val}"]`).forEach((r) => r.checked = true);
+        updateExternalProgress();
+      });
+    });
+
+    container.querySelectorAll('input[type="radio"]').forEach((r) => {
+      r.addEventListener('change', updateExternalProgress);
+    });
+  }
+
+  const DIMENSIONS = [
+    { id: "gobernanza", title: "1. Gobernanza de la organización", class: "dim-gobernanza", range: ["P01", "P02", "P03", "P04", "P05"] },
+    { id: "derechos", title: "2. Derechos humanos", class: "dim-derechos", range: ["P06", "P07"] },
+    { id: "laborales", title: "3. Prácticas laborales", class: "dim-laborales", range: ["P08", "P09", "P10", "P11"] },
+    { id: "medioambiente", title: "4. Medioambiente", class: "dim-medioambiente", range: ["P12", "P13", "P14", "P15"] },
+    { id: "operacion", title: "5. Prácticas justas de operación", class: "dim-operacion", range: ["P16", "P17", "P18"] },
+    { id: "comunidad", title: "6. Participación activa y desarrollo de la comunidad", class: "dim-comunidad", range: ["P19", "P20", "P21", "P22", "P23", "P24", "P25", "P26", "P27"] }
+  ];
+
+  function buildInternalCards(container) {
+    container.innerHTML = "";
+    
+    const scale5 = [1, 2, 3, 4, 5];
+    const horizVals = HORIZONS.map((h) => h.v);
+
+    const mkPillsCompact = (tid, key, options) => {
+      let html = `<div class="rating-group-matrix">`;
+      for (const val of options) {
+        const id = `int_${tid}_${key}_${val}`;
+        html += `<input type="radio" name="int_${tid}_${key}" id="${id}" value="${val}">`;
+        html += `<label for="${id}" title="${val}">${val}</label>`;
+      }
+      html += `</div>`;
+      return html;
+    };
+
+    for (const dim of DIMENSIONS) {
+      const dimTopics = DATA.topics.filter((t) => dim.range.includes(t.tema_id));
+      if (dimTopics.length === 0) continue;
+
+      const card = document.createElement("div");
+      card.className = `dim-card ${dim.class}`;
+      
+      let html = `
+        <div class="dim-header">${dim.title}</div>
+        <div class="dim-bulk-row" style="background:rgba(0,0,0,0.02); padding:8px 16px; border-bottom:1px solid rgba(0,0,0,0.05); display:flex; gap:8px; align-items:center;">
+          <span style="font-size:12px; font-weight:700; color:var(--muted);">Rellenar este bloque con:</span>
+          ${[1, 2, 3, 4, 5].map(v => `<button type="button" class="btn btn-small btn-ghost btn-mark-dim" data-val="${v}">Todos en ${v}</button>`).join("")}
+        </div>
+        <div class="table-matrix-wrap">
+          <table class="table-matrix">
+            <thead>
+              <tr>
+                <th>Tema a Evaluar</th>
+                <th>Severidad</th>
+                <th>Alcance</th>
+                <th>Irremediabilidad</th>
+                <th>Probabilidad</th>
+                <th>Impacto Fin.</th>
+                <th>Probabilidad Fin.</th>
+                <th>Horizonte</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      for (const t of dimTopics) {
+        html += `<tr class="topic-block" data-tid="${t.tema_id}">
+          <td class="topic-title-block">${t.tema_id} · ${t.tema_nombre}</td>
+          <td>${mkPillsCompact(t.tema_id, "severidad", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "alcance", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "irremediabilidad", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "probabilidad", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "impacto_financiero", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "probabilidad_financiera", scale5)}</td>
+          <td>${mkPillsCompact(t.tema_id, "horizonte", horizVals)}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+      card.innerHTML = html;
+      container.appendChild(card);
+    }
+
+    container.querySelectorAll('.btn-mark-dim').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.val;
+        const card = btn.closest('.dim-card');
+        card.querySelectorAll(`input[type="radio"][value="${val}"]`).forEach((r) => r.checked = true);
+        updateInternalProgress();
+      });
+    });
+
+    container.querySelectorAll('input[type="radio"]').forEach((r) => {
+      r.addEventListener('change', updateInternalProgress);
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -546,23 +597,51 @@
       const checked = document.querySelector(`input[name="ext_${t.tema_id}"]:checked`);
       return acc + (checked ? 1 : 0);
     }, 0);
+    
+    // Autosave external draft
+    const draft = {};
+    const checkedBoxes = document.querySelectorAll('#extTopics input[type="radio"]:checked');
+    checkedBoxes.forEach(r => draft[r.name] = r.value);
+    
+    // Save text inputs
+    const grp = document.getElementById("extGrupo");
+    const org = document.getElementById("extOrg");
+    const st = document.getElementById("extSector");
+    const ce = document.getElementById("extContacto");
+    if (grp) draft.extGrupo = grp.value;
+    if (org) draft.extOrg = org.value;
+    if (st) draft.extSector = st.value;
+    if (ce) draft.extContacto = ce.value;
+    
+    localStorage.setItem("paracel_external_draft", JSON.stringify(draft));
+
     document.getElementById("extProgress").textContent = `${answered} / ${DATA.topics.length}`;
+    document.getElementById("extProgressBar").value = answered;
   }
 
   function updateInternalProgress() {
-    const tbody = document.querySelector("#tableInternal tbody");
     let complete = 0;
+    const draft = {};
     for (const t of DATA.topics) {
-      const tr = tbody.querySelector(`tr[data-tid="${t.tema_id}"]`);
-      if (!tr) continue;
-      const sels = tr.querySelectorAll("select");
-      let any = false;
-      for (const s of sels) {
-        if (s.value !== "") { any = true; break; }
-      }
-      if (any) complete += 1;
+      const inputs = document.querySelectorAll(`input[name^="int_${t.tema_id}_"]:checked`);
+      if (inputs.length > 0) complete += 1;
     }
+    
+    // Autosave draft
+    const checkedBoxes = document.querySelectorAll('#internalCardsContainer input[type="radio"]:checked');
+    checkedBoxes.forEach(r => draft[r.name] = r.value);
+    
+    const area = document.getElementById("intArea");
+    const rol = document.getElementById("intRol");
+    const comentarios = document.getElementById("intComentarios");
+    if (area) draft.intArea = area.value;
+    if (rol) draft.intRol = rol.value;
+    if (comentarios) draft.intComentarios = comentarios.value;
+    
+    localStorage.setItem("paracel_internal_draft", JSON.stringify(draft));
+
     document.getElementById("intProgress").textContent = `${complete} / ${DATA.topics.length}`;
+    document.getElementById("intProgressBar").value = complete;
   }
 
   function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector) {
@@ -721,27 +800,62 @@
   // ---------------------------------------------------------------------------
   function hookExternalForm() {
     const form = document.getElementById("formExternal");
-    const btnClear = document.getElementById("btnExtClear");
+    const grp = document.getElementById("extGrupo");
+    const org = document.getElementById("extOrg");
+    const st = document.getElementById("extSector");
+    const ce = document.getElementById("extContacto");
 
-    btnClear.addEventListener("click", () => {
-      form.reset();
-      document.querySelectorAll('#extTopics input[type="radio"]').forEach((r) => (r.checked = false));
-      updateExternalProgress();
+    // Add draft trigger for text inputs
+    [grp, org, st, ce].forEach(el => {
+      if(el) el.addEventListener("input", updateExternalProgress);
     });
+
+    // Cargar borrador guardado (si existe)
+    try {
+      const draftStr = localStorage.getItem("paracel_external_draft");
+      if (draftStr) {
+        const draft = JSON.parse(draftStr);
+        if (draft.extGrupo && grp) grp.value = draft.extGrupo;
+        if (draft.extOrg && org) org.value = draft.extOrg;
+        if (draft.extSector && st) st.value = draft.extSector;
+        if (draft.extContacto && ce) ce.value = draft.extContacto;
+        
+        Object.keys(draft).forEach(k => {
+          if (["extGrupo", "extOrg", "extSector", "extContacto"].includes(k)) return;
+          const r = document.querySelector(`input[name="${k}"][value="${draft[k]}"]`);
+          if (r) r.checked = true;
+        });
+      }
+    } catch (e) { console.warn("Could not load external draft", e); }
+
+    const btnClearExt = document.getElementById("btnExtClear");
+    if (btnClearExt) {
+      btnClearExt.addEventListener("click", () => {
+        const ok = confirm("¿Limpiar todo el formulario externo?");
+        if (!ok) return;
+        form.reset();
+        document.querySelectorAll('#extTopics input[type="radio"]').forEach((r) => (r.checked = false));
+        localStorage.removeItem("paracel_external_draft");
+        updateExternalProgress();
+      });
+    }
 
     form.addEventListener("submit", (ev) => {
       ev.preventDefault();
       const db = ensureDB();
 
-      const grupo = document.getElementById("extGrupo").value;
-      const sector = document.getElementById("extSector").value.trim();
-      const org = document.getElementById("extOrg").value.trim();
-      const contacto = document.getElementById("extContacto").value.trim();
-      const percepcion = document.getElementById("extPercepcion").value;
-      const comentarios = document.getElementById("extComentarios").value.trim();
+      const grupo = grp.value;
+      const organizacion = org.value.trim();
+      const sector = st.value.trim();
+      const contacto = ce.value.trim();
+      // Wait, there's percepcion and comentarios normally, but if not in DOM, it's ok string:
+      const rawPerc = document.getElementById("extPercepcion");
+      const percepcion = rawPerc ? rawPerc.value.trim() : "";
+      const rawCom = document.getElementById("extComentarios");
+      const comentarios = rawCom ? rawCom.value.trim() : "";
 
       if (!grupo) {
-        alert("Debe seleccionar el grupo de interés.");
+        alert("Seleccione su grupo de interés.");
         return;
       }
 
@@ -751,13 +865,13 @@
         const checked = document.querySelector(`input[name="ext_${t.tema_id}"]:checked`);
         if (checked) {
           ratings[t.tema_id] = Number(checked.value);
-          answered += 1;
+          answered++;
         }
       }
 
       if (answered < DATA.topics.length) {
-        const ok = confirm(`La respuesta tiene ${answered} de ${DATA.topics.length} ítems completados. ¿Desea guardar igualmente?`);
-        if (!ok) return;
+        alert(`Faltan respuestas. Por favor de puntuar los 27 temas antes de enviar.\nActualmente calificados: ${answered}`);
+        return;
       }
 
       const row = {
@@ -766,7 +880,7 @@
         editionId: db.currentEditionId,
         grupo,
         sector,
-        organizacion: org,
+        organizacion,
         contacto,
         percepcion,
         comentarios,
@@ -775,24 +889,66 @@
 
       db.externalResponses.push(row);
       saveDB(db);
+      populateDatalists(db);
 
       form.reset();
       document.querySelectorAll('#extTopics input[type="radio"]').forEach((r) => (r.checked = false));
+      localStorage.removeItem("paracel_external_draft");
       updateExternalProgress();
 
       renderAll(db);
-      alert("Respuesta externa guardada.");
-      setActiveView("home");
+      alert("¡Gracias por su participación!\nSu respuesta ha sido enviada de forma exitosa.\n\nPuede cerrar esta pestaña o volver a llenar el formulario si necesita registrar otra respuesta.");
     });
   }
 
   function hookInternalForm() {
     const form = document.getElementById("formInternal");
     const btnClear = document.getElementById("btnIntClear");
+    const intArea = document.getElementById("intArea");
+    const intRol = document.getElementById("intRol");
+    const intComentarios = document.getElementById("intComentarios");
+
+    // Llenado rápido (Marcar todos con...)
+    for (let i = 1; i <= 5; i++) {
+      const btnMark = document.getElementById(`btnMarkAll${i}`);
+      if (btnMark) {
+        btnMark.addEventListener("click", () => {
+          document.querySelectorAll(`#internalCardsContainer input[type="radio"][value="${i}"]`).forEach(r => {
+            r.checked = true;
+          });
+          updateInternalProgress();
+        });
+      }
+    }
+
+    // Trigger draft on typing text inputs
+    intArea.addEventListener("input", updateInternalProgress);
+    intRol.addEventListener("input", updateInternalProgress);
+    intComentarios.addEventListener("input", updateInternalProgress);
+
+    // Cargar borrador guardado (si existe)
+    try {
+      const draftStr = localStorage.getItem("paracel_internal_draft");
+      if (draftStr) {
+        const draft = JSON.parse(draftStr);
+        if (draft.intArea) intArea.value = draft.intArea;
+        if (draft.intRol) intRol.value = draft.intRol;
+        if (draft.intComentarios) intComentarios.value = draft.intComentarios;
+        
+        Object.keys(draft).forEach(k => {
+          if (k === "intArea" || k === "intRol" || k === "intComentarios") return;
+          const r = document.querySelector(`input[name="${k}"][value="${draft[k]}"]`);
+          if (r) r.checked = true;
+        });
+      }
+    } catch (e) { console.warn("Could not load internal draft", e); }
 
     btnClear.addEventListener("click", () => {
+      const ok = confirm("¿Está seguro de querer limpiar todo el formulario y perder el progreso no enviado?");
+      if (!ok) return;
       form.reset();
-      document.querySelectorAll("#tableInternal select").forEach((s) => (s.value = ""));
+      document.querySelectorAll('#internalCardsContainer input[type="radio"]').forEach((r) => (r.checked = false));
+      localStorage.removeItem("paracel_internal_draft");
       updateInternalProgress();
     });
 
@@ -800,9 +956,9 @@
       ev.preventDefault();
       const db = ensureDB();
 
-      const area = document.getElementById("intArea").value.trim();
-      const rol = document.getElementById("intRol").value.trim();
-      const comentarios = document.getElementById("intComentarios").value.trim();
+      const area = intArea.value.trim();
+      const rol = intRol.value.trim();
+      const comentarios = intComentarios.value.trim();
 
       if (!area) {
         alert("Debe completar el área evaluadora.");
@@ -810,20 +966,29 @@
       }
 
       const table = {};
-      const tbody = document.querySelector("#tableInternal tbody");
       let complete = 0;
 
       for (const t of DATA.topics) {
-        const tr = tbody.querySelector(`tr[data-tid="${t.tema_id}"]`);
         const row = {};
-        tr.querySelectorAll("select").forEach((sel) => {
-          const key = sel.dataset.key;
-          row[key] = sel.value === "" ? null : sel.value;
-        });
+        const keys = ["severidad", "alcance", "irremediabilidad", "probabilidad", "impacto_financiero", "probabilidad_financiera", "horizonte"];
+        let answeredKeys = 0;
 
-        const any = Object.values(row).some((v) => v !== null && v !== "");
-        if (any) {
+        for (const k of keys) {
+          const checked = document.querySelector(`input[name="int_${t.tema_id}_${k}"]:checked`);
+          if (checked) {
+            row[k] = checked.value;
+            answeredKeys++;
+          } else {
+            row[k] = null;
+          }
+        }
+
+        if (answeredKeys === keys.length) {
           complete += 1;
+        }
+
+        // Aunque esté incompleto se arma el objeto, luego se intercepta la suma
+        if (answeredKeys > 0) {
           table[t.tema_id] = {
             severidad: row.severidad ? Number(row.severidad) : null,
             alcance: row.alcance ? Number(row.alcance) : null,
@@ -836,8 +1001,8 @@
         }
       }
 
-      if (complete === 0) {
-        alert("No se registraron puntajes. Complete al menos un tema.");
+      if (complete < DATA.topics.length) {
+        alert(`Faltan respuestas. Debe calificar TODOS los cuadrantes de los 27 temas antes de enviar.\nTemas 100% completados actualmente: ${complete}`);
         return;
       }
 
@@ -853,14 +1018,15 @@
 
       db.internalAssessments.push(row);
       saveDB(db);
+      populateDatalists(db);
 
       form.reset();
-      document.querySelectorAll("#tableInternal select").forEach((s) => (s.value = ""));
+      document.querySelectorAll('#internalCardsContainer input[type="radio"]').forEach((r) => (r.checked = false));
+      localStorage.removeItem("paracel_internal_draft");
       updateInternalProgress();
 
       renderAll(db);
-      alert("Evaluación interna guardada.");
-      setActiveView("home");
+      alert("¡Gracias por su evaluación!\nLos puntajes internos han sido guardados de forma exitosa.\n\nPuede cerrar esta pestaña o registrar una nueva evaluación desde cero.");
     });
   }
 
@@ -1051,6 +1217,63 @@
     renderRankingTable(db);
   }
 
+  function renderDimensionPlot(db, targetId) {
+    const { rows } = computeScores(db);
+    const byDim = {};
+    for (const d of DIMENSIONS) {
+      const tIds = DATA.topics.filter(t => d.range.includes(t.tema_id)).map(t => t.tema_id);
+      const dRows = rows.filter(r => tIds.includes(r.tema_id) && r.impact_score !== null && r.fin_score !== null);
+      if (dRows.length === 0) continue;
+      const sumIm = dRows.reduce((a, b) => a + b.impact_score, 0);
+      const sumFi = dRows.reduce((a, b) => a + b.fin_score, 0);
+      const avg = (sumIm + sumFi) / (dRows.length * 2);
+      byDim[d.title] = avg;
+    }
+    
+    const sorted = Object.entries(byDim).sort((a,b) => b[1] - a[1]);
+    const x = sorted.map(k => k[0]);
+    const y = sorted.map(k => k[1]);
+    
+    const data = [{
+      x, y, type: 'bar', marker: { color: '#059669' },
+      hovertemplate: "Promedio Doble Mat.: %{y:.2f}<extra></extra>"
+    }];
+    const layout = {
+      margin: { l: 30, r: 20, t: 30, b: 120 },
+      yaxis: { range: [1, 5], title: "Media Doble Mat.", gridcolor: "rgba(2,44,34,0.10)" },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(255,255,255,0.75)",
+    };
+    if (document.getElementById(targetId)) {
+        Plotly.newPlot(targetId, data, layout, { displayModeBar: false, responsive: true });
+    }
+  }
+
+  function renderTop5KPIs(db) {
+    const { rows } = computeScores(db);
+    const topIm = [...rows].filter(r => r.impact_score !== null).sort((a, b) => b.impact_score - a.impact_score).slice(0, 5);
+    const topFi = [...rows].filter(r => r.fin_score !== null).sort((a, b) => b.fin_score - a.fin_score).slice(0, 5);
+    
+    const imC = document.getElementById("top5Impact");
+    if (imC) {
+      imC.innerHTML = topIm.map((r, i) => `
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:6px 0;">
+          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%;"><b>${i+1}.</b> ${r.tema_nombre}</span>
+          <span style="font-weight:bold; color:var(--primary);">${fmt(r.impact_score,2)}</span>
+        </div>
+      `).join("");
+    }
+    const fiC = document.getElementById("top5Fin");
+    if (fiC) {
+      fiC.innerHTML = topFi.map((r, i) => `
+        <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:6px 0;">
+          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%;"><b>${i+1}.</b> ${r.tema_nombre}</span>
+          <span style="font-weight:bold; color:var(--primary);">${fmt(r.fin_score,2)}</span>
+        </div>
+      `).join("");
+    }
+  }
+
   function renderReport(db) {
     const params = getParams(db);
     const edition = db.editions.find((e) => e.id === db.currentEditionId);
@@ -1113,6 +1336,8 @@
 
     // plot en reporte
     renderMatrixPlot(db, "plotMatrixReport");
+    renderDimensionPlot(db, "plotDimensionReport");
+    renderTop5KPIs(db);
   }
 
   function renderAll(db) {
@@ -1193,40 +1418,9 @@
     }
 
     document.getElementById("btnOpenAdmin").addEventListener("click", () => {
-      if (!sessionStorage.getItem("adminLogged")) {
-        document.getElementById("adminLoginSection").style.display = "block";
-        document.getElementById("adminContentSection").style.display = "none";
-        document.getElementById("btnAdminLogout").style.display = "none";
-      } else {
-        document.getElementById("adminLoginSection").style.display = "none";
-        document.getElementById("adminContentSection").style.display = "block";
-        document.getElementById("btnAdminLogout").style.display = "block";
-        loadEmailList();
-      }
+      document.getElementById("adminContentSection").style.display = "block";
+      loadEmailList();
       modal.showModal();
-    });
-
-    document.getElementById("btnLogin").addEventListener("click", () => {
-      const u = document.getElementById("adminUser").value;
-      const p = document.getElementById("adminPass").value;
-      if (u === "user" && p === "123") {
-        sessionStorage.setItem("adminLogged", "true");
-        document.getElementById("loginError").style.display = "none";
-        document.getElementById("adminLoginSection").style.display = "none";
-        document.getElementById("adminContentSection").style.display = "block";
-        document.getElementById("btnAdminLogout").style.display = "block";
-        document.getElementById("adminPass").value = "";
-        loadEmailList();
-      } else {
-        document.getElementById("loginError").style.display = "block";
-      }
-    });
-
-    document.getElementById("btnAdminLogout").addEventListener("click", () => {
-      sessionStorage.removeItem("adminLogged");
-      document.getElementById("adminLoginSection").style.display = "block";
-      document.getElementById("adminContentSection").style.display = "none";
-      document.getElementById("btnAdminLogout").style.display = "none";
     });
 
     document.getElementById("emailListType").addEventListener("change", loadEmailList);
@@ -1249,7 +1443,27 @@
       }
       const bcc = emailsText.split(/[\n,;]+/).map(v => v.trim()).filter(v => v).join(",");
       const subject = encodeURIComponent(type === "externa" ? "Encuesta Externa de Materialidad - Paracel" : "Evaluación Interna de Materialidad - Paracel");
-      const body = encodeURIComponent(`Hola,\n\nTe invitamos a participar en el ejercicio de materialidad de Paracel.\n\nPor favor ingresa aquí:\n[Reemplazar con el enlace a la encuesta]\n\nSaludos cordiales,\nEquipo Paracel.`);
+      const credUser = type === "externa" ? "encuesta" : "comite";
+      const bodyData = `Estimado/a,
+
+Le extendemos una cordial invitación para participar en el ejercicio de Análisis de Doble Materialidad de PARACEL. Su perspectiva es fundamental para nuestra organización, ya que nos permitirá identificar y priorizar los temas ambientales, sociales y de gobernanza (ASG) más relevantes para nuestra gestión y relación con ustedes.
+
+Para completar el cuestionario, por favor ingrese al siguiente enlace:
+🔗 https://monitorimpactosocial.github.io/materialidad
+
+🔒 Datos de Acceso:
+Usuario: ${credUser}
+Contraseña: paracel
+
+💡 Nota técnica: El cuestionario se puede rellenar y guardar en su equipo incluso si experimenta intermitencia de internet (modo offline). La respuesta quedará registrada.
+
+Le rogamos amablemente que nos haga llegar sus apreciaciones dentro de los próximos 7 días naturales, a fin de poder procesar la información a tiempo.
+
+Agradecemos de antemano su valiosa colaboración.
+
+Saludos cordiales,
+Equipo PARACEL`;
+      const body = encodeURIComponent(bodyData);
       window.location.href = `mailto:?bcc=${bcc}&subject=${subject}&body=${body}`;
     });
 
@@ -1362,6 +1576,76 @@
 
     document.getElementById("btnPrintReport").addEventListener("click", () => window.print());
 
+    document.getElementById("btnExportWord").addEventListener("click", async function() {
+      const btn = this;
+      const prevText = btn.textContent;
+      btn.textContent = "Generando Word...";
+      btn.disabled = true;
+
+      try {
+        const reportDiv = document.getElementById("reportArea");
+        const clone = reportDiv.cloneNode(true);
+        
+        const plots = reportDiv.querySelectorAll(".plot");
+        const clonePlots = clone.querySelectorAll(".plot");
+        
+        // Snapshot every plotly instance
+        for(let i = 0; i < plots.length; i++) {
+          try {
+            const dataUrl = await Plotly.toImage(plots[i], {format: 'png', height: 400, width: 700});
+            const img = document.createElement("img");
+            img.src = dataUrl;
+            img.style.width = "100%";
+            img.style.maxWidth = "700px";
+            clonePlots[i].parentNode.replaceChild(img, clonePlots[i]);
+          } catch(e) { console.error("Plotly toImage Error:", e); }
+        }
+        
+        // Inline styles for Word compatibility
+        clone.querySelectorAll("table").forEach(t => {
+          t.style.borderCollapse = "collapse";
+          t.style.width = "100%";
+          t.style.marginTop = "10px";
+          t.style.marginBottom = "20px";
+        });
+        clone.querySelectorAll("th").forEach(th => {
+          th.style.border = "1px solid #ccc";
+          th.style.padding = "8px";
+          th.style.backgroundColor = "#f2fbf7";
+          th.style.color = "#064e3b";
+          th.style.fontWeight = "bold";
+        });
+        clone.querySelectorAll("td").forEach(td => {
+          td.style.border = "1px solid #ccc";
+          td.style.padding = "8px";
+        });
+        clone.querySelectorAll(".no-print").forEach(e => e.remove());
+
+        const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+          <head>
+            <meta charset='utf-8'>
+            <title>Export HTML To Doc</title>
+          </head>
+          <body style="font-family: Arial, Tahoma, sans-serif; font-size: 11pt; color: #333;">${clone.innerHTML}</body>
+        </html>`;
+        
+        const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'Reporte_Doble_Materialidad_PARACEL.doc';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error(err);
+        alert("Ocurrió un error al exportar el documento.");
+      } finally {
+        btn.textContent = prevText;
+        btn.disabled = false;
+      }
+    });
+
     document.getElementById("btnExportReportCSV").addEventListener("click", () => exportCSVPack(ensureDB()));
 
     document.getElementById("btnDownloadMatrixCSV").addEventListener("click", () => {
@@ -1412,9 +1696,132 @@
   }
 
   // ---------------------------------------------------------------------------
+  // DataLists Poblator
+  // ---------------------------------------------------------------------------
+  function populateDatalists(db) {
+    const sSect = new Map();
+    const sOrg = new Map();
+    db.externalResponses.forEach(r => {
+      if (r.sector) {
+        const val = r.sector.trim();
+        if (val && !sSect.has(val.toLowerCase())) sSect.set(val.toLowerCase(), val);
+      }
+      if (r.organizacion) {
+        const val = r.organizacion.trim();
+        if (val && !sOrg.has(val.toLowerCase())) sOrg.set(val.toLowerCase(), val);
+      }
+    });
+    const lsSect = document.getElementById("listSector");
+    lsSect.innerHTML = "";
+    Array.from(sSect.values()).sort((a,b) => a.localeCompare(b)).forEach(v => lsSect.appendChild(new Option(v)));
+
+    const lsOrg = document.getElementById("listOrg");
+    lsOrg.innerHTML = "";
+    Array.from(sOrg.values()).sort((a,b) => a.localeCompare(b)).forEach(v => lsOrg.appendChild(new Option(v)));
+
+    const sArea = new Map();
+    const sRol = new Map();
+    
+    const defaultAreas = ["Forestal", "Ingeniería", "Seguridad Corporativa"];
+    defaultAreas.forEach(def => sArea.set(def.toLowerCase(), def));
+
+    db.internalAssessments.forEach(r => {
+      if (r.area) {
+        const val = r.area.trim();
+        if (val && !sArea.has(val.toLowerCase())) sArea.set(val.toLowerCase(), val);
+      }
+      if (r.rol) {
+        const val = r.rol.trim();
+        if (val && !sRol.has(val.toLowerCase())) sRol.set(val.toLowerCase(), val);
+      }
+    });
+    const lsArea = document.getElementById("listArea");
+    lsArea.innerHTML = "";
+    Array.from(sArea.values()).sort((a,b) => a.localeCompare(b)).forEach(v => lsArea.appendChild(new Option(v)));
+
+    const lsRol = document.getElementById("listRol");
+    lsRol.innerHTML = "";
+    Array.from(sRol.values()).sort((a,b) => a.localeCompare(b)).forEach(v => lsRol.appendChild(new Option(v)));
+  }
+
+  // ---------------------------------------------------------------------------
   // Inicialización
   // ---------------------------------------------------------------------------
   async function init() {
+    const role = sessionStorage.getItem("appRole");
+    const globalLogin = document.getElementById("globalLogin");
+    const appShell = document.getElementById("appShell");
+
+    document.getElementById("btnSysLogin").addEventListener("click", async () => {
+      const u = document.getElementById("sysUser").value;
+      const p = document.getElementById("sysPass").value;
+      let newRole = null;
+      if (u === "user" && p === "123") newRole = "admin";
+      else if (u === "encuesta" && p === "paracel") newRole = "externa";
+      else if (u === "comite" && p === "paracel") newRole = "interna";
+
+      if (newRole) {
+        sessionStorage.setItem("appRole", newRole);
+        document.getElementById("sysLoginError").style.display = "none";
+        globalLogin.style.display = "none";
+        appShell.style.display = "";
+        await startApp(newRole);
+      } else {
+        document.getElementById("sysLoginError").style.display = "block";
+      }
+    });
+
+    document.getElementById("btnSysLogout").addEventListener("click", () => {
+      sessionStorage.removeItem("appRole");
+      location.reload();
+    });
+
+    // Soporte para presionar ENTER en el input de contraseña
+    document.getElementById("sysPass").addEventListener("keyup", (ev) => {
+      if (ev.key === "Enter") document.getElementById("btnSysLogin").click();
+    });
+
+    if (!role) {
+      globalLogin.style.display = "flex";
+      appShell.style.display = "none";
+      return;
+    } else {
+      globalLogin.style.display = "none";
+      appShell.style.display = "";
+      await startApp(role);
+    }
+  }
+
+  async function startApp(role) {
+    // RBAC
+    const roleBadge = document.getElementById("userRoleBadge");
+    const logExtCard = document.getElementById("tableExternalLog").closest(".card");
+    const logIntCard = document.getElementById("tableInternalLog").closest(".card");
+
+    if (role === "admin") {
+      roleBadge.textContent = "Administrador";
+      roleBadge.style.display = "";
+      if (logExtCard) logExtCard.style.display = "";
+      if (logIntCard) logIntCard.style.display = "";
+      setActiveView("home");
+    } else if (role === "externa") {
+      roleBadge.textContent = "Encuestado";
+      roleBadge.style.display = "";
+      document.querySelector("aside.app-nav").style.display = "none";
+      document.getElementById("btnOpenAdmin").style.display = "none";
+      if (logExtCard) logExtCard.style.display = "none";
+      if (logIntCard) logIntCard.style.display = "none";
+      setActiveView("external");
+    } else if (role === "interna") {
+      roleBadge.textContent = "Comité Evaluador";
+      roleBadge.style.display = "";
+      document.querySelector("aside.app-nav").style.display = "none";
+      document.getElementById("btnOpenAdmin").style.display = "none";
+      if (logExtCard) logExtCard.style.display = "none";
+      if (logIntCard) logIntCard.style.display = "none";
+      setActiveView("internal");
+    }
+
     // cargar catálogos
     DATA.topics = await loadJSON("data/topics.json");
     DATA.scale = await loadJSON("data/scale.json");
@@ -1442,9 +1849,9 @@
     applyTopicSearch("topicSearchExt", "#extTopics", ".topic-card", ".topic-title");
 
     // tabla interna
-    buildInternalTable(document.querySelector("#tableInternal tbody"));
+    buildInternalCards(document.getElementById("internalCardsContainer"));
     updateInternalProgress();
-    applyTopicSearch("topicSearchInt", "#tableInternal tbody", "tr", "td:first-child");
+    applyTopicSearch("topicSearchInt", "#internalCardsContainer", ".topic-block", ".topic-title-block");
 
     // Pre-carga de datos históricos si la base estad vacía
     if (!loadDB()) {
@@ -1458,6 +1865,7 @@
 
     // DB
     const db = ensureDB();
+    populateDatalists(db);
 
     // asignar escenario al cargar
     const sc = db.lastScenarioId || "base_moderado";
