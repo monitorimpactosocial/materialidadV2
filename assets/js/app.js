@@ -2078,129 +2078,397 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     await delay(250);
   }
 
-  async function exportResultsToWord() {
-    await ensureReportReadyForExport();
+  function wrapBase64(base64) {
+    return (base64.match(/.{1,76}/g) || []).join("\r\n");
+  }
 
-    const reportDiv = document.getElementById("reportArea");
-    if (!reportDiv) throw new Error("No se encontró el área de reporte para exportar.");
+  function dataUrlToMhtmlPart(dataUrl, location) {
+    const match = String(dataUrl || "").match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) return null;
+    return {
+      location,
+      mime: match[1],
+      base64: wrapBase64(match[2]),
+    };
+  }
 
-    const clone = reportDiv.cloneNode(true);
-    const plots = reportDiv.querySelectorAll(".plot");
-    const clonePlots = clone.querySelectorAll(".plot");
+  function tableOuterHtml(tableId) {
+    const table = document.getElementById(tableId);
+    return table ? table.outerHTML : `<p class="muted-lite">No disponible.</p>`;
+  }
 
-    clone.style.width = "100%";
-    clone.style.maxWidth = "100%";
-    clone.style.margin = "0";
-    clone.style.padding = "0";
+  function contentHtml(elementId) {
+    const el = document.getElementById(elementId);
+    return el ? el.innerHTML : "";
+  }
 
-    clone.querySelectorAll(".grid-2, .report-insight-grid, .report-two-col, .report-kpi-grid, .report-action-grid, .report-cover-grid, .report-head").forEach((el) => {
-      el.style.display = "block";
-      el.style.width = "100%";
+  function textValue(elementId) {
+    const el = document.getElementById(elementId);
+    return el ? escapeHTML(el.textContent || "") : "";
+  }
+
+  function listItemsFromElement(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return [];
+    const items = Array.from(el.children)
+      .map((child) => (child.textContent || "").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    if (items.length) return items;
+    return String(el.textContent || "")
+      .split(/\n+/)
+      .map((item) => item.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+  }
+
+  function buildWordList(elementId, emptyText) {
+    const items = listItemsFromElement(elementId);
+    if (!items.length) return `<p class="muted-lite">${escapeHTML(emptyText || "No disponible.")}</p>`;
+    return `<ul class="word-list">${items.map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ul>`;
+  }
+
+  function buildWordMiniTable(elementId, emptyText) {
+    const el = document.getElementById(elementId);
+    if (!el) return `<p class="muted-lite">${escapeHTML(emptyText || "No disponible.")}</p>`;
+    const rows = Array.from(el.children)
+      .map((child) => {
+        const spans = child.querySelectorAll("span");
+        if (spans.length >= 2) {
+          return {
+            label: (spans[0].textContent || "").replace(/\s+/g, " ").trim(),
+            value: (spans[spans.length - 1].textContent || "").replace(/\s+/g, " ").trim(),
+          };
+        }
+        const text = (child.textContent || "").replace(/\s+/g, " ").trim();
+        if (!text) return null;
+        return { label: text, value: "" };
+      })
+      .filter(Boolean);
+    if (!rows.length) return `<p class="muted-lite">${escapeHTML(emptyText || "No disponible.")}</p>`;
+    return `<table class="mini-table"><tbody>${rows.map((row) => `<tr><td>${escapeHTML(row.label)}</td><td class="mini-value">${escapeHTML(row.value || "")}</td></tr>`).join("")}</tbody></table>`;
+  }
+
+  function tableWordHtml(tableId, options = {}) {
+    const table = document.getElementById(tableId);
+    if (!table) return `<p class="muted-lite">No disponible.</p>`;
+
+    const clone = table.cloneNode(true);
+    const rows = clone.querySelectorAll("tr");
+    const firstRow = rows[0];
+    const columnCount = firstRow ? firstRow.children.length : 1;
+    const widths = Array.isArray(options.widths) && options.widths.length === columnCount
+      ? options.widths
+      : (() => {
+          if (columnCount === 1) return [100];
+          const first = options.firstColumnWidth || (columnCount >= 7 ? 38 : columnCount >= 5 ? 42 : 50);
+          const remaining = Math.max(100 - first, 10);
+          const other = remaining / Math.max(columnCount - 1, 1);
+          return Array.from({ length: columnCount }, (_, idx) => (idx === 0 ? first : other));
+        })();
+    const fontSize = options.fontSize || (columnCount >= 7 ? "7.5pt" : columnCount >= 5 ? "8pt" : "8.5pt");
+
+    clone.className = "word-table";
+    clone.removeAttribute("style");
+    clone.setAttribute("border", "1");
+    clone.setAttribute("cellpadding", "0");
+    clone.setAttribute("cellspacing", "0");
+    clone.style.cssText = `width:100%; border-collapse:collapse; table-layout:fixed; margin:8pt 0 12pt 0; font-size:${fontSize};`;
+
+    clone.querySelectorAll("thead, tbody, tfoot").forEach((section) => section.removeAttribute("style"));
+    rows.forEach((row) => {
+      row.removeAttribute("style");
+      row.style.cssText = "page-break-inside:avoid;";
+      Array.from(row.children).forEach((cell, idx) => {
+        const align = cell.classList.contains("right") ? "right" : cell.classList.contains("center") ? "center" : "left";
+        const isHeader = cell.tagName === "TH";
+        cell.className = "";
+        cell.removeAttribute("style");
+        cell.removeAttribute("width");
+        cell.style.cssText = [
+          "border:1pt solid #cbd5e1",
+          "padding:5pt",
+          "vertical-align:top",
+          "word-break:break-word",
+          "overflow-wrap:anywhere",
+          `text-align:${align}`,
+          `width:${widths[idx] || widths[widths.length - 1] || 100}%`,
+          isHeader ? "background:#edf7f1" : "background:#ffffff",
+          isHeader ? "color:#064e3b" : "color:#243041",
+          isHeader ? "font-weight:bold" : "font-weight:normal"
+        ].join("; ");
+      });
     });
 
-    clone.querySelectorAll(".card, .report-panel, .report-kpi-card, .report-action-card, .report-closing, .report-cover").forEach((el) => {
-      el.style.width = "100%";
-      el.style.maxWidth = "100%";
-      el.style.marginBottom = "12px";
-      el.style.breakInside = "avoid";
-      el.style.pageBreakInside = "avoid";
-    });
+    return clone.outerHTML;
+  }
 
-    for (let i = 0; i < plots.length; i++) {
+  async function capturePlotForWord(plot, width) {
+    let lastError = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const width = 640;
-        const height = Math.max(320, Math.round((plots[i].clientHeight || 400) * (640 / Math.max(plots[i].clientWidth || 700, 1))));
-        const dataUrl = await Plotly.toImage(plots[i], { format: 'png', height, width });
-        const img = document.createElement("img");
-        img.src = dataUrl;
-        img.style.display = "block";
-        img.style.width = "100%";
-        img.style.maxWidth = "640px";
-        img.style.height = "auto";
-        img.style.margin = "10px auto 16px auto";
-        img.style.pageBreakInside = "avoid";
-        img.style.breakInside = "avoid";
-        if (clonePlots[i] && clonePlots[i].parentNode) {
-          clonePlots[i].parentNode.replaceChild(img, clonePlots[i]);
+        await Plotly.Plots.resize(plot);
+        await nextFrame();
+        await delay(140);
+        const height = Math.max(520, Math.round((plot.clientHeight || 500) * (width / Math.max(plot.clientWidth || 700, 1))));
+        const dataUrl = await Plotly.toImage(plot, {
+          format: "png",
+          width,
+          height,
+          scale: 2
+        });
+        if (/^data:image\/png;base64,/.test(dataUrl)) return dataUrl;
+        lastError = new Error("Plotly devolvió una imagen inválida.");
+      } catch (err) {
+        lastError = err;
+      }
+      await delay(220);
+    }
+    throw lastError || new Error("No se pudo capturar la figura.");
+  }
+
+  async function captureWordFigures() {
+    const figureDefs = [
+      { id: "plotExternalTop10", file: "image001.png" },
+      { id: "plotDimensionReport", file: "image002.png" },
+      { id: "plotRadarReport", file: "image003.png" },
+      { id: "plotMatrixReport", file: "image004.png" },
+    ];
+    const parts = [];
+    const refs = {};
+
+    for (const fig of figureDefs) {
+      const plot = document.getElementById(fig.id);
+      if (!plot) continue;
+      try {
+        const dataUrl = await capturePlotForWord(plot, 960);
+        const location = fig.file;
+        const part = dataUrlToMhtmlPart(dataUrl, location);
+        if (part) {
+          parts.push(part);
+          refs[fig.id] = location;
         }
-      } catch (e) {
-        console.error("Plotly toImage Error:", e);
-        if (clonePlots[i] && clonePlots[i].parentNode) {
-          const fallback = document.createElement("div");
-          fallback.textContent = "No se pudo incrustar esta figura en la exportación Word.";
-          fallback.style.padding = "16px";
-          fallback.style.border = "1px dashed #94a3b8";
-          fallback.style.color = "#475569";
-          fallback.style.background = "#f8fafc";
-          clonePlots[i].parentNode.replaceChild(fallback, clonePlots[i]);
-        }
+      } catch (err) {
+        console.error("No se pudo capturar figura para Word:", fig.id, err);
       }
     }
 
-    clone.querySelectorAll("table").forEach(t => {
-      t.style.borderCollapse = "collapse";
-      t.style.width = "100%";
-      t.style.maxWidth = "100%";
-      t.style.tableLayout = "fixed";
-      t.style.marginTop = "10px";
-      t.style.marginBottom = "20px";
-      t.style.fontSize = "9pt";
-      t.style.pageBreakInside = "auto";
-    });
-    clone.querySelectorAll("th").forEach(th => {
-      th.style.border = "1px solid #ccc";
-      th.style.padding = "6px";
-      th.style.backgroundColor = "#f2fbf7";
-      th.style.color = "#064e3b";
-      th.style.fontWeight = "bold";
-      th.style.wordBreak = "break-word";
-      th.style.overflowWrap = "anywhere";
-    });
-    clone.querySelectorAll("td").forEach(td => {
-      td.style.border = "1px solid #ccc";
-      td.style.padding = "6px";
-      td.style.wordBreak = "break-word";
-      td.style.overflowWrap = "anywhere";
-      td.style.verticalAlign = "top";
-    });
-    clone.querySelectorAll(".table-wrap").forEach((el) => {
-      el.style.overflow = "visible";
-      el.style.width = "100%";
-      el.style.maxWidth = "100%";
-      el.style.border = "none";
-    });
-    clone.querySelectorAll("h1, h2, h3").forEach((el) => {
-      el.style.pageBreakAfter = "avoid";
-      el.style.breakAfter = "avoid";
-    });
-    clone.querySelectorAll("p, div").forEach((el) => {
-      if (el.classList && (el.classList.contains("report-copy-block") || el.classList.contains("muted"))) {
-        el.style.wordBreak = "break-word";
-        el.style.overflowWrap = "anywhere";
-      }
-    });
-    clone.querySelectorAll(".no-print").forEach(e => e.remove());
+    return { parts, refs };
+  }
 
-    const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-      <head>
-        <meta charset='utf-8'>
-        <title>Export HTML To Doc</title>
-        <style>
-          @page { size: A4 portrait; margin: 1.2cm; }
-          body { font-family: Arial, Tahoma, sans-serif; font-size: 10pt; color: #333; }
-          img { max-width: 16cm !important; height: auto !important; }
-          table { width: 100% !important; table-layout: fixed !important; }
-          tr, td, th { page-break-inside: avoid; }
-        </style>
-      </head>
-      <body>${clone.innerHTML}</body>
-    </html>`;
+  function buildWordFigure(title, src, caption) {
+    if (!src) {
+      return `<div class="figure-block"><h3>${escapeHTML(title)}</h3><div class="figure-fallback">Figura no disponible en esta exportación.</div></div>`;
+    }
+    return `<div class="figure-block"><h3>${escapeHTML(title)}</h3><div class="figure"><img src="${src}" alt="${escapeHTML(title)}" /></div><div class="caption">${escapeHTML(caption || "")}</div></div>`;
+  }
 
-    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+  function buildWordHtml(imageRefs) {
+    return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8" />
+  <title>Reporte Doble Materialidad</title>
+  <style>
+    @page { size: A4 portrait; margin: 1.2cm; }
+    body { font-family: Arial, Tahoma, sans-serif; font-size: 10pt; color: #243041; line-height: 1.45; }
+    h1, h2, h3 { margin: 0 0 8pt 0; page-break-after: avoid; }
+    h1 { font-size: 24pt; color: #064e3b; letter-spacing: -0.03em; }
+    h2 { font-size: 14pt; color: #064e3b; border-bottom: 1pt solid #cbd5e1; padding-bottom: 4pt; margin-top: 18pt; }
+    h3 { font-size: 11pt; color: #0f172a; margin-top: 14pt; }
+    p { margin: 0 0 8pt 0; }
+    .cover { border: 1.5pt solid #065f46; background: #effcf5; padding: 18pt; margin-bottom: 12pt; }
+    .cover-top { font-size: 9pt; letter-spacing: 0.16em; text-transform: uppercase; color: #065f46; font-weight: bold; margin-bottom: 8pt; }
+    .cover-title { font-size: 22pt; font-weight: 800; color: #064e3b; margin-bottom: 8pt; }
+    .cover-sub { font-size: 10pt; color: #334155; }
+    .badge-row { margin-top: 10pt; }
+    .badge { display: inline-block; padding: 4pt 8pt; margin-right: 6pt; margin-bottom: 6pt; border: 1pt solid #9bd5ba; background: #ffffff; color: #065f46; font-size: 8.5pt; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    td, th { word-break: break-word; overflow-wrap: anywhere; }
+    .meta-table, .kpi-table, .panel-table, .action-table { margin: 0 0 10pt 0; }
+    .meta-cell, .kpi-cell, .panel-cell, .action-cell { border: 1pt solid #d7e2dd; background: #ffffff; padding: 8pt; vertical-align: top; }
+    .meta-label, .kpi-label { font-size: 8.5pt; text-transform: uppercase; color: #64748b; font-weight: bold; letter-spacing: 0.06em; }
+    .kpi-value { font-size: 18pt; font-weight: 800; color: #064e3b; margin-top: 4pt; }
+    .mini-note { font-size: 8.5pt; color: #64748b; margin-top: 4pt; }
+    .word-list { margin: 0 0 0 16pt; padding: 0; }
+    .word-list li { margin: 0 0 5pt 0; }
+    .mini-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; font-size: 8.5pt; }
+    .mini-table td { border: 1pt solid #d7e2dd; padding: 5pt; vertical-align: top; }
+    .mini-value { width: 22%; text-align: right; font-weight: bold; color: #064e3b; }
+    .figure-block { margin: 12pt 0 16pt 0; page-break-inside: avoid; }
+    .figure { text-align: center; margin: 8pt 0; }
+    .figure img { display: block; margin: 0 auto; width: 15.6cm; max-width: 15.6cm; height: auto; border: 1pt solid #d7e2dd; }
+    .figure-fallback { padding: 10pt; border: 1pt dashed #94a3b8; color: #475569; background: #f8fafc; }
+    .caption { font-size: 8.5pt; color: #64748b; text-align: center; }
+    .section-intro { margin-bottom: 8pt; color: #334155; }
+    .muted-lite { color: #64748b; }
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+  <div class="cover">
+    <div class="cover-top">PARACEL · Materialidad 360</div>
+    <div class="cover-title">Diagnóstico de Doble Materialidad</div>
+    <p class="cover-sub">Documento ejecutivo para revisión gerencial, impresión en PDF y uso en Word.</p>
+    <div class="badge-row">
+      <span class="badge">Edición ${textValue("repEdition")}</span>
+      <span class="badge">Fecha ${textValue("repDate")}</span>
+      <span class="badge">Regla ${textValue("repRule")}</span>
+      <span class="badge">Doble materialidad ${textValue("repNDouble")}</span>
+    </div>
+  </div>
+
+  <table class="meta-table">
+    <tr>
+      <td class="meta-cell">
+        <div class="meta-label">Edición analizada</div>
+        <div>${textValue("repEdition")}</div>
+        <div class="meta-label" style="margin-top:8pt;">Fecha de generación</div>
+        <div>${textValue("repDate")}</div>
+        <div class="meta-label" style="margin-top:8pt;">Regla condicional</div>
+        <div>${textValue("repRule")}</div>
+      </td>
+      <td class="meta-cell">
+        <div class="meta-label">Encuestas externas</div>
+        <div>${textValue("repNExternal")}</div>
+        <div class="meta-label" style="margin-top:8pt;">Evaluaciones internas</div>
+        <div>${textValue("repNInternal")}</div>
+        <div class="meta-label" style="margin-top:8pt;">Temas con doble materialidad</div>
+        <div>${textValue("repNDouble")}</div>
+      </td>
+    </tr>
+  </table>
+
+  <h2>1. Resumen Ejecutivo</h2>
+  <p>${textValue("repExecutive")}</p>
+
+  <table class="kpi-table">
+    <tr>
+      <td class="kpi-cell"><div class="kpi-label">Promedio externo</div><div class="kpi-value">${textValue("repAvgStake")}</div><div class="mini-note">Importancia media de stakeholders</div></td>
+      <td class="kpi-cell"><div class="kpi-label">Promedio impacto</div><div class="kpi-value">${textValue("repAvgImpact")}</div><div class="mini-note">Evaluación ASG agregada</div></td>
+      <td class="kpi-cell"><div class="kpi-label">Promedio financiero</div><div class="kpi-value">${textValue("repAvgFin")}</div><div class="mini-note">Evaluación financiera agregada</div></td>
+      <td class="kpi-cell"><div class="kpi-label">Cobertura temática</div><div class="kpi-value">${textValue("repCoverage")}</div><div class="mini-note">Temas con evaluación disponible</div></td>
+    </tr>
+  </table>
+
+  <table class="panel-table">
+    <tr>
+      <td class="panel-cell">
+        <h3>Mensajes Clave</h3>
+        ${buildWordList("repHighlights", "Sin mensajes clave disponibles.")}
+      </td>
+      <td class="panel-cell">
+        <h3>Implicaciones Ejecutivas</h3>
+        ${buildWordList("repRecommendations", "Sin implicaciones ejecutivas disponibles.")}
+      </td>
+    </tr>
+  </table>
+
+  <div class="page-break"></div>
+  <h2>2. Evaluación Externa</h2>
+  <p class="section-intro">Resultados de la encuesta a grupos de interés y lectura de relevancia externa.</p>
+  ${buildWordFigure("2.1. Top 10 Temas Más Relevantes", imageRefs.plotExternalTop10, "Visión externa de stakeholders sobre temas prioritarios.")}
+  <h3>2.2. Cobertura por Grupo de Interés</h3>
+  ${tableWordHtml("tableReportGroups", { widths: [44, 14, 14, 28] })}
+  <p>${textValue("repExternalNarrative")}</p>
+
+  <div class="page-break"></div>
+  <h2>3. Evaluación Interna</h2>
+  <p class="section-intro">Síntesis del criterio del comité evaluador y de las áreas internas participantes.</p>
+  ${buildWordFigure("3.1. Materialidad por Dimensión ISO 26000", imageRefs.plotDimensionReport, "Comparativo agregado por dimensión temática.")}
+  ${buildWordFigure("3.2. Perfil en Radar", imageRefs.plotRadarReport, "Visualización de la señal interna sobre temas de mayor prioridad.")}
+  <table class="panel-table">
+    <tr>
+      <td class="panel-cell">
+        <h3>Top 5 Impacto ASG</h3>
+        ${buildWordMiniTable("top5Impact", "Sin ranking de impacto disponible.")}
+      </td>
+      <td class="panel-cell">
+        <h3>Top 5 Impacto Financiero</h3>
+        ${buildWordMiniTable("top5Fin", "Sin ranking financiero disponible.")}
+      </td>
+    </tr>
+  </table>
+  <h3>3.3. Cobertura de Evaluación Interna</h3>
+  ${tableWordHtml("tableReportAreas", { widths: [58, 16, 26] })}
+  <p>${textValue("repInternalNarrative")}</p>
+
+  <div class="page-break"></div>
+  <h2>4. Consolidación y Doble Materialidad</h2>
+  <p class="section-intro">Cruce entre visión externa e interna para definir el portafolio de temas materiales.</p>
+  ${buildWordFigure("4.1. Matriz de Resultados", imageRefs.plotMatrixReport, "Cruce estratégico entre impacto, señal financiera y relevancia externa.")}
+  <h3>4.2. Temas Priorizados</h3>
+  ${tableWordHtml("tableReportDouble", { widths: [46, 18, 18, 18] })}
+  <h3>4.3. Portafolio de Materialidad</h3>
+  <table class="kpi-table">
+    <tr>
+      <td class="kpi-cell"><div class="kpi-label">Doble materialidad</div><div class="kpi-value">${textValue("repPortfolioDouble")}</div></td>
+      <td class="kpi-cell"><div class="kpi-label">Sólo impacto</div><div class="kpi-value">${textValue("repPortfolioImpact")}</div></td>
+      <td class="kpi-cell"><div class="kpi-label">Sólo financiero</div><div class="kpi-value">${textValue("repPortfolioFin")}</div></td>
+      <td class="kpi-cell"><div class="kpi-label">No materiales</div><div class="kpi-value">${textValue("repPortfolioNone")}</div></td>
+    </tr>
+  </table>
+  <h3>4.4. Prioridades Integradas</h3>
+  ${tableWordHtml("tableReportPriority", { widths: [38, 14, 14, 14, 20], fontSize: "7.8pt" })}
+
+  <div class="page-break"></div>
+  <h2>5. Anexo y Cierre</h2>
+  <h3>5.1. Ranking Completo</h3>
+  ${tableWordHtml("tableReportAll", { widths: [34, 11, 11, 11, 11, 11, 11], fontSize: "7.4pt" })}
+  <h3>5.2. Conclusión Estratégica</h3>
+  <p>${textValue("repClosing")}</p>
+  <h3>5.3. Plan de Acción Sugerido 2026-2028</h3>
+  <table class="action-table">
+    <tr>
+      <td class="action-cell"><h3>Fase 1 · Alinear y asignar dueños</h3><p>${textValue("repAction1")}</p></td>
+      <td class="action-cell"><h3>Fase 2 · Desplegar indicadores y seguimiento</h3><p>${textValue("repAction2")}</p></td>
+      <td class="action-cell"><h3>Fase 3 · Integrar reporte y mejora continua</h3><p>${textValue("repAction3")}</p></td>
+    </tr>
+  </table>
+</body>
+</html>`;
+  }
+
+  function buildMhtmlDocument(html, imageParts) {
+    const boundary = `----=mhtml-boundary-${Date.now()}`;
+    const lines = [
+      "MIME-Version: 1.0",
+      `Content-Type: multipart/related; boundary="${boundary}"; type="text/html"`,
+      "",
+      `--${boundary}`,
+      'Content-Type: text/html; charset="utf-8"',
+      "Content-Transfer-Encoding: 8bit",
+      "Content-Location: report.html",
+      "",
+      html,
+      "",
+    ];
+
+    for (const part of imageParts) {
+      lines.push(
+        `--${boundary}`,
+        `Content-Location: ${part.location}`,
+        `Content-Type: ${part.mime}`,
+        "Content-Transfer-Encoding: base64",
+        `Content-Disposition: inline; filename="${part.location}"`,
+        "",
+        part.base64,
+        ""
+      );
+    }
+
+    lines.push(`--${boundary}--`, "");
+    return lines.join("\r\n");
+  }
+
+  async function exportResultsToWord() {
+    await ensureReportReadyForExport();
+    const { parts, refs } = await captureWordFigures();
+    const html = buildWordHtml(refs);
+    const mhtml = buildMhtmlDocument(html, parts);
+    const blob = new Blob([mhtml], { type: "application/msword" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
-    link.download = 'Reporte_Doble_Materialidad_PARACEL.doc';
+    link.download = "Reporte_Doble_Materialidad_PARACEL.doc";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
