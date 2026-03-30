@@ -2088,15 +2088,38 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     const plots = reportDiv.querySelectorAll(".plot");
     const clonePlots = clone.querySelectorAll(".plot");
 
+    clone.style.width = "100%";
+    clone.style.maxWidth = "100%";
+    clone.style.margin = "0";
+    clone.style.padding = "0";
+
+    clone.querySelectorAll(".grid-2, .report-insight-grid, .report-two-col, .report-kpi-grid, .report-action-grid, .report-cover-grid, .report-head").forEach((el) => {
+      el.style.display = "block";
+      el.style.width = "100%";
+    });
+
+    clone.querySelectorAll(".card, .report-panel, .report-kpi-card, .report-action-card, .report-closing, .report-cover").forEach((el) => {
+      el.style.width = "100%";
+      el.style.maxWidth = "100%";
+      el.style.marginBottom = "12px";
+      el.style.breakInside = "avoid";
+      el.style.pageBreakInside = "avoid";
+    });
+
     for (let i = 0; i < plots.length; i++) {
       try {
-        const width = Math.max(700, Math.round(plots[i].clientWidth || 700));
-        const height = Math.max(400, Math.round(plots[i].clientHeight || 400));
+        const width = 640;
+        const height = Math.max(320, Math.round((plots[i].clientHeight || 400) * (640 / Math.max(plots[i].clientWidth || 700, 1))));
         const dataUrl = await Plotly.toImage(plots[i], { format: 'png', height, width });
         const img = document.createElement("img");
         img.src = dataUrl;
+        img.style.display = "block";
         img.style.width = "100%";
-        img.style.maxWidth = "700px";
+        img.style.maxWidth = "640px";
+        img.style.height = "auto";
+        img.style.margin = "10px auto 16px auto";
+        img.style.pageBreakInside = "avoid";
+        img.style.breakInside = "avoid";
         if (clonePlots[i] && clonePlots[i].parentNode) {
           clonePlots[i].parentNode.replaceChild(img, clonePlots[i]);
         }
@@ -2117,19 +2140,44 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     clone.querySelectorAll("table").forEach(t => {
       t.style.borderCollapse = "collapse";
       t.style.width = "100%";
+      t.style.maxWidth = "100%";
+      t.style.tableLayout = "fixed";
       t.style.marginTop = "10px";
       t.style.marginBottom = "20px";
+      t.style.fontSize = "9pt";
+      t.style.pageBreakInside = "auto";
     });
     clone.querySelectorAll("th").forEach(th => {
       th.style.border = "1px solid #ccc";
-      th.style.padding = "8px";
+      th.style.padding = "6px";
       th.style.backgroundColor = "#f2fbf7";
       th.style.color = "#064e3b";
       th.style.fontWeight = "bold";
+      th.style.wordBreak = "break-word";
+      th.style.overflowWrap = "anywhere";
     });
     clone.querySelectorAll("td").forEach(td => {
       td.style.border = "1px solid #ccc";
-      td.style.padding = "8px";
+      td.style.padding = "6px";
+      td.style.wordBreak = "break-word";
+      td.style.overflowWrap = "anywhere";
+      td.style.verticalAlign = "top";
+    });
+    clone.querySelectorAll(".table-wrap").forEach((el) => {
+      el.style.overflow = "visible";
+      el.style.width = "100%";
+      el.style.maxWidth = "100%";
+      el.style.border = "none";
+    });
+    clone.querySelectorAll("h1, h2, h3").forEach((el) => {
+      el.style.pageBreakAfter = "avoid";
+      el.style.breakAfter = "avoid";
+    });
+    clone.querySelectorAll("p, div").forEach((el) => {
+      if (el.classList && (el.classList.contains("report-copy-block") || el.classList.contains("muted"))) {
+        el.style.wordBreak = "break-word";
+        el.style.overflowWrap = "anywhere";
+      }
     });
     clone.querySelectorAll(".no-print").forEach(e => e.remove());
 
@@ -2137,8 +2185,15 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       <head>
         <meta charset='utf-8'>
         <title>Export HTML To Doc</title>
+        <style>
+          @page { size: A4 portrait; margin: 1.2cm; }
+          body { font-family: Arial, Tahoma, sans-serif; font-size: 10pt; color: #333; }
+          img { max-width: 16cm !important; height: auto !important; }
+          table { width: 100% !important; table-layout: fixed !important; }
+          tr, td, th { page-break-inside: avoid; }
+        </style>
       </head>
-      <body style="font-family: Arial, Tahoma, sans-serif; font-size: 11pt; color: #333;">${clone.innerHTML}</body>
+      <body>${clone.innerHTML}</body>
     </html>`;
 
     const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
