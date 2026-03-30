@@ -2208,14 +2208,16 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         await Plotly.Plots.resize(plot);
         await nextFrame();
         await delay(140);
-        const height = Math.max(520, Math.round((plot.clientHeight || 500) * (width / Math.max(plot.clientWidth || 700, 1))));
+        const baseWidth = Math.max(plot.clientWidth || 700, 1);
+        const baseHeight = Math.max(plot.clientHeight || 500, 1);
+        const height = Math.max(520, Math.round(baseHeight * (width / baseWidth)));
         const dataUrl = await Plotly.toImage(plot, {
           format: "png",
           width,
           height,
           scale: 2
         });
-        if (/^data:image\/png;base64,/.test(dataUrl)) return dataUrl;
+        if (/^data:image\/png;base64,/.test(dataUrl)) return { dataUrl, width, height };
         lastError = new Error("Plotly devolvió una imagen inválida.");
       } catch (err) {
         lastError = err;
@@ -2239,12 +2241,21 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       const plot = document.getElementById(fig.id);
       if (!plot) continue;
       try {
-        const dataUrl = await capturePlotForWord(plot, 760);
+        const image = await capturePlotForWord(plot, 760);
         const location = fig.file;
-        const part = dataUrlToMhtmlPart(dataUrl, location);
+        const part = dataUrlToMhtmlPart(image.dataUrl, location);
         if (part) {
+          const maxDisplayWidthPx = 440;
+          const displayWidthPx = Math.min(maxDisplayWidthPx, image.width);
+          const displayHeightPx = Math.max(220, Math.round(displayWidthPx * (image.height / Math.max(image.width, 1))));
           parts.push(part);
-          refs[fig.id] = location;
+          refs[fig.id] = {
+            location,
+            widthPx: displayWidthPx,
+            heightPx: displayHeightPx,
+            widthPt: Math.round(displayWidthPx * 0.75),
+            heightPt: Math.round(displayHeightPx * 0.75),
+          };
         }
       } catch (err) {
         console.error("No se pudo capturar figura para Word:", fig.id, err);
@@ -2258,7 +2269,11 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     if (!src) {
       return `<div class="figure-block"><h3>${escapeHTML(title)}</h3><div class="figure-fallback">Figura no disponible en esta exportación.</div></div>`;
     }
-    return `<div class="figure-block"><h3>${escapeHTML(title)}</h3><div class="figure"><img src="${src}" alt="${escapeHTML(title)}" width="540" style="width:14.3cm; max-width:14.3cm; height:auto; mso-width-percent:0;" /></div><div class="caption">${escapeHTML(caption || "")}</div></div>`;
+    const widthPx = src.widthPx || 440;
+    const heightPx = src.heightPx || 280;
+    const widthPt = src.widthPt || Math.round(widthPx * 0.75);
+    const heightPt = src.heightPt || Math.round(heightPx * 0.75);
+    return `<div class="figure-block"><h3>${escapeHTML(title)}</h3><div class="figure"><img src="${src.location}" alt="${escapeHTML(title)}" width="${widthPx}" height="${heightPx}" style="display:block; margin:0 auto; width:${widthPt}pt; height:${heightPt}pt; mso-width-source:userset; mso-height-source:userset; -ms-interpolation-mode:bicubic; border:1pt solid #d7e2dd;" /></div><div class="caption">${escapeHTML(caption || "")}</div></div>`;
   }
 
   function buildWordHtml(imageRefs) {
@@ -2294,8 +2309,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     .mini-table td { border: 1pt solid #d7e2dd; padding: 5pt; vertical-align: top; }
     .mini-value { width: 22%; text-align: right; font-weight: bold; color: #064e3b; }
     .figure-block { margin: 12pt 0 16pt 0; page-break-inside: avoid; }
-    .figure { width: 14.3cm; max-width: 14.3cm; text-align: center; margin: 8pt auto; }
-    .figure img { display: block; margin: 0 auto; width: 14.3cm; max-width: 14.3cm; height: auto; border: 1pt solid #d7e2dd; }
+    .figure { text-align: center; margin: 8pt auto; }
+    .figure img { display: block; margin: 0 auto; }
     .figure-fallback { padding: 10pt; border: 1pt dashed #94a3b8; color: #475569; background: #f8fafc; }
     .caption { font-size: 8.5pt; color: #64748b; text-align: center; }
     .section-intro { margin-bottom: 8pt; color: #334155; }
