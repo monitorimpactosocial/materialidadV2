@@ -2239,7 +2239,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       const plot = document.getElementById(fig.id);
       if (!plot) continue;
       try {
-        const dataUrl = await capturePlotForWord(plot, 960);
+        const dataUrl = await capturePlotForWord(plot, 760);
         const location = fig.file;
         const part = dataUrlToMhtmlPart(dataUrl, location);
         if (part) {
@@ -2258,7 +2258,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     if (!src) {
       return `<div class="figure-block"><h3>${escapeHTML(title)}</h3><div class="figure-fallback">Figura no disponible en esta exportación.</div></div>`;
     }
-    return `<div class="figure-block"><h3>${escapeHTML(title)}</h3><div class="figure"><img src="${src}" alt="${escapeHTML(title)}" /></div><div class="caption">${escapeHTML(caption || "")}</div></div>`;
+    return `<div class="figure-block"><h3>${escapeHTML(title)}</h3><div class="figure"><img src="${src}" alt="${escapeHTML(title)}" width="540" style="width:14.3cm; max-width:14.3cm; height:auto; mso-width-percent:0;" /></div><div class="caption">${escapeHTML(caption || "")}</div></div>`;
   }
 
   function buildWordHtml(imageRefs) {
@@ -2294,8 +2294,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     .mini-table td { border: 1pt solid #d7e2dd; padding: 5pt; vertical-align: top; }
     .mini-value { width: 22%; text-align: right; font-weight: bold; color: #064e3b; }
     .figure-block { margin: 12pt 0 16pt 0; page-break-inside: avoid; }
-    .figure { text-align: center; margin: 8pt 0; }
-    .figure img { display: block; margin: 0 auto; width: 15.6cm; max-width: 15.6cm; height: auto; border: 1pt solid #d7e2dd; }
+    .figure { width: 14.3cm; max-width: 14.3cm; text-align: center; margin: 8pt auto; }
+    .figure img { display: block; margin: 0 auto; width: 14.3cm; max-width: 14.3cm; height: auto; border: 1pt solid #d7e2dd; }
     .figure-fallback { padding: 10pt; border: 1pt dashed #94a3b8; color: #475569; background: #f8fafc; }
     .caption { font-size: 8.5pt; color: #64748b; text-align: center; }
     .section-intro { margin-bottom: 8pt; color: #334155; }
