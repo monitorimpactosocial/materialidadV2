@@ -1945,6 +1945,67 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     ));
   }
 
+  async function exportResultsToWord() {
+    const reportDiv = document.getElementById("reportArea");
+    if (!reportDiv) throw new Error("No se encontró el área de reporte para exportar.");
+
+    const clone = reportDiv.cloneNode(true);
+    const plots = reportDiv.querySelectorAll(".plot");
+    const clonePlots = clone.querySelectorAll(".plot");
+
+    for (let i = 0; i < plots.length; i++) {
+      try {
+        const dataUrl = await Plotly.toImage(plots[i], { format: 'png', height: 400, width: 700 });
+        const img = document.createElement("img");
+        img.src = dataUrl;
+        img.style.width = "100%";
+        img.style.maxWidth = "700px";
+        if (clonePlots[i] && clonePlots[i].parentNode) {
+          clonePlots[i].parentNode.replaceChild(img, clonePlots[i]);
+        }
+      } catch (e) {
+        console.error("Plotly toImage Error:", e);
+      }
+    }
+
+    clone.querySelectorAll("table").forEach(t => {
+      t.style.borderCollapse = "collapse";
+      t.style.width = "100%";
+      t.style.marginTop = "10px";
+      t.style.marginBottom = "20px";
+    });
+    clone.querySelectorAll("th").forEach(th => {
+      th.style.border = "1px solid #ccc";
+      th.style.padding = "8px";
+      th.style.backgroundColor = "#f2fbf7";
+      th.style.color = "#064e3b";
+      th.style.fontWeight = "bold";
+    });
+    clone.querySelectorAll("td").forEach(td => {
+      td.style.border = "1px solid #ccc";
+      td.style.padding = "8px";
+    });
+    clone.querySelectorAll(".no-print").forEach(e => e.remove());
+
+    const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>Export HTML To Doc</title>
+      </head>
+      <body style="font-family: Arial, Tahoma, sans-serif; font-size: 11pt; color: #333;">${clone.innerHTML}</body>
+    </html>`;
+
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Reporte_Doble_Materialidad_PARACEL.doc';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   // ---------------------------------------------------------------------------
   // Admin modal
   // ---------------------------------------------------------------------------
@@ -2137,63 +2198,31 @@ Equipo PARACEL`;
       btn.disabled = true;
 
       try {
-        const reportDiv = document.getElementById("reportArea");
-        const clone = reportDiv.cloneNode(true);
-        
-        const plots = reportDiv.querySelectorAll(".plot");
-        const clonePlots = clone.querySelectorAll(".plot");
-        
-        // Snapshot every plotly instance
-        for(let i = 0; i < plots.length; i++) {
-          try {
-            const dataUrl = await Plotly.toImage(plots[i], {format: 'png', height: 400, width: 700});
-            const img = document.createElement("img");
-            img.src = dataUrl;
-            img.style.width = "100%";
-            img.style.maxWidth = "700px";
-            clonePlots[i].parentNode.replaceChild(img, clonePlots[i]);
-          } catch(e) { console.error("Plotly toImage Error:", e); }
-        }
-        
-        // Inline styles for Word compatibility
-        clone.querySelectorAll("table").forEach(t => {
-          t.style.borderCollapse = "collapse";
-          t.style.width = "100%";
-          t.style.marginTop = "10px";
-          t.style.marginBottom = "20px";
-        });
-        clone.querySelectorAll("th").forEach(th => {
-          th.style.border = "1px solid #ccc";
-          th.style.padding = "8px";
-          th.style.backgroundColor = "#f2fbf7";
-          th.style.color = "#064e3b";
-          th.style.fontWeight = "bold";
-        });
-        clone.querySelectorAll("td").forEach(td => {
-          td.style.border = "1px solid #ccc";
-          td.style.padding = "8px";
-        });
-        clone.querySelectorAll(".no-print").forEach(e => e.remove());
-
-        const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-          <head>
-            <meta charset='utf-8'>
-            <title>Export HTML To Doc</title>
-          </head>
-          <body style="font-family: Arial, Tahoma, sans-serif; font-size: 11pt; color: #333;">${clone.innerHTML}</body>
-        </html>`;
-        
-        const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'Reporte_Doble_Materialidad_PARACEL.doc';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        await exportResultsToWord();
       } catch (err) {
         console.error(err);
         alert("Ocurrió un error al exportar el documento.");
+      } finally {
+        btn.textContent = prevText;
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("btnExportResultsWord").addEventListener("click", async function() {
+      const btn = this;
+      const prevText = btn.textContent;
+      btn.textContent = "Generando Word...";
+      btn.disabled = true;
+
+      try {
+        const db = ensureDB();
+        if (!document.getElementById("view-report").classList.contains("active")) {
+          renderReport(db);
+        }
+        await exportResultsToWord();
+      } catch (err) {
+        console.error(err);
+        alert("Ocurrió un error al exportar los resultados a Word.");
       } finally {
         btn.textContent = prevText;
         btn.disabled = false;
