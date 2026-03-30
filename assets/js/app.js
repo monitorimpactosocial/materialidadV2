@@ -1945,7 +1945,37 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     ));
   }
 
+  function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function nextFrame() {
+    return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  }
+
+  async function ensureReportReadyForExport() {
+    const db = ensureDB();
+    setActiveView("report");
+    renderReport(db);
+    await nextFrame();
+    await nextFrame();
+    await delay(250);
+
+    const reportPlots = document.querySelectorAll("#reportArea .plot");
+    for (const plot of reportPlots) {
+      try {
+        await Plotly.Plots.resize(plot);
+      } catch (e) {
+        console.warn("No se pudo reajustar un gráfico antes de exportar:", e);
+      }
+    }
+
+    await delay(250);
+  }
+
   async function exportResultsToWord() {
+    await ensureReportReadyForExport();
+
     const reportDiv = document.getElementById("reportArea");
     if (!reportDiv) throw new Error("No se encontró el área de reporte para exportar.");
 
@@ -1955,7 +1985,9 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
     for (let i = 0; i < plots.length; i++) {
       try {
-        const dataUrl = await Plotly.toImage(plots[i], { format: 'png', height: 400, width: 700 });
+        const width = Math.max(700, Math.round(plots[i].clientWidth || 700));
+        const height = Math.max(400, Math.round(plots[i].clientHeight || 400));
+        const dataUrl = await Plotly.toImage(plots[i], { format: 'png', height, width });
         const img = document.createElement("img");
         img.src = dataUrl;
         img.style.width = "100%";
@@ -1965,6 +1997,15 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         }
       } catch (e) {
         console.error("Plotly toImage Error:", e);
+        if (clonePlots[i] && clonePlots[i].parentNode) {
+          const fallback = document.createElement("div");
+          fallback.textContent = "No se pudo incrustar esta figura en la exportación Word.";
+          fallback.style.padding = "16px";
+          fallback.style.border = "1px dashed #94a3b8";
+          fallback.style.color = "#475569";
+          fallback.style.background = "#f8fafc";
+          clonePlots[i].parentNode.replaceChild(fallback, clonePlots[i]);
+        }
       }
     }
 
