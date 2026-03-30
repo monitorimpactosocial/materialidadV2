@@ -476,8 +476,23 @@ function migrateDB(raw) {
   let currentEditionId = sanitizeText(raw.currentEditionId || "", 120);
   if (!currentEditionId || !editions.some((e) => e.id === currentEditionId)) currentEditionId = editions[0].id;
 
-  const externalResponses = dedupeRows((raw.externalResponses || []).map(normalizeExternalRow));
-  const internalAssessments = dedupeRows((raw.internalAssessments || []).map((row) => normalizeInternalRow(row, params)));
+  const validEditionIds = new Set(editions.map((e) => e.id));
+
+  const externalResponses = dedupeRows((raw.externalResponses || []).map((row) => {
+    const normalized = normalizeExternalRow(row);
+    if (!normalized.editionId || !validEditionIds.has(normalized.editionId)) {
+      normalized.editionId = currentEditionId;
+    }
+    return normalized;
+  }));
+
+  const internalAssessments = dedupeRows((raw.internalAssessments || []).map((row) => {
+    const normalized = normalizeInternalRow(row, params);
+    if (!normalized.editionId || !validEditionIds.has(normalized.editionId)) {
+      normalized.editionId = currentEditionId;
+    }
+    return normalized;
+  }));
 
   const emails = typeof raw.emails === "object" && raw.emails ? {
     externa: sanitizeText(raw.emails.externa, 4000),
