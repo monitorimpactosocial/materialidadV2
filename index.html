@@ -560,6 +560,40 @@
             <h3>1. Resumen ejecutivo</h3>
             <div class="muted" id="repExecutive"></div>
 
+            <section class="report-kpi-grid mt-16">
+              <article class="report-kpi-card">
+                <div class="report-kpi-label">Promedio externo</div>
+                <div class="report-kpi-value" id="repAvgStake"></div>
+                <div class="report-kpi-foot">Importancia media de stakeholders</div>
+              </article>
+              <article class="report-kpi-card">
+                <div class="report-kpi-label">Promedio impacto</div>
+                <div class="report-kpi-value" id="repAvgImpact"></div>
+                <div class="report-kpi-foot">Evaluación ASG agregada</div>
+              </article>
+              <article class="report-kpi-card">
+                <div class="report-kpi-label">Promedio financiero</div>
+                <div class="report-kpi-value" id="repAvgFin"></div>
+                <div class="report-kpi-foot">Evaluación financiera agregada</div>
+              </article>
+              <article class="report-kpi-card">
+                <div class="report-kpi-label">Cobertura temática</div>
+                <div class="report-kpi-value" id="repCoverage"></div>
+                <div class="report-kpi-foot">Temas con evaluación disponible</div>
+              </article>
+            </section>
+
+            <section class="report-insight-grid mt-16">
+              <div class="report-panel">
+                <div class="report-panel-title">Mensajes Clave</div>
+                <div id="repHighlights" class="report-bullet-list"></div>
+              </div>
+              <div class="report-panel">
+                <div class="report-panel-title">Implicaciones Ejecutivas</div>
+                <div id="repRecommendations" class="report-bullet-list"></div>
+              </div>
+            </section>
+
             <!-- SECCIÓN EXTERNA -->
             <br clear="all" style="page-break-before:always" />
             <div style="margin-top: 40px;"></div>
@@ -570,6 +604,29 @@
             
             <h3 class="mt-16">1.1. Top 10 Temas Más Relevantes (Visión Externa)</h3>
             <div id="plotExternalTop10" class="plot plot-print" style="min-height:300px; margin-bottom: 24px;"></div>
+
+            <h3 class="mt-16">1.2. Cobertura por Grupo de Interés</h3>
+            <div class="report-two-col">
+              <div class="report-panel">
+                <div class="table-wrap">
+                  <table class="table table-compact" id="tableReportGroups">
+                    <thead>
+                      <tr>
+                        <th>Grupo</th>
+                        <th class="right">N</th>
+                        <th class="right">%</th>
+                        <th class="right">Promedio</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="report-panel">
+                <div class="report-panel-title">Lectura de Stakeholders</div>
+                <div id="repExternalNarrative" class="report-copy-block"></div>
+              </div>
+            </div>
 
             <!-- SECCIÓN INTERNA -->
             <br clear="all" style="page-break-before:always" />
@@ -601,6 +658,28 @@
               </div>
             </div>
 
+            <h3 class="mt-16">2.4. Cobertura de Evaluación Interna</h3>
+            <div class="report-two-col">
+              <div class="report-panel">
+                <div class="table-wrap">
+                  <table class="table table-compact" id="tableReportAreas">
+                    <thead>
+                      <tr>
+                        <th>Área</th>
+                        <th class="right">N</th>
+                        <th class="right">Temas</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="report-panel">
+                <div class="report-panel-title">Lectura del Comité</div>
+                <div id="repInternalNarrative" class="report-copy-block"></div>
+              </div>
+            </div>
+
             <!-- SECCIÓN MATRIZ -->
             <br clear="all" style="page-break-before:always" />
             <div style="margin-top: 40px;"></div>
@@ -627,7 +706,47 @@
               </table>
             </div>
 
-            <h3 class="mt-16">3.3. Anexo, ranking completo</h3>
+            <h3 class="mt-16">3.3. Portafolio de Materialidad</h3>
+            <section class="report-kpi-grid">
+              <article class="report-kpi-card report-kpi-card-soft">
+                <div class="report-kpi-label">Doble materialidad</div>
+                <div class="report-kpi-value" id="repPortfolioDouble"></div>
+                <div class="report-kpi-foot">Impacto y financiero superan umbral</div>
+              </article>
+              <article class="report-kpi-card report-kpi-card-soft">
+                <div class="report-kpi-label">Sólo impacto</div>
+                <div class="report-kpi-value" id="repPortfolioImpact"></div>
+                <div class="report-kpi-foot">Materialidad ASG</div>
+              </article>
+              <article class="report-kpi-card report-kpi-card-soft">
+                <div class="report-kpi-label">Sólo financiero</div>
+                <div class="report-kpi-value" id="repPortfolioFin"></div>
+                <div class="report-kpi-foot">Materialidad de negocio</div>
+              </article>
+              <article class="report-kpi-card report-kpi-card-soft">
+                <div class="report-kpi-label">No materiales</div>
+                <div class="report-kpi-value" id="repPortfolioNone"></div>
+                <div class="report-kpi-foot">Debajo del umbral vigente</div>
+              </article>
+            </section>
+
+            <h3 class="mt-16">3.4. Prioridades Integradas</h3>
+            <div class="table-wrap">
+              <table class="table" id="tableReportPriority">
+                <thead>
+                  <tr>
+                    <th>Tema</th>
+                    <th class="right">Stakeholders</th>
+                    <th class="right">Impacto</th>
+                    <th class="right">Financiero</th>
+                    <th class="right">Prioridad integrada</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <h3 class="mt-16">3.5. Anexo, ranking completo</h3>
             <div class="table-wrap">
               <table class="table table-compact" id="tableReportAll">
                 <thead>
@@ -643,6 +762,11 @@
                 </thead>
                 <tbody></tbody>
               </table>
+            </div>
+
+            <div class="report-closing mt-16">
+              <div class="report-panel-title">Conclusión Estratégica</div>
+              <div id="repClosing" class="report-copy-block"></div>
             </div>
 
             <div class="btn-row mt-16 no-print">

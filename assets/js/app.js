@@ -1782,15 +1782,42 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     }
   }
 
+  function averageOf(values) {
+    const valid = values.filter((v) => v !== null && v !== undefined && isFinite(v));
+    return valid.length ? valid.reduce((a, b) => a + Number(b), 0) / valid.length : null;
+  }
+
+  function renderBulletList(targetId, items) {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    el.innerHTML = (items || []).map((item) => `<div class="report-bullet-item">${escapeHTML(item)}</div>`).join("");
+  }
+
   function renderReport(db) {
     const params = getParams(db);
     const edition = db.editions.find((e) => e.id === db.currentEditionId);
 
     const { rows } = computeScores(db);
     const doubleRows = rows.filter((r) => r.double_mat);
-
-    const extN = db.externalResponses.filter((r) => r.editionId === db.currentEditionId).length;
-    const intN = db.internalAssessments.filter((r) => r.editionId === db.currentEditionId).length;
+    const impactOnlyRows = rows.filter((r) => r.impact_mat && !r.fin_mat);
+    const finOnlyRows = rows.filter((r) => !r.impact_mat && r.fin_mat);
+    const nonMaterialRows = rows.filter((r) => !r.double_mat && !r.impact_mat && !r.fin_mat);
+    const externalRows = db.externalResponses.filter((r) => r.editionId === db.currentEditionId);
+    const internalRows = db.internalAssessments.filter((r) => r.editionId === db.currentEditionId);
+    const extN = externalRows.length;
+    const intN = internalRows.length;
+    const avgStake = averageOf(rows.map((r) => r.stakeholder_mean));
+    const avgImpact = averageOf(rows.map((r) => r.impact_score));
+    const avgFin = averageOf(rows.map((r) => r.fin_score));
+    const coveredThemes = rows.filter((r) => r.stakeholder_mean !== null || r.impact_score !== null || r.fin_score !== null).length;
+    const topExternal = [...rows].filter((r) => r.stakeholder_mean !== null).sort((a, b) => b.stakeholder_mean - a.stakeholder_mean)[0];
+    const topImpact = [...rows].filter((r) => r.impact_score !== null).sort((a, b) => b.impact_score - a.impact_score)[0];
+    const topFinancial = [...rows].filter((r) => r.fin_score !== null).sort((a, b) => b.fin_score - a.fin_score)[0];
+    const priorityRows = [...rows]
+      .map((r) => ({ ...r, integrated_priority: averageOf([r.stakeholder_mean, r.impact_score, r.fin_score]) }))
+      .filter((r) => r.integrated_priority !== null)
+      .sort((a, b) => b.integrated_priority - a.integrated_priority)
+      .slice(0, 10);
 
     document.getElementById("repEdition").textContent = edition ? edition.name : "(sin edición)";
     document.getElementById("repDate").textContent = new Date().toISOString().slice(0, 10);
@@ -1810,6 +1837,33 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       `Resultado: ${doubleRows.length} temas califican como doble materialidad según la regla y umbrales definidos.`
     ].join(" ");
     document.getElementById("repExecutive").textContent = exec;
+    const setText = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    };
+    setText("repAvgStake", avgStake !== null ? fmt(avgStake, 2) : "N/D");
+    setText("repAvgImpact", avgImpact !== null ? fmt(avgImpact, 2) : "N/D");
+    setText("repAvgFin", avgFin !== null ? fmt(avgFin, 2) : "N/D");
+    setText("repCoverage", `${coveredThemes}/${DATA.topics.length}`);
+    setText("repPortfolioDouble", String(doubleRows.length));
+    setText("repPortfolioImpact", String(impactOnlyRows.length));
+    setText("repPortfolioFin", String(finOnlyRows.length));
+    setText("repPortfolioNone", String(nonMaterialRows.length));
+    setText("repExternalNarrative", topExternal ? `La voz externa se concentra en ${topExternal.tema_nombre}. La lectura por grupo permite ver dónde hay mayor sensibilidad y dónde conviene reforzar participación.` : "Aún no existe base suficiente para una lectura externa robusta.");
+    setText("repInternalNarrative", topImpact && topFinancial ? `La evaluación interna combina una señal ASG liderada por ${topImpact.tema_nombre} y una señal financiera liderada por ${topFinancial.tema_nombre}.` : "La lectura interna aún requiere mayor cobertura para consolidar hallazgos.");
+    setText("repClosing", doubleRows.length ? `El ejercicio sugiere concentrar la gestión en ${doubleRows.length} temas de doble materialidad y monitorear ${impactOnlyRows.length + finOnlyRows.length} temas con materialidad parcial que podrían escalar.` : "Todavía no se consolida un portafolio suficiente de temas de doble materialidad; conviene ampliar la base de evidencia.");
+    renderBulletList("repHighlights", [
+      topExternal ? `Mayor sensibilidad externa: ${topExternal.tema_nombre} (${fmt(topExternal.stakeholder_mean, 2)}).` : "No se observa todavía una señal externa dominante.",
+      topImpact ? `Mayor impacto ASG: ${topImpact.tema_nombre} (${fmt(topImpact.impact_score, 2)}).` : "No se observa todavía una señal interna robusta de impacto.",
+      topFinancial ? `Mayor exposición financiera: ${topFinancial.tema_nombre} (${fmt(topFinancial.fin_score, 2)}).` : "No se observa todavía una señal financiera dominante.",
+      `${doubleRows.length} temas son de doble materialidad; ${impactOnlyRows.length} quedan sólo por impacto y ${finOnlyRows.length} sólo por criterio financiero.`
+    ]);
+    renderBulletList("repRecommendations", [
+      doubleRows.length ? `Asignar responsables, metas y KPIs a los ${doubleRows.length} temas de doble materialidad.` : "Completar la captura de información antes de cerrar la priorización final.",
+      extN < 10 ? "Ampliar la muestra externa para reforzar representatividad del diagnóstico." : "Mantener una muestra balanceada por grupo de interés en el siguiente ciclo.",
+      intN < 5 ? "Incorporar más áreas evaluadoras para fortalecer el juicio interno." : "Consolidar criterios homogéneos del comité para mejorar comparabilidad.",
+      "Usar la tabla de prioridades integradas como base del plan ESG y la narrativa del reporte corporativo."
+    ]);
 
     // tabla doble
     const tbodyD = document.querySelector("#tableReportDouble tbody");
@@ -1840,6 +1894,54 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         <td>${r.double_mat ? "Sí" : "No"}</td>
       `;
       tbodyA.appendChild(tr);
+    }
+
+    const groupsBody = document.querySelector("#tableReportGroups tbody");
+    if (groupsBody) {
+      groupsBody.innerHTML = "";
+      for (const group of GROUPS) {
+        const groupRows = externalRows.filter((r) => r.grupo === group);
+        if (!groupRows.length) continue;
+        const ratings = groupRows.flatMap((r) => Object.values(r.ratings || {})).filter((v) => isFinite(v));
+        const groupAvg = averageOf(ratings);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${escapeHTML(group)}</td><td class="right">${groupRows.length}</td><td class="right">${extN ? fmt((groupRows.length / extN) * 100, 1) : "0.0"}%</td><td class="right">${groupAvg !== null ? fmt(groupAvg, 2) : "N/D"}</td>`;
+        groupsBody.appendChild(tr);
+      }
+    }
+
+    const areasBody = document.querySelector("#tableReportAreas tbody");
+    if (areasBody) {
+      const areaMap = new Map();
+      for (const row of internalRows) {
+        const key = row.area || "Sin área";
+        if (!areaMap.has(key)) areaMap.set(key, { area: key, n: 0, temas: 0 });
+        const item = areaMap.get(key);
+        item.n += 1;
+        item.temas += Object.keys(row.table || {}).length;
+      }
+      areasBody.innerHTML = "";
+      for (const row of Array.from(areaMap.values()).sort((a, b) => b.n - a.n)) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${escapeHTML(row.area)}</td><td class="right">${row.n}</td><td class="right">${row.temas}</td>`;
+        areasBody.appendChild(tr);
+      }
+    }
+
+    const priorityBody = document.querySelector("#tableReportPriority tbody");
+    if (priorityBody) {
+      priorityBody.innerHTML = "";
+      for (const r of priorityRows) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHTML(r.tema_id)} Â· ${escapeHTML(r.tema_nombre)}</td>
+          <td class="right">${r.stakeholder_mean === null ? "" : fmt(r.stakeholder_mean, 2)}</td>
+          <td class="right">${r.impact_score === null ? "" : fmt(r.impact_score, 2)}</td>
+          <td class="right">${r.fin_score === null ? "" : fmt(r.fin_score, 2)}</td>
+          <td class="right">${fmt(r.integrated_priority, 2)}</td>
+        `;
+        priorityBody.appendChild(tr);
+      }
     }
 
     // plot en reporte
