@@ -404,6 +404,60 @@ body{
   display:grid;
   gap: 6px;
 }
+.report-cover{
+  margin-bottom: 16px;
+  padding: 18px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(6,78,59,0.96), rgba(5,150,105,0.88));
+  color: #ecfdf5;
+  box-shadow: 0 18px 34px rgba(2,44,34,0.18);
+}
+.report-cover-top{
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  opacity: 0.8;
+  margin-bottom: 12px;
+}
+.report-cover-grid{
+  display:grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  align-items: end;
+}
+.report-cover-kicker{
+  font-weight: 800;
+  margin-bottom: 8px;
+  color: rgba(236,253,245,0.82);
+}
+.report-cover-title{
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+.report-cover-text{
+  margin: 12px 0 0 0;
+  max-width: 720px;
+  line-height: 1.6;
+  color: rgba(236,253,245,0.9);
+}
+.report-cover-badges{
+  display:flex;
+  flex-wrap: wrap;
+  justify-content:flex-end;
+  gap: 8px;
+}
+.report-badge{
+  display:inline-flex;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.18);
+  font-size: 12px;
+  font-weight: 800;
+  color: #f0fdf4;
+}
 .report-kpi-grid{
   display:grid;
   grid-template-columns: repeat(4, 1fr);
@@ -479,11 +533,47 @@ body{
   padding: 14px;
   background: linear-gradient(180deg, rgba(240,253,244,0.95), rgba(255,255,255,0.96));
 }
+.report-action-plan{
+  border: 1px solid rgba(6,78,59,0.14);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255,255,255,0.92);
+}
+.report-action-grid{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.report-action-card{
+  border-radius: 16px;
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(248,250,252,0.96), rgba(240,253,244,0.96));
+  border: 1px solid rgba(6,78,59,0.10);
+}
+.report-action-phase{
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--primary2);
+  font-weight: 900;
+}
+.report-action-title{
+  margin-top: 8px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+.report-action-copy{
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
 @media (max-width: 1100px){
   .report-kpi-grid{ grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 900px){
-  .report-insight-grid, .report-two-col, .report-kpi-grid{ grid-template-columns: 1fr; }
+  .report-cover-grid, .report-insight-grid, .report-two-col, .report-kpi-grid, .report-action-grid{ grid-template-columns: 1fr; }
+  .report-cover-badges{ justify-content:flex-start; }
 }
 
 .modal{
