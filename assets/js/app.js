@@ -44,6 +44,12 @@
     groupFilter: "TODOS",
     legacyExpectationFactor: 25 / 12,
   };
+  const COMPILED_MEASURE_ORDER = {
+    relevancia: 1,
+    impacto: 2,
+    financiero: 3,
+    promedio_internal: 4,
+  };
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbx4I7BLRHUkwPKhzR-mHdveboNEUNn0XeYNP8hX99GF_FoCFwOla94cM2HW73A_cZ_hRA/exec";
   const OFFICIAL_APP_URL = "https://monitorimpactosocial.github.io/materialidadV2/";
@@ -55,6 +61,7 @@
     "54823a13-24a0-4ade-87a7-5a7c4ff30f71",
     "c630d1ff-af1d-45f0-abe7-f81bf4668d57",
   ]);
+  let COMPILED_FILTER_STATE = null;
 
 
 // ---------------------------------------------------------------------------
@@ -1106,6 +1113,452 @@ function computeScores(db) {
     renderLegacyMatrixPlot(db, "plotLegacyMatrix");
   }
 
+  function getDimensionMetaForTopic(temaId) {
+    const dim = DIMENSIONS.find((item) => item.range.includes(temaId));
+    return {
+      dimension_id: dim ? dim.id : "",
+      dimension_nombre: dim ? String(dim.title || "").replace(/^\d+\.\s*/, "") : "",
+    };
+  }
+
+  function getEditionNameById(db, editionId) {
+    const edition = (db && db.editions || []).find((item) => item.id === editionId);
+    return edition ? edition.name : (editionId || "");
+  }
+
+  function buildCompiledAnalyticRows(db) {
+    const rows = [];
+    const params = getParams(db);
+    const wImpact = normalizeWeights((params && params.wImpact) || DEFAULT_PARAMS.wImpact);
+    const wFin = normalizeWeights((params && params.wFin) || DEFAULT_PARAMS.wFin);
+    const topicsById = new Map((DATA.topics || []).map((topic) => [topic.tema_id, topic]));
+
+    (db.externalResponses || []).forEach((record) => {
+      const editionId = record.editionId || "";
+      const editionName = getEditionNameById(db, editionId);
+      const ratings = record.ratings || {};
+      Object.entries(ratings).forEach(([temaId, rawValue]) => {
+        const value = sanitizeRating(rawValue);
+        if (value === null) return;
+        const topic = topicsById.get(temaId);
+        const dim = getDimensionMetaForTopic(temaId);
+        rows.push({
+          edicion_id: editionId,
+          edicion: editionName,
+          fecha_iso: record.ts || "",
+          fecha: toDateStr(record.ts),
+          fuente: "externa",
+          instrumento: "encuesta_externa",
+          segmento: record.grupo || "",
+          detalle_segmento: record.organizacion || "",
+          grupo_interes: record.grupo || "",
+          sector: record.sector || "",
+          organizacion: record.organizacion || "",
+          area: "",
+          rol: "",
+          tema_id: temaId,
+          tema_nombre: topic ? topic.tema_nombre : temaId,
+          dimension_id: dim.dimension_id,
+          dimension_nombre: dim.dimension_nombre,
+          medida: "relevancia",
+          valor: value,
+          valor_100: value * 20,
+          percepcion: record.percepcion || "",
+          comentarios: record.comentarios || "",
+          id_registro: record.id || "",
+          _measure_order: COMPILED_MEASURE_ORDER.relevancia,
+        });
+      });
+    });
+
+    (db.internalAssessments || []).forEach((record) => {
+      const editionId = record.editionId || "";
+      const editionName = getEditionNameById(db, editionId);
+      const table = record.table || {};
+      Object.entries(table).forEach(([temaId, row]) => {
+        const topic = topicsById.get(temaId);
+        const dim = getDimensionMetaForTopic(temaId);
+        const impacto = sanitizeRating(row && row.impacto) ?? weightedMeanFromRow(row || {}, wImpact, ["severidad", "alcance", "irremediabilidad", "probabilidad"]);
+        const financiero = sanitizeRating(row && row.financiero) ?? weightedMeanFromRow(row || {}, wFin, ["impacto_financiero", "probabilidad_financiera"]);
+        const promedio = averageOf([impacto, financiero]);
+        const base = {
+          edicion_id: editionId,
+          edicion: editionName,
+          fecha_iso: record.ts || "",
+          fecha: toDateStr(record.ts),
+          fuente: "interna",
+          instrumento: "evaluacion_interna",
+          segmento: record.area || "",
+          detalle_segmento: record.rol || "",
+          grupo_interes: "",
+          sector: "",
+          organizacion: "",
+          area: record.area || "",
+          rol: record.rol || "",
+          tema_id: temaId,
+          tema_nombre: topic ? topic.tema_nombre : temaId,
+          dimension_id: dim.dimension_id,
+          dimension_nombre: dim.dimension_nombre,
+          percepcion: "",
+          comentarios: record.comentarios || "",
+          id_registro: record.id || "",
+        };
+
+        if (impacto !== null) {
+          rows.push({
+            ...base,
+            medida: "impacto",
+            valor: impacto,
+            valor_100: impacto * 20,
+            _measure_order: COMPILED_MEASURE_ORDER.impacto,
+          });
+        }
+        if (financiero !== null) {
+          rows.push({
+            ...base,
+            medida: "financiero",
+            valor: financiero,
+            valor_100: financiero * 20,
+            _measure_order: COMPILED_MEASURE_ORDER.financiero,
+          });
+        }
+        if (promedio !== null) {
+          rows.push({
+            ...base,
+            medida: "promedio_internal",
+            valor: promedio,
+            valor_100: promedio * 20,
+            _measure_order: COMPILED_MEASURE_ORDER.promedio_internal,
+          });
+        }
+      });
+    });
+
+    rows.sort((a, b) => {
+      const editionCmp = String(a.edicion || "").localeCompare(String(b.edicion || ""));
+      if (editionCmp !== 0) return editionCmp;
+      const dateCmp = String(a.fecha_iso || "").localeCompare(String(b.fecha_iso || ""));
+      if (dateCmp !== 0) return dateCmp;
+      const sourceCmp = String(a.fuente || "").localeCompare(String(b.fuente || ""));
+      if (sourceCmp !== 0) return sourceCmp;
+      const topicCmp = String(a.tema_id || "").localeCompare(String(b.tema_id || ""));
+      if (topicCmp !== 0) return topicCmp;
+      const measureCmp = Number(a._measure_order || 99) - Number(b._measure_order || 99);
+      if (measureCmp !== 0) return measureCmp;
+      return String(a.id_registro || "").localeCompare(String(b.id_registro || ""));
+    });
+
+    return rows;
+  }
+
+  function getSelectedValues(selectId) {
+    const el = document.getElementById(selectId);
+    if (!el) return [];
+    return Array.from(el.selectedOptions || []).map((opt) => opt.value).filter(Boolean);
+  }
+
+  function syncMultiSelectOptions(selectId, options, selectedValues) {
+    const el = document.getElementById(selectId);
+    if (!el) return;
+    const selected = new Set(selectedValues || []);
+    el.innerHTML = "";
+    for (const option of options) {
+      const opt = document.createElement("option");
+      opt.value = option.value;
+      opt.textContent = option.label;
+      opt.selected = selected.has(option.value);
+      el.appendChild(opt);
+    }
+  }
+
+  function buildDistinctOptions(rows, valueSelector, labelSelector) {
+    const map = new Map();
+    rows.forEach((row) => {
+      const value = String(valueSelector(row) || "").trim();
+      if (!value) return;
+      const label = String((labelSelector ? labelSelector(row) : value) || "").trim() || value;
+      if (!map.has(value)) map.set(value, label);
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => String(a[1]).localeCompare(String(b[1])))
+      .map(([value, label]) => ({ value, label }));
+  }
+
+  function readCompiledFiltersFromUI(db) {
+    const editionFilter = document.getElementById("compiledEditionFilter");
+    return {
+      editionId: editionFilter ? (editionFilter.value || db.currentEditionId || "TODAS") : (db.currentEditionId || "TODAS"),
+      fuentes: getSelectedValues("compiledSourceFilter"),
+      medidas: getSelectedValues("compiledMeasureFilter"),
+      dimensiones: getSelectedValues("compiledDimensionFilter"),
+      temas: getSelectedValues("compiledTopicFilter"),
+      segmentos: getSelectedValues("compiledSegmentFilter"),
+      q: sanitizeText(document.getElementById("compiledSearch") ? document.getElementById("compiledSearch").value : "", 300),
+    };
+  }
+
+  function filterCompiledRows(rows, filters) {
+    const query = String(filters && filters.q || "").trim().toLowerCase();
+    return rows.filter((row) => {
+      if (filters.editionId && filters.editionId !== "TODAS" && row.edicion_id !== filters.editionId) return false;
+      if (filters.fuentes && filters.fuentes.length && !filters.fuentes.includes(row.fuente)) return false;
+      if (filters.medidas && filters.medidas.length && !filters.medidas.includes(row.medida)) return false;
+      if (filters.dimensiones && filters.dimensiones.length && !filters.dimensiones.includes(row.dimension_nombre)) return false;
+      if (filters.temas && filters.temas.length && !filters.temas.includes(row.tema_id)) return false;
+      if (filters.segmentos && filters.segmentos.length && !filters.segmentos.includes(row.segmento)) return false;
+      if (!query) return true;
+
+      const haystack = [
+        row.edicion,
+        row.fecha,
+        row.fuente,
+        row.segmento,
+        row.detalle_segmento,
+        row.grupo_interes,
+        row.sector,
+        row.organizacion,
+        row.area,
+        row.rol,
+        row.tema_id,
+        row.tema_nombre,
+        row.dimension_nombre,
+        row.medida,
+        row.percepcion,
+        row.comentarios,
+        row.id_registro,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }
+
+  function buildCompiledExportRows(rows) {
+    return rows.map((row) => ({
+      edicion_id: row.edicion_id,
+      edicion: row.edicion,
+      fecha_iso: row.fecha_iso,
+      fecha: row.fecha,
+      fuente: row.fuente,
+      instrumento: row.instrumento,
+      segmento: row.segmento,
+      detalle_segmento: row.detalle_segmento,
+      grupo_interes: row.grupo_interes,
+      sector: row.sector,
+      organizacion: row.organizacion,
+      area: row.area,
+      rol: row.rol,
+      tema_id: row.tema_id,
+      tema_nombre: row.tema_nombre,
+      dimension_id: row.dimension_id,
+      dimension_nombre: row.dimension_nombre,
+      medida: row.medida,
+      valor: row.valor,
+      valor_100: row.valor_100,
+      percepcion: row.percepcion,
+      comentarios: row.comentarios,
+      id_registro: row.id_registro,
+    }));
+  }
+
+  function escapeXml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  function downloadExcelXml(filename, rows, sheetName = "BaseAnalitica") {
+    const safeSheetName = String(sheetName || "BaseAnalitica").replace(/[\\/:*?\[\]]/g, "").slice(0, 31) || "BaseAnalitica";
+    const cols = rows && rows.length ? Object.keys(rows[0]) : [];
+    const headerRow = `<Row>${cols.map((col) => `<Cell ss:StyleID="header"><Data ss:Type="String">${escapeXml(col)}</Data></Cell>`).join("")}</Row>`;
+    const bodyRows = (rows || []).map((row) => {
+      const cells = cols.map((col) => {
+        const value = row[col];
+        if (typeof value === "number" && isFinite(value)) {
+          return `<Cell><Data ss:Type="Number">${value}</Data></Cell>`;
+        }
+        return `<Cell><Data ss:Type="String">${escapeXml(value === null || value === undefined ? "" : String(value))}</Data></Cell>`;
+      }).join("");
+      return `<Row>${cells}</Row>`;
+    }).join("");
+
+    const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="header">
+   <Font ss:Bold="1"/>
+   <Interior ss:Color="#EAFBF7" ss:Pattern="Solid"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="${escapeXml(safeSheetName)}">
+  <Table>
+   ${headerRow}
+   ${bodyRows}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+    downloadText(filename, xml, "application/vnd.ms-excel;charset=utf-8");
+  }
+
+  function getCompiledRowsForCurrentFilters(db) {
+    const rows = buildCompiledAnalyticRows(db);
+    const filters = readCompiledFiltersFromUI(db);
+    return filterCompiledRows(rows, filters);
+  }
+
+  function renderCompiledDataView(db) {
+    const rows = buildCompiledAnalyticRows(db);
+    if (!COMPILED_FILTER_STATE) {
+      COMPILED_FILTER_STATE = {
+        editionId: db.currentEditionId || "TODAS",
+        fuentes: [],
+        medidas: [],
+        dimensiones: [],
+        temas: [],
+        segmentos: [],
+        q: "",
+      };
+    }
+
+    const editionSelect = document.getElementById("compiledEditionFilter");
+    if (editionSelect) {
+      const currentEditionId = COMPILED_FILTER_STATE.editionId || db.currentEditionId || "TODAS";
+      editionSelect.innerHTML = "";
+      const allOpt = document.createElement("option");
+      allOpt.value = "TODAS";
+      allOpt.textContent = "Todas las ediciones";
+      editionSelect.appendChild(allOpt);
+      for (const edition of (db.editions || [])) {
+        const opt = document.createElement("option");
+        opt.value = edition.id;
+        opt.textContent = edition.name;
+        editionSelect.appendChild(opt);
+      }
+      editionSelect.value = Array.from(editionSelect.options).some((opt) => opt.value === currentEditionId) ? currentEditionId : "TODAS";
+    }
+
+    syncMultiSelectOptions("compiledSourceFilter", buildDistinctOptions(rows, (row) => row.fuente), COMPILED_FILTER_STATE.fuentes);
+    syncMultiSelectOptions("compiledMeasureFilter", buildDistinctOptions(rows, (row) => row.medida), COMPILED_FILTER_STATE.medidas);
+    syncMultiSelectOptions("compiledDimensionFilter", buildDistinctOptions(rows, (row) => row.dimension_nombre), COMPILED_FILTER_STATE.dimensiones);
+    syncMultiSelectOptions("compiledTopicFilter", buildDistinctOptions(rows, (row) => row.tema_id, (row) => `${row.tema_id} · ${row.tema_nombre}`), COMPILED_FILTER_STATE.temas);
+    syncMultiSelectOptions("compiledSegmentFilter", buildDistinctOptions(rows, (row) => row.segmento), COMPILED_FILTER_STATE.segmentos);
+
+    const search = document.getElementById("compiledSearch");
+    if (search && search.value !== COMPILED_FILTER_STATE.q) search.value = COMPILED_FILTER_STATE.q || "";
+
+    const filters = readCompiledFiltersFromUI(db);
+    COMPILED_FILTER_STATE = { ...filters };
+    const filteredRows = filterCompiledRows(rows, filters);
+
+    const setText = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    };
+    setText("compiledTotalRows", String(rows.length));
+    setText("compiledFilteredRows", String(filteredRows.length));
+    setText("compiledUniqueRecords", String(new Set(filteredRows.map((row) => row.id_registro)).size));
+    setText("compiledVisibleTopics", String(new Set(filteredRows.map((row) => row.tema_id)).size));
+
+    const tbody = document.querySelector("#tableCompiledData tbody");
+    if (!tbody) return;
+    if (!filteredRows.length) {
+      tbody.innerHTML = `<tr><td colspan="13" class="muted center">No hay filas que coincidan con los filtros seleccionados.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filteredRows.map((row) => `
+      <tr>
+        <td>${escapeHTML(row.edicion)}</td>
+        <td>${escapeHTML(row.fecha)}</td>
+        <td>${escapeHTML(row.fuente)}</td>
+        <td>${escapeHTML(row.segmento)}</td>
+        <td><strong>${escapeHTML(row.tema_id)}</strong> · ${escapeHTML(row.tema_nombre)}</td>
+        <td>${escapeHTML(row.dimension_nombre)}</td>
+        <td>${escapeHTML(row.medida)}</td>
+        <td class="right">${fmt(row.valor, 2)}</td>
+        <td class="right">${fmt(row.valor_100, 1)}</td>
+        <td>${escapeHTML(row.detalle_segmento)}</td>
+        <td>${escapeHTML(row.percepcion)}</td>
+        <td>${escapeHTML(row.comentarios)}</td>
+        <td>${escapeHTML(row.id_registro)}</td>
+      </tr>
+    `).join("");
+  }
+
+  function hookCompiledDataView() {
+    ["compiledEditionFilter", "compiledSourceFilter", "compiledMeasureFilter", "compiledDimensionFilter", "compiledTopicFilter", "compiledSegmentFilter"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("change", () => {
+        const db = ensureDB();
+        COMPILED_FILTER_STATE = readCompiledFiltersFromUI(db);
+        renderCompiledDataView(db);
+      });
+    });
+
+    const search = document.getElementById("compiledSearch");
+    if (search) {
+      search.addEventListener("input", () => {
+        const db = ensureDB();
+        COMPILED_FILTER_STATE = readCompiledFiltersFromUI(db);
+        renderCompiledDataView(db);
+      });
+    }
+
+    const clearBtn = document.getElementById("btnCompiledClearFilters");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        const db = ensureDB();
+        COMPILED_FILTER_STATE = {
+          editionId: db.currentEditionId || "TODAS",
+          fuentes: [],
+          medidas: [],
+          dimensiones: [],
+          temas: [],
+          segmentos: [],
+          q: "",
+        };
+        renderCompiledDataView(db);
+      });
+    }
+
+    const exportCsvBtn = document.getElementById("btnCompiledExportCSV");
+    if (exportCsvBtn) {
+      exportCsvBtn.addEventListener("click", () => {
+        const db = ensureDB();
+        const rows = buildCompiledExportRows(getCompiledRowsForCurrentFilters(db));
+        if (!rows.length) {
+          alert("No hay filas filtradas para exportar.");
+          return;
+        }
+        downloadCSV(`base_analitica_filtrada_${new Date().toISOString().slice(0, 10)}.csv`, rows);
+      });
+    }
+
+    const exportExcelBtn = document.getElementById("btnCompiledExportExcel");
+    if (exportExcelBtn) {
+      exportExcelBtn.addEventListener("click", () => {
+        const db = ensureDB();
+        const rows = buildCompiledExportRows(getCompiledRowsForCurrentFilters(db));
+        if (!rows.length) {
+          alert("No hay filas filtradas para exportar.");
+          return;
+        }
+        downloadExcelXml(`base_analitica_filtrada_${new Date().toISOString().slice(0, 10)}.xml`, rows, "BaseAnalitica");
+      });
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // UI: Navegación
   // ---------------------------------------------------------------------------
@@ -1121,6 +1574,7 @@ function computeScores(db) {
     const db = ensureDB();
     if (viewName === "dashboard") renderDashboard(db);
     if (viewName === "legacy") renderLegacyView(db);
+    if (viewName === "compiled") renderCompiledDataView(db);
     if (viewName === "report") renderReport(db);
   }
 
@@ -2341,9 +2795,11 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     renderExternalLog(db);
     renderInternalLog(db);
     renderLegacyView(db);
+    renderCompiledDataView(db);
     // si vista actual es dashboard/reporte, actualizar
     if (document.getElementById("view-dashboard").classList.contains("active")) renderDashboard(db);
     if (document.getElementById("view-legacy").classList.contains("active")) renderLegacyView(db);
+    if (document.getElementById("view-compiled").classList.contains("active")) renderCompiledDataView(db);
     if (document.getElementById("view-report").classList.contains("active")) renderReport(db);
   }
 
@@ -3379,6 +3835,7 @@ const db = ensureDB();
     hookExternalForm();
     hookInternalForm();
     hookLegacyView();
+    hookCompiledDataView();
     hookAdmin();
     hookShortcuts();
 

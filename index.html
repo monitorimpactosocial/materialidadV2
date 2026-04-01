@@ -68,6 +68,9 @@
       <button class="nav-item" data-view="legacy" type="button">
         <span class="nav-icon">🧮</span><span>Matriz Clásica</span>
       </button>
+      <button class="nav-item" data-view="compiled" type="button">
+        <span class="nav-icon">🗂</span><span>Base Analítica</span>
+      </button>
       <button class="nav-item" data-view="report" type="button">
         <span class="nav-icon">🧾</span><span>Reporte</span>
       </button>
@@ -653,6 +656,99 @@
                     <th class="right">Oportunidad</th>
                     <th>Cuadrante</th>
                     <th>Leg.</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BASE ANALITICA -->
+      <section class="view" id="view-compiled">
+        <div class="card">
+          <div class="card-header">
+            <h2>Base analítica unificada</h2>
+            <p class="muted">Tabla armonizada de ambas encuestas. Permite filtrar por varios campos y exportar exactamente la vista resultante a Excel.</p>
+          </div>
+          <div class="card-body">
+            <div class="kpi-row compiled-kpi-row">
+              <div class="kpi">
+                <div class="kpi-label">Filas totales</div>
+                <div class="kpi-value" id="compiledTotalRows">0</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Filas filtradas</div>
+                <div class="kpi-value" id="compiledFilteredRows">0</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Registros únicos</div>
+                <div class="kpi-value" id="compiledUniqueRecords">0</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Temas visibles</div>
+                <div class="kpi-value" id="compiledVisibleTopics">0</div>
+              </div>
+            </div>
+
+            <div class="compiled-filter-grid mt-16">
+              <div class="field">
+                <label for="compiledEditionFilter">Edición</label>
+                <select id="compiledEditionFilter"></select>
+              </div>
+              <div class="field">
+                <label for="compiledSourceFilter">Fuente</label>
+                <select id="compiledSourceFilter" class="multi-select" multiple></select>
+              </div>
+              <div class="field">
+                <label for="compiledMeasureFilter">Medida</label>
+                <select id="compiledMeasureFilter" class="multi-select" multiple></select>
+              </div>
+              <div class="field">
+                <label for="compiledDimensionFilter">Dimensión</label>
+                <select id="compiledDimensionFilter" class="multi-select" multiple></select>
+              </div>
+              <div class="field">
+                <label for="compiledTopicFilter">Tema</label>
+                <select id="compiledTopicFilter" class="multi-select" multiple></select>
+              </div>
+              <div class="field">
+                <label for="compiledSegmentFilter">Grupo / Área</label>
+                <select id="compiledSegmentFilter" class="multi-select" multiple></select>
+              </div>
+            </div>
+
+            <div class="topics-toolbar mt-12">
+              <input id="compiledSearch" class="search" type="search" placeholder="Buscar por tema, organización, grupo, área, rol o comentario" />
+              <div class="btn-row">
+                <button class="btn btn-secondary" id="btnCompiledClearFilters" type="button">Limpiar filtros</button>
+                <button class="btn btn-secondary" id="btnCompiledExportCSV" type="button">Exportar CSV filtrado</button>
+                <button class="btn btn-primary" id="btnCompiledExportExcel" type="button">Exportar Excel filtrado</button>
+              </div>
+            </div>
+
+            <div class="muted small mt-8">
+              Tip: en los filtros múltiples use `Ctrl` o `Cmd` para seleccionar varios valores. Si un filtro queda sin selección, se incluyen todos los valores disponibles.
+            </div>
+
+            <div class="table-wrap mt-16">
+              <table class="table table-compact" id="tableCompiledData">
+                <thead>
+                  <tr>
+                    <th>Edición</th>
+                    <th>Fecha</th>
+                    <th>Fuente</th>
+                    <th>Segmento</th>
+                    <th>Tema</th>
+                    <th>Dimensión</th>
+                    <th>Medida</th>
+                    <th class="right">Valor</th>
+                    <th class="right">Valor 100</th>
+                    <th>Organización / Rol</th>
+                    <th>Percepción</th>
+                    <th>Comentarios</th>
+                    <th>ID registro</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
