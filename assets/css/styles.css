@@ -871,7 +871,7 @@ progress::-webkit-progress-value {
 }
 .legacy-figure-grid{
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 .legacy-topic-cell{
@@ -913,6 +913,14 @@ progress::-webkit-progress-value {
 #tableLegacyReport td:nth-child(n+2){
   white-space: nowrap;
 }
+#plotLegacyMatrix,
+#plotLegacyMatrixReport{
+  min-height: 620px;
+}
+#plotLegacyRanking,
+#plotLegacyRankingReport{
+  min-height: 460px;
+}
 .compiled-kpi-row{
   grid-template-columns: repeat(4, 1fr);
 }
@@ -947,11 +955,16 @@ progress::-webkit-progress-value {
   .legacy-kpi-row{
     grid-template-columns: 1fr;
   }
-  .legacy-figure-grid{
-    grid-template-columns: 1fr;
-  }
   .legacy-topic-cell{
     min-width: 220px;
+  }
+  #plotLegacyMatrix,
+  #plotLegacyMatrixReport{
+    min-height: 500px;
+  }
+  #plotLegacyRanking,
+  #plotLegacyRankingReport{
+    min-height: 420px;
   }
   .compiled-kpi-row,
   .compiled-filter-grid{

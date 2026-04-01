@@ -1049,16 +1049,20 @@ function computeScores(db) {
     });
 
     const valid = rows.filter((row) => row.completa);
-    const refImpact = averageOf(valid.map((row) => row.significancia));
-    const refExpect = averageOf(valid.map((row) => row.expectativas_total));
+    const axisMaxImpact = 52;
+    const axisMaxExpect = 30;
+    const impactBands = [axisMaxImpact / 3, (axisMaxImpact / 3) * 2];
+    const expectBands = [axisMaxExpect / 3, (axisMaxExpect / 3) * 2];
+    const refImpact = impactBands[1];
+    const refExpect = expectBands[1];
 
     rows.forEach((row) => {
-      if (row.significancia === null || row.expectativas_total === null || refImpact === null || refExpect === null) {
+      if (row.significancia === null || row.expectativas_total === null) {
         row.cuadrante = "";
         return;
       }
-      const impactLevel = row.significancia >= refImpact ? "ALTO" : "BAJO";
-      const expectLevel = row.expectativas_total >= refExpect ? "ALTO" : "BAJO";
+      const impactLevel = row.significancia >= impactBands[1] ? "ALTO" : row.significancia >= impactBands[0] ? "MEDIO" : "BAJO";
+      const expectLevel = row.expectativas_total >= expectBands[1] ? "ALTO" : row.expectativas_total >= expectBands[0] ? "MEDIO" : "BAJO";
       row.cuadrante = `${impactLevel}-${expectLevel}`;
     });
 
@@ -1066,6 +1070,10 @@ function computeScores(db) {
       rows,
       validRows: valid,
       factor: safeFactor,
+      axisMaxImpact,
+      axisMaxExpect,
+      impactBands,
+      expectBands,
       refImpact,
       refExpect,
       configuredThemes: rows.filter((row) => row.tiene_alguna_carga).length,
@@ -1155,8 +1163,8 @@ function computeScores(db) {
     setText("legacyAvgImpact", avgImpact === null ? "N/D" : fmt(avgImpact, 2));
     setText("legacyAvgExpect", avgExpect === null ? "N/D" : fmt(avgExpect, 2));
     setText("legacyHighHigh", String(legacy.highHighCount));
-    setText("legacyRefImpact", legacy.refImpact === null ? "N/D" : fmt(legacy.refImpact, 2));
-    setText("legacyRefExpect", legacy.refExpect === null ? "N/D" : fmt(legacy.refExpect, 2));
+    setText("legacyRefImpact", legacy.impactBands ? legacy.impactBands.map((value) => fmt(value, 1)).join(" | ") : "N/D");
+    setText("legacyRefExpect", legacy.expectBands ? legacy.expectBands.map((value) => fmt(value, 1)).join(" | ") : "N/D");
 
     renderLegacyResultsTable("tableLegacyResults", legacy.rows);
   }
@@ -1175,15 +1183,15 @@ function computeScores(db) {
     const x = legacy.validRows.map((row) => row.significancia);
     const y = legacy.validRows.map((row) => row.expectativas_total);
     const text = legacy.validRows.map((row) => `${row.tema_id} · ${row.tema_nombre}`);
-    const color = legacy.validRows.map((row) => {
-      if (row.cuadrante === "ALTO-ALTO") return "#064e3b";
-      if (row.cuadrante === "ALTO-BAJO") return "#2563eb";
-      if (row.cuadrante === "BAJO-ALTO") return "#d97706";
-      return "#94a3b8";
-    });
-
-    const maxX = Math.max(52, ...x.map((value) => Number(value || 0) + 2));
-    const maxY = Math.max(26, ...y.map((value) => Number(value || 0) + 1));
+    const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd"];
+    const color = legacy.validRows.map((_, index) => palette[index % palette.length]);
+    const xLower = legacy.impactBands[0];
+    const xUpper = legacy.impactBands[1];
+    const yLower = legacy.expectBands[0];
+    const yUpper = legacy.expectBands[1];
+    const maxX = legacy.axisMaxImpact;
+    const maxY = legacy.axisMaxExpect;
+    const isPrint = target.classList.contains("plot-print");
 
     const data = [{
       x,
@@ -1191,25 +1199,61 @@ function computeScores(db) {
       text,
       mode: "markers",
       type: "scatter",
-      marker: { size: 18, color, opacity: 0.88, line: { width: 1, color: "rgba(15,23,42,0.18)" } },
-      hovertemplate: "<b>%{text}</b><br>Impactos: %{x:.2f}<br>Expectativas: %{y:.2f}<extra></extra>"
+      marker: { size: isPrint ? 22 : 24, color, opacity: 0.96, line: { width: 2, color: "#ffffff" } },
+      hovertemplate: "<b>%{text}</b><br>Impacto en la estrategia: %{x:.2f}<br>Expectativas grupos de interés: %{y:.2f}<br>Clasificación: %{customdata}<extra></extra>",
+      customdata: legacy.validRows.map((row) => row.cuadrante || "")
     }];
 
-    const shapes = [];
-    if (legacy.refImpact !== null) {
-      shapes.push({ type: "line", x0: legacy.refImpact, x1: legacy.refImpact, y0: 0, y1: maxY, line: { color: "rgba(185,28,28,0.55)", width: 2, dash: "dot" } });
-    }
-    if (legacy.refExpect !== null) {
-      shapes.push({ type: "line", x0: 0, x1: maxX, y0: legacy.refExpect, y1: legacy.refExpect, line: { color: "rgba(185,28,28,0.55)", width: 2, dash: "dot" } });
-    }
+    const shapes = [
+      { type: "line", x0: xLower, x1: xLower, y0: 0, y1: maxY, line: { color: "#111111", width: 2, dash: "dash" } },
+      { type: "line", x0: xUpper, x1: xUpper, y0: 0, y1: maxY, line: { color: "#111111", width: 2, dash: "dash" } },
+      { type: "line", x0: 0, x1: maxX, y0: yLower, y1: yLower, line: { color: "#111111", width: 2, dash: "dash" } },
+      { type: "line", x0: 0, x1: maxX, y0: yUpper, y1: yUpper, line: { color: "#111111", width: 2, dash: "dash" } },
+    ];
+
+    const annotations = [
+      { x: maxX / 6, y: 0.4, text: "<b>IMPORTANCIA BAJA</b>", xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 12, color: "#0070c9" } },
+      { x: maxX / 2, y: 0.4, text: "<b>IMPORTANCIA MEDIA</b>", xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 12, color: "#0070c9" } },
+      { x: (maxX * 5) / 6, y: 0.4, text: "<b>IMPORTANCIA ALTA</b>", xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 12, color: "#0070c9" } },
+      { x: 1, y: maxY / 6, text: "<b>IMPORTANCIA BAJA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 12, color: "#0070c9" } },
+      { x: 1, y: maxY / 2, text: "<b>IMPORTANCIA MEDIA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 12, color: "#0070c9" } },
+      { x: 1, y: (maxY * 5) / 6, text: "<b>IMPORTANCIA ALTA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 12, color: "#0070c9" } },
+    ];
 
     const layout = {
-      margin: { l: 60, r: 20, t: 10, b: 55 },
-      xaxis: { title: "Puntaje de impactos (Riesgo + Oportunidad)", range: [0, maxX], gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
-      yaxis: { title: "Puntaje de expectativas", range: [0, maxY], gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
+      title: { text: "<b>GRÁFICO DE MATERIALIDAD</b>", x: 0.5, xanchor: "center", font: { size: isPrint ? 20 : 24, color: "#111111" } },
+      height: isPrint ? 520 : 620,
+      margin: { l: 88, r: 24, t: 66, b: 82 },
+      xaxis: {
+        title: { text: "<b>IMPACTO EN LA ESTRATEGIA</b>", standoff: 18, font: { size: 14, color: "#111111" } },
+        range: [0, maxX],
+        tick0: 0,
+        dtick: 2,
+        tickfont: { size: 11, color: "#111111" },
+        gridcolor: "#c9cdd3",
+        gridwidth: 1,
+        linecolor: "#9ca3af",
+        linewidth: 1,
+        mirror: true,
+        zeroline: false,
+      },
+      yaxis: {
+        title: { text: "<b>EXPECTATIVAS GRUPOS DE INTERÉS</b>", standoff: 12, font: { size: 14, color: "#111111" } },
+        range: [0, maxY],
+        tick0: 0,
+        dtick: 2,
+        tickfont: { size: 11, color: "#111111" },
+        gridcolor: "#c9cdd3",
+        gridwidth: 1,
+        linecolor: "#9ca3af",
+        linewidth: 1,
+        mirror: true,
+        zeroline: false,
+      },
       shapes,
-      paper_bgcolor: "rgba(0,0,0,0)",
-      plot_bgcolor: "rgba(255,255,255,0.75)",
+      annotations,
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#ffffff",
       showlegend: false
     };
 
