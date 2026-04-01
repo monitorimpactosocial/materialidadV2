@@ -987,20 +987,28 @@ function computeScores(db) {
       const top2Box = ext.p_ge4;
       const activeGroups = GROUPS.filter((group) => ext.by_group && ext.by_group[group] && ext.by_group[group].n > 0);
       const groupCoverage = GROUPS.length ? activeGroups.length / GROUPS.length : null;
+      const impactMean = int.dims && int.dims.impacto ? int.dims.impacto.mean : null;
+      const finMean = int.dims && int.dims.financiero ? int.dims.financiero.mean : null;
+      const probSocial = int.subdims && int.subdims.probabilidad && int.subdims.probabilidad.mean !== null ? int.subdims.probabilidad.mean : impactMean;
+      const probFinanciera = int.subdims && int.subdims.probabilidad_financiera && int.subdims.probabilidad_financiera.mean !== null ? int.subdims.probabilidad_financiera.mean : finMean;
+      const severidad = int.subdims && int.subdims.severidad && int.subdims.severidad.mean !== null ? int.subdims.severidad.mean : impactMean;
+      const alcance = int.subdims && int.subdims.alcance && int.subdims.alcance.mean !== null ? int.subdims.alcance.mean : impactMean;
+      const irremediabilidad = int.subdims && int.subdims.irremediabilidad && int.subdims.irremediabilidad.mean !== null ? int.subdims.irremediabilidad.mean : impactMean;
+      const impactoFinanciero = int.subdims && int.subdims.impacto_financiero && int.subdims.impacto_financiero.mean !== null ? int.subdims.impacto_financiero.mean : finMean;
 
       const p = weightedAverage([
-        { value: int.subdims && int.subdims.probabilidad ? int.subdims.probabilidad.mean : null, weight: legacyPWeights.probabilidad },
-        { value: int.subdims && int.subdims.probabilidad_financiera ? int.subdims.probabilidad_financiera.mean : null, weight: legacyPWeights.probabilidad_financiera },
+        { value: probSocial, weight: legacyPWeights.probabilidad },
+        { value: probFinanciera, weight: legacyPWeights.probabilidad_financiera },
       ]);
 
       const s = weightedAverage([
-        { value: int.subdims && int.subdims.severidad ? int.subdims.severidad.mean : null, weight: legacySWeights.severidad },
-        { value: int.subdims && int.subdims.alcance ? int.subdims.alcance.mean : null, weight: legacySWeights.alcance },
-        { value: int.subdims && int.subdims.irremediabilidad ? int.subdims.irremediabilidad.mean : null, weight: legacySWeights.irremediabilidad },
+        { value: severidad, weight: legacySWeights.severidad },
+        { value: alcance, weight: legacySWeights.alcance },
+        { value: irremediabilidad, weight: legacySWeights.irremediabilidad },
       ]);
 
       const b = weightedAverage([
-        { value: int.subdims && int.subdims.impacto_financiero ? int.subdims.impacto_financiero.mean : null, weight: legacyBWeights.financiero },
+        { value: impactoFinanciero, weight: legacyBWeights.financiero },
         { value: stakeholderMean, weight: legacyBWeights.relevancia_externa },
       ]);
 
@@ -1019,13 +1027,14 @@ function computeScores(db) {
         active_groups_share: groupCoverage,
         grupos_relacionados: activeGroups.join(", "),
         grupos_resumen: activeGroups.length ? `${activeGroups.length}/${GROUPS.length}` : "",
-        prob_social: int.subdims && int.subdims.probabilidad ? int.subdims.probabilidad.mean : null,
-        prob_financiera: int.subdims && int.subdims.probabilidad_financiera ? int.subdims.probabilidad_financiera.mean : null,
-        severidad: int.subdims && int.subdims.severidad ? int.subdims.severidad.mean : null,
-        alcance: int.subdims && int.subdims.alcance ? int.subdims.alcance.mean : null,
-        irremediabilidad: int.subdims && int.subdims.irremediabilidad ? int.subdims.irremediabilidad.mean : null,
-        impacto_financiero: int.subdims && int.subdims.impacto_financiero ? int.subdims.impacto_financiero.mean : null,
-        score_financiero: int.dims && int.dims.financiero ? int.dims.financiero.mean : null,
+        prob_social: probSocial,
+        prob_financiera: probFinanciera,
+        severidad,
+        alcance,
+        irremediabilidad,
+        impacto_financiero: impactoFinanciero,
+        score_impacto: impactMean,
+        score_financiero: finMean,
         p,
         s,
         b,
