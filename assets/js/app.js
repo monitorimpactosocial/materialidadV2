@@ -2043,12 +2043,19 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     return db.params || { ...DEFAULT_PARAMS };
   }
 
+  function mountLegacyParamBlock() {
+    const block = document.getElementById("legacyParamBlock");
+    const mount = document.getElementById("legacyParamsMount");
+    if (block && mount && block.parentElement !== mount) {
+      mount.appendChild(block);
+    }
+  }
+
   function syncParamsToUI(db) {
     const p = getParams(db);
-    document.getElementById("tauImpact").value = String(p.tauImpact);
-    document.getElementById("tauFin").value = String(p.tauFin);
-    document.getElementById("tauImpactVal").textContent = fmt(p.tauImpact, 1);
-    document.getElementById("tauFinVal").textContent = fmt(p.tauFin, 1);
+    mountLegacyParamBlock();
+    document.getElementById("tauImpact").value = fmt(p.tauImpact, 2);
+    document.getElementById("tauFin").value = fmt(p.tauFin, 2);
     document.getElementById("ruleSelect").value = p.ruleDouble;
 
     document.getElementById("wSev").value = String(p.wImpact.severidad);
@@ -2058,14 +2065,14 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
     document.getElementById("wFinImp").value = String(p.wFin.impacto_financiero);
     document.getElementById("wFinProb").value = String(p.wFin.probabilidad_financiera);
-    document.getElementById("legacyExpectationFactor").value = String(Number(p.legacyExpectationFactor || DEFAULT_PARAMS.legacyExpectationFactor).toFixed(4));
-    document.getElementById("legacyPProb").value = String(p.legacyPWeights.probabilidad);
-    document.getElementById("legacyPFinProb").value = String(p.legacyPWeights.probabilidad_financiera);
-    document.getElementById("legacySSev").value = String(p.legacySWeights.severidad);
-    document.getElementById("legacySAlc").value = String(p.legacySWeights.alcance);
-    document.getElementById("legacySIrr").value = String(p.legacySWeights.irremediabilidad);
-    document.getElementById("legacyBFin").value = String(p.legacyBWeights.financiero);
-    document.getElementById("legacyBStake").value = String(p.legacyBWeights.relevancia_externa);
+    document.getElementById("legacyExpectationFactor").value = fmt(Number(p.legacyExpectationFactor || DEFAULT_PARAMS.legacyExpectationFactor), 2);
+    document.getElementById("legacyPProb").value = fmt(p.legacyPWeights.probabilidad, 2);
+    document.getElementById("legacyPFinProb").value = fmt(p.legacyPWeights.probabilidad_financiera, 2);
+    document.getElementById("legacySSev").value = fmt(p.legacySWeights.severidad, 2);
+    document.getElementById("legacySAlc").value = fmt(p.legacySWeights.alcance, 2);
+    document.getElementById("legacySIrr").value = fmt(p.legacySWeights.irremediabilidad, 2);
+    document.getElementById("legacyBFin").value = fmt(p.legacyBWeights.financiero, 2);
+    document.getElementById("legacyBStake").value = fmt(p.legacyBWeights.relevancia_externa, 2);
 
     document.getElementById("chkStakeWeightByN").checked = !!p.stakeWeightByN;
 
@@ -2142,29 +2149,20 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   }
 
   function hookParamsUI() {
-    const tauImpact = document.getElementById("tauImpact");
-    const tauFin = document.getElementById("tauFin");
-
-    const onSlide = () => {
-      document.getElementById("tauImpactVal").textContent = fmt(Number(tauImpact.value), 1);
-      document.getElementById("tauFinVal").textContent = fmt(Number(tauFin.value), 1);
+    mountLegacyParamBlock();
+    const syncAndRender = () => {
       const db = ensureDB();
       readParamsFromUI(db);
       saveDB(db);
+      syncParamsToUI(db);
       renderAll(db);
     };
 
-    tauImpact.addEventListener("input", onSlide);
-    tauFin.addEventListener("input", onSlide);
-
-    ["ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyExpectationFactor", "legacyPProb", "legacyPFinProb", "legacySSev", "legacySAlc", "legacySIrr", "legacyBFin", "legacyBStake", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
-      document.getElementById(id).addEventListener("change", () => {
-        const db = ensureDB();
-        readParamsFromUI(db);
-        saveDB(db);
-        syncParamsToUI(db);
-        renderAll(db);
-      });
+    ["tauImpact", "tauFin", "ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyExpectationFactor", "legacyPProb", "legacyPFinProb", "legacySSev", "legacySAlc", "legacySIrr", "legacyBFin", "legacyBStake", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("change", syncAndRender);
+      if (el.tagName === "INPUT") el.addEventListener("input", syncAndRender);
     });
 
     document.getElementById("btnResetParams").addEventListener("click", () => {
@@ -2878,8 +2876,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     document.getElementById("repEdition").textContent = edition ? edition.name : "(sin edición)";
     document.getElementById("repDate").textContent = new Date().toISOString().slice(0, 10);
     document.getElementById("repRule").textContent = params.ruleDouble;
-    document.getElementById("repTauImpact").textContent = fmt(params.tauImpact, 1);
-    document.getElementById("repTauFin").textContent = fmt(params.tauFin, 1);
+    document.getElementById("repTauImpact").textContent = fmt(params.tauImpact, 2);
+    document.getElementById("repTauFin").textContent = fmt(params.tauFin, 2);
     document.getElementById("repNExternal").textContent = String(extN);
     document.getElementById("repNInternal").textContent = String(intN);
     document.getElementById("repNDouble").textContent = String(doubleRows.length);
@@ -2888,7 +2886,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     const exec = [
       `Con base en la edición activa (${edition ? edition.name : "sin nombre"}), se registraron ${extN} respuestas externas y ${intN} evaluaciones internas.`,
       `Los scores internos se calcularon con el puntaje directo de impacto y financiero cuando la evaluación fue resumida, o por combinación ponderada de dimensiones cuando existió desglose detallado legado.`,
-      `Parámetros vigentes: regla ${params.ruleDouble}, umbrales τ_impacto=${fmt(params.tauImpact,1)} y τ_financiero=${fmt(params.tauFin,1)}.`,
+      `Parámetros vigentes: regla ${params.ruleDouble}, umbrales τ_impacto=${fmt(params.tauImpact,2)} y τ_financiero=${fmt(params.tauFin,2)}.`,
       `Filtro de stakeholders en tablero: ${gf}.`,
       `Resultado: ${doubleRows.length} temas califican como doble materialidad según la regla y umbrales definidos.`
     ].join(" ");

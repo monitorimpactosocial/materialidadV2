@@ -150,20 +150,14 @@
                 </div>
               </div>
 
-              <div class="slider-grid">
-                <div class="slider">
-                  <div class="slider-top">
-                    <label for="tauImpact">Umbral de impacto</label>
-                    <div class="slider-value" id="tauImpactVal">3.5</div>
-                  </div>
-                  <input id="tauImpact" type="range" min="1" max="5" step="0.1" value="3.5" />
+              <div class="form-grid">
+                <div class="field">
+                  <label for="tauImpact">Umbral de impacto</label>
+                  <input id="tauImpact" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
                 </div>
-                <div class="slider">
-                  <div class="slider-top">
-                    <label for="tauFin">Umbral financiero</label>
-                    <div class="slider-value" id="tauFinVal">3.5</div>
-                  </div>
-                  <input id="tauFin" type="range" min="1" max="5" step="0.1" value="3.5" />
+                <div class="field">
+                  <label for="tauFin">Umbral financiero</label>
+                  <input id="tauFin" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
                 </div>
               </div>
 
@@ -228,10 +222,11 @@
                 </div>
               </div>
 
+              <div id="legacyParamBlock">
               <div class="form-grid mt-12">
                 <div class="field">
                   <label for="legacyExpectationFactor">Factor de expectativas, matriz clásica</label>
-                  <input id="legacyExpectationFactor" type="number" min="0.01" step="0.0001" value="2.0833" />
+                  <input id="legacyExpectationFactor" type="number" min="0.01" step="0.01" value="2.08" inputmode="decimal" />
                   <div class="muted small">
                     Escala el total de expectativas derivado desde la encuesta externa: `E` usa relevancia media, `C` usa Top2Box y `F` usa cobertura de grupos.
                   </div>
@@ -242,11 +237,11 @@
               <div class="weights-grid">
                 <div class="wfield">
                   <label for="legacyPProb">Probabilidad social</label>
-                  <input id="legacyPProb" type="number" min="0" max="1" step="0.05" value="0.65" />
+                  <input id="legacyPProb" type="number" min="0" max="1" step="0.01" value="0.65" inputmode="decimal" />
                 </div>
                 <div class="wfield">
                   <label for="legacyPFinProb">Probabilidad financiera</label>
-                  <input id="legacyPFinProb" type="number" min="0" max="1" step="0.05" value="0.35" />
+                  <input id="legacyPFinProb" type="number" min="0" max="1" step="0.01" value="0.35" inputmode="decimal" />
                 </div>
               </div>
 
@@ -254,15 +249,15 @@
               <div class="weights-grid">
                 <div class="wfield">
                   <label for="legacySSev">Severidad</label>
-                  <input id="legacySSev" type="number" min="0" max="1" step="0.05" value="0.40" />
+                  <input id="legacySSev" type="number" min="0" max="1" step="0.01" value="0.40" inputmode="decimal" />
                 </div>
                 <div class="wfield">
                   <label for="legacySAlc">Alcance</label>
-                  <input id="legacySAlc" type="number" min="0" max="1" step="0.05" value="0.30" />
+                  <input id="legacySAlc" type="number" min="0" max="1" step="0.01" value="0.30" inputmode="decimal" />
                 </div>
                 <div class="wfield">
                   <label for="legacySIrr">Irremediabilidad</label>
-                  <input id="legacySIrr" type="number" min="0" max="1" step="0.05" value="0.30" />
+                  <input id="legacySIrr" type="number" min="0" max="1" step="0.01" value="0.30" inputmode="decimal" />
                 </div>
               </div>
 
@@ -270,16 +265,17 @@
               <div class="weights-grid">
                 <div class="wfield">
                   <label for="legacyBFin">Señal financiera interna</label>
-                  <input id="legacyBFin" type="number" min="0" max="1" step="0.05" value="0.70" />
+                  <input id="legacyBFin" type="number" min="0" max="1" step="0.01" value="0.70" inputmode="decimal" />
                 </div>
                 <div class="wfield">
                   <label for="legacyBStake">Relevancia externa</label>
-                  <input id="legacyBStake" type="number" min="0" max="1" step="0.05" value="0.30" />
+                  <input id="legacyBStake" type="number" min="0" max="1" step="0.01" value="0.30" inputmode="decimal" />
                 </div>
               </div>
 
               <div class="note muted">
                 Estos pesos vienen sugeridos por defecto, pero pueden ajustarse. La app los normaliza automáticamente dentro de cada bloque.
+              </div>
               </div>
 
             </div>
@@ -637,6 +633,16 @@
               <div class="muted small mt-8 legacy-helper">
                 Definiciones del modelo: `Riesgo = P × S`, `Oportunidad = P × B`, `Significancia = Riesgo + Oportunidad`, `Madurez = E + C + F`, `Expectativas = Madurez × Factor`. `P`, `S` y `B` se sugieren desde la evaluación interna; `E`, `C` y `F` desde la encuesta externa.
               </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Parámetros de la matriz clásica</h2>
+              <p class="muted">Los valores sugeridos ya vienen cargados. Cualquier ajuste aquí recalcula las figuras de inmediato.</p>
+            </div>
+            <div class="card-body">
+              <div id="legacyParamsMount"></div>
             </div>
           </div>
         </div>
