@@ -869,6 +869,11 @@ progress::-webkit-progress-value {
 .legacy-helper{
   line-height: 1.6;
 }
+.legacy-figure-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
 .legacy-topic-cell{
   min-width: 280px;
   font-weight: 700;
@@ -897,6 +902,16 @@ progress::-webkit-progress-value {
 .legacy-computed{
   font-family: var(--mono);
   background: rgba(240,253,244,0.6);
+}
+#tableLegacyDrivers td:nth-child(1),
+#tableLegacyResults td:nth-child(1),
+#tableLegacyReport td:nth-child(1){
+  min-width: 300px;
+}
+#tableLegacyDrivers td:nth-child(n+2):nth-child(-n+12),
+#tableLegacyResults td:nth-child(n+2),
+#tableLegacyReport td:nth-child(n+2){
+  white-space: nowrap;
 }
 .compiled-kpi-row{
   grid-template-columns: repeat(4, 1fr);
@@ -930,6 +945,9 @@ progress::-webkit-progress-value {
 }
 @media (max-width: 900px){
   .legacy-kpi-row{
+    grid-template-columns: 1fr;
+  }
+  .legacy-figure-grid{
     grid-template-columns: 1fr;
   }
   .legacy-topic-cell{

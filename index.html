@@ -233,9 +233,53 @@
                   <label for="legacyExpectationFactor">Factor de expectativas, matriz clásica</label>
                   <input id="legacyExpectationFactor" type="number" min="0.01" step="0.0001" value="2.0833" />
                   <div class="muted small">
-                    Escala el total de expectativas de la matriz histórica basada en P, S, B, E, C y F.
+                    Escala el total de expectativas derivado desde la encuesta externa: `E` usa relevancia media, `C` usa Top2Box y `F` usa cobertura de grupos.
                   </div>
                 </div>
+              </div>
+
+              <div class="weights-title mt-12">Derivación sugerida, P (probabilidad integrada)</div>
+              <div class="weights-grid">
+                <div class="wfield">
+                  <label for="legacyPProb">Probabilidad social</label>
+                  <input id="legacyPProb" type="number" min="0" max="1" step="0.05" value="0.65" />
+                </div>
+                <div class="wfield">
+                  <label for="legacyPFinProb">Probabilidad financiera</label>
+                  <input id="legacyPFinProb" type="number" min="0" max="1" step="0.05" value="0.35" />
+                </div>
+              </div>
+
+              <div class="weights-title">Derivación sugerida, S (severidad integrada)</div>
+              <div class="weights-grid">
+                <div class="wfield">
+                  <label for="legacySSev">Severidad</label>
+                  <input id="legacySSev" type="number" min="0" max="1" step="0.05" value="0.40" />
+                </div>
+                <div class="wfield">
+                  <label for="legacySAlc">Alcance</label>
+                  <input id="legacySAlc" type="number" min="0" max="1" step="0.05" value="0.30" />
+                </div>
+                <div class="wfield">
+                  <label for="legacySIrr">Irremediabilidad</label>
+                  <input id="legacySIrr" type="number" min="0" max="1" step="0.05" value="0.30" />
+                </div>
+              </div>
+
+              <div class="weights-title">Derivación sugerida, B (beneficio / oportunidad)</div>
+              <div class="weights-grid">
+                <div class="wfield">
+                  <label for="legacyBFin">Señal financiera interna</label>
+                  <input id="legacyBFin" type="number" min="0" max="1" step="0.05" value="0.70" />
+                </div>
+                <div class="wfield">
+                  <label for="legacyBStake">Relevancia externa</label>
+                  <input id="legacyBStake" type="number" min="0" max="1" step="0.05" value="0.30" />
+                </div>
+              </div>
+
+              <div class="note muted">
+                Estos pesos vienen sugeridos por defecto, pero pueden ajustarse. La app los normaliza automáticamente dentro de cada bloque.
               </div>
 
             </div>
@@ -541,13 +585,13 @@
         <div class="grid-2">
           <div class="card">
             <div class="card-header">
-              <h2>Matriz clásica 2021</h2>
-              <p class="muted">Replica la lógica del Excel histórico de impactos y expectativas, con insumos manuales configurables desde la app.</p>
+              <h2>Matriz clásica</h2>
+              <p class="muted">Reconstruye la lógica histórica de impacto y expectativas a partir de ambas encuestas, usando parámetros sugeridos y editables.</p>
             </div>
             <div class="card-body">
               <div class="kpi-row legacy-kpi-row">
                 <div class="kpi">
-                  <div class="kpi-label">Temas con alguna carga</div>
+                  <div class="kpi-label">Temas con datos</div>
                   <div class="kpi-value" id="legacyConfiguredThemes">0</div>
                 </div>
                 <div class="kpi">
@@ -587,49 +631,59 @@
               </div>
 
               <div class="btn-row">
-                <button class="btn btn-secondary" id="btnLegacyClear" type="button">Restablecer matriz clásica</button>
+                <button class="btn btn-secondary" id="btnLegacyClear" type="button">Restablecer parámetros sugeridos</button>
               </div>
 
               <div class="muted small mt-8 legacy-helper">
-                Definiciones del modelo histórico: `Riesgo = P × S`, `Oportunidad = P × B`, `Significancia = Riesgo + Oportunidad`, `Madurez = E + C + F`, `Expectativas = Madurez × Factor`.
+                Definiciones del modelo: `Riesgo = P × S`, `Oportunidad = P × B`, `Significancia = Riesgo + Oportunidad`, `Madurez = E + C + F`, `Expectativas = Madurez × Factor`. `P`, `S` y `B` se sugieren desde la evaluación interna; `E`, `C` y `F` desde la encuesta externa.
               </div>
             </div>
           </div>
+        </div>
 
+        <div class="legacy-figure-grid mt-16">
           <div class="card">
             <div class="card-header">
-              <h2>Gráfico histórico de materialidad</h2>
+              <h2>Matriz de impacto y expectativas</h2>
               <p class="muted">Cruce entre puntaje de impactos y puntaje de expectativas usando referencias medias del conjunto completo.</p>
             </div>
             <div class="card-body">
               <div id="plotLegacyMatrix" class="plot"></div>
             </div>
           </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Ranking comparado</h2>
+              <p class="muted">Compara, por tema, la significancia de impactos frente al puntaje de expectativas reconstruido desde las encuestas.</p>
+            </div>
+            <div class="card-body">
+              <div id="plotLegacyRanking" class="plot"></div>
+            </div>
+          </div>
         </div>
 
         <div class="card mt-16">
           <div class="card-header">
-            <h2>Carga manual por tema</h2>
-            <p class="muted">Los inputs replican la estructura del Excel `210117- Matriz de Materialidad - Temas Materiales GI v00.xlsx` y alimentan automáticamente tablas y gráfico.</p>
+            <h2>Descomposición automática por tema</h2>
+            <p class="muted">Trazabilidad del cálculo clásico: la tabla muestra la señal externa e interna usada para sugerir `P`, `S`, `B`, `E`, `C` y `F` sin carga manual por tema.</p>
           </div>
           <div class="card-body">
             <div class="table-wrap">
-              <table class="table table-compact" id="tableLegacyInput">
+              <table class="table table-compact" id="tableLegacyDrivers">
                 <thead>
                   <tr>
                     <th>Tema</th>
-                    <th class="center">P</th>
-                    <th class="center">S</th>
-                    <th class="center">B</th>
-                    <th class="center">Leg.</th>
-                    <th class="center">E</th>
-                    <th class="center">C</th>
-                    <th class="center">F</th>
-                    <th>Grupos relacionados</th>
-                    <th class="right">Riesgo</th>
-                    <th class="right">Oport.</th>
+                    <th class="right">Rel. ext.</th>
+                    <th class="right">Top2Box</th>
+                    <th class="right">Cobertura</th>
+                    <th class="right">P</th>
+                    <th class="right">S</th>
+                    <th class="right">B</th>
+                    <th class="right">E</th>
+                    <th class="right">C</th>
+                    <th class="right">F</th>
                     <th class="right">Signific.</th>
-                    <th class="right">Madurez</th>
                     <th class="right">Expect.</th>
                   </tr>
                 </thead>
@@ -642,7 +696,7 @@
         <div class="card mt-16">
           <div class="card-header">
             <h2>Resultados ordenados</h2>
-            <p class="muted">Ranking de la matriz clásica con cuadrantes y trazabilidad legal.</p>
+            <p class="muted">Ranking de la matriz clásica con cuadrantes y trazabilidad por grupos de interés.</p>
           </div>
           <div class="card-body">
             <div class="table-wrap">
@@ -655,7 +709,7 @@
                     <th class="right">Riesgo</th>
                     <th class="right">Oportunidad</th>
                     <th>Cuadrante</th>
-                    <th>Leg.</th>
+                    <th>Grupos</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -1003,10 +1057,13 @@
 
             <h3 class="mt-16">3.5. Matriz clásica de impacto y expectativas</h3>
             <div class="callout callout-info mt-8" style="background:#f8fafc; border-left-color:#334155;">
-              <p style="margin:0;">Esta lectura complementaria replica la estructura del archivo histórico de impactos y expectativas, preservando las fórmulas `P×S`, `P×B` y `M×Factor` para comparación metodológica.</p>
+              <p style="margin:0;">Esta lectura complementaria reconstruye la lógica del archivo histórico a partir de la encuesta externa e interna vigentes, preservando las fórmulas `P×S`, `P×B` y `M×Factor` para comparación metodológica.</p>
             </div>
 
-            <div id="plotLegacyMatrixReport" class="plot plot-print"></div>
+            <div class="legacy-figure-grid mt-12">
+              <div id="plotLegacyMatrixReport" class="plot plot-print"></div>
+              <div id="plotLegacyRankingReport" class="plot plot-print"></div>
+            </div>
 
             <div class="table-wrap mt-12">
               <table class="table table-compact" id="tableLegacyReport">
@@ -1018,7 +1075,7 @@
                     <th class="right">Riesgo</th>
                     <th class="right">Oportunidad</th>
                     <th>Cuadrante</th>
-                    <th>Leg.</th>
+                    <th>Grupos</th>
                   </tr>
                 </thead>
                 <tbody></tbody>

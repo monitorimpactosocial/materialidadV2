@@ -43,6 +43,9 @@
     stakeWeightByN: true,
     groupFilter: "TODOS",
     legacyExpectationFactor: 25 / 12,
+    legacyPWeights: { probabilidad: 0.65, probabilidad_financiera: 0.35 },
+    legacySWeights: { severidad: 0.40, alcance: 0.30, irremediabilidad: 0.30 },
+    legacyBWeights: { financiero: 0.70, relevancia_externa: 0.30 },
   };
   const COMPILED_MEASURE_ORDER = {
     relevancia: 1,
@@ -365,6 +368,39 @@ function sanitizeScaleValue(value, min, max) {
   return rounded;
 }
 
+function sanitizeBoundedNumber(value, min, max) {
+  const n = Number(value);
+  if (!isFinite(n)) return null;
+  if (n < min || n > max) return null;
+  return n;
+}
+
+function weightedAverage(items) {
+  let num = 0;
+  let den = 0;
+  for (const item of items || []) {
+    const value = Number(item && item.value);
+    const weight = Number(item && item.weight);
+    if (!isFinite(value) || !isFinite(weight) || weight <= 0) continue;
+    num += value * weight;
+    den += weight;
+  }
+  return den > 0 ? num / den : null;
+}
+
+function scaleRating5ToLegacy4(value) {
+  const n = sanitizeBoundedNumber(value, 1, 5);
+  if (n === null) return null;
+  return 1 + ((n - 1) / 4) * 3;
+}
+
+function scaleShareToLegacy4(value) {
+  const n = Number(value);
+  if (!isFinite(n)) return null;
+  const bounded = Math.max(0, Math.min(1, n));
+  return 1 + bounded * 3;
+}
+
 function sanitizeLegacyYesNo(value) {
   return String(value || "").trim().toUpperCase() === "SI" ? "SI" : "NO";
 }
@@ -426,12 +462,12 @@ function setLegacyMatrixRow(db, temaId, row) {
 }
 
 function computeLegacyMatrixRow(row, factor) {
-  const p = sanitizeScaleValue(row && row.p, 1, 5);
-  const s = sanitizeScaleValue(row && row.s, 1, 5);
-  const b = sanitizeScaleValue(row && row.b, 1, 5);
-  const e = sanitizeScaleValue(row && row.e, 1, 4);
-  const c = sanitizeScaleValue(row && row.c, 1, 4);
-  const f = sanitizeScaleValue(row && row.f, 1, 4);
+  const p = sanitizeBoundedNumber(row && row.p, 1, 5);
+  const s = sanitizeBoundedNumber(row && row.s, 1, 5);
+  const b = sanitizeBoundedNumber(row && row.b, 1, 5);
+  const e = sanitizeBoundedNumber(row && row.e, 1, 4);
+  const c = sanitizeBoundedNumber(row && row.c, 1, 4);
+  const f = sanitizeBoundedNumber(row && row.f, 1, 4);
   const expectationFactor = Number(factor);
 
   const riesgo = p !== null && s !== null ? p * s : null;
@@ -587,6 +623,9 @@ function migrateDB(raw) {
   };
   params.wImpact = normalizeWeights({ ...(DEFAULT_PARAMS.wImpact || {}), ...((raw.params && raw.params.wImpact) || {}) });
   params.wFin = normalizeWeights({ ...(DEFAULT_PARAMS.wFin || {}), ...((raw.params && raw.params.wFin) || {}) });
+  params.legacyPWeights = normalizeWeights({ ...(DEFAULT_PARAMS.legacyPWeights || {}), ...((raw.params && raw.params.legacyPWeights) || {}) });
+  params.legacySWeights = normalizeWeights({ ...(DEFAULT_PARAMS.legacySWeights || {}), ...((raw.params && raw.params.legacySWeights) || {}) });
+  params.legacyBWeights = normalizeWeights({ ...(DEFAULT_PARAMS.legacyBWeights || {}), ...((raw.params && raw.params.legacyBWeights) || {}) });
   params.tauImpact = Number(raw.params && raw.params.tauImpact !== undefined ? raw.params.tauImpact : DEFAULT_PARAMS.tauImpact);
   params.tauFin = Number(raw.params && raw.params.tauFin !== undefined ? raw.params.tauFin : DEFAULT_PARAMS.tauFin);
   params.ruleDouble = (raw.params && raw.params.ruleDouble === "OR") ? "OR" : "AND";
@@ -797,6 +836,7 @@ function computeInternalByTheme(db, editionId, params) {
   const out = {};
   const wImpact = normalizeWeights((params && params.wImpact) || DEFAULT_PARAMS.wImpact);
   const wFin = normalizeWeights((params && params.wFin) || DEFAULT_PARAMS.wFin);
+  const subdimensionKeys = ["severidad", "alcance", "irremediabilidad", "probabilidad", "impacto_financiero", "probabilidad_financiera"];
 
   for (const tid of topics) {
     out[tid] = {
@@ -805,7 +845,8 @@ function computeInternalByTheme(db, editionId, params) {
       dims: {
         impacto: { n: 0, sum: 0, mean: null },
         financiero: { n: 0, sum: 0, mean: null }
-      }
+      },
+      subdims: Object.fromEntries(subdimensionKeys.map((key) => [key, { n: 0, sum: 0, mean: null }])),
     };
   }
 
@@ -827,6 +868,13 @@ function computeInternalByTheme(db, editionId, params) {
         fin = weightedMeanFromRow(row, wFin, ["impacto_financiero", "probabilidad_financiera"]);
       }
 
+      for (const key of subdimensionKeys) {
+        const value = sanitizeRating(row[key]);
+        if (value === null) continue;
+        out[tid].subdims[key].n += 1;
+        out[tid].subdims[key].sum += Number(value);
+      }
+
       if (imp !== null) {
         out[tid].dims.impacto.n += 1;
         out[tid].dims.impacto.sum += Number(imp);
@@ -844,6 +892,10 @@ function computeInternalByTheme(db, editionId, params) {
   for (const tid of topics) {
     for (const k of Object.keys(out[tid].dims)) {
       const d = out[tid].dims[k];
+      d.mean = d.n > 0 ? d.sum / d.n : null;
+    }
+    for (const key of Object.keys(out[tid].subdims)) {
+      const d = out[tid].subdims[key];
       d.mean = d.n > 0 ? d.sum / d.n : null;
     }
   }
@@ -920,21 +972,67 @@ function computeScores(db) {
     const params = getParams(db);
     const factor = Number(params.legacyExpectationFactor || DEFAULT_PARAMS.legacyExpectationFactor);
     const safeFactor = isFinite(factor) && factor > 0 ? factor : DEFAULT_PARAMS.legacyExpectationFactor;
+    const editionId = db.currentEditionId;
+    const stake = computeStakeholderByTheme(db, editionId);
+    const internal = computeInternalByTheme(db, editionId, params);
+    const legacyPWeights = normalizeWeights((params && params.legacyPWeights) || DEFAULT_PARAMS.legacyPWeights);
+    const legacySWeights = normalizeWeights((params && params.legacySWeights) || DEFAULT_PARAMS.legacySWeights);
+    const legacyBWeights = normalizeWeights((params && params.legacyBWeights) || DEFAULT_PARAMS.legacyBWeights);
 
     const rows = DATA.topics.map((topic) => {
-      const input = getLegacyMatrixRow(db, topic.tema_id);
-      const calc = computeLegacyMatrixRow(input, safeFactor);
+      const tid = topic.tema_id;
+      const ext = stake[tid] || { by_group: {} };
+      const int = internal[tid] || { dims: {}, subdims: {} };
+      const stakeholderMean = params.stakeWeightByN ? ext.mean_pool : ext.mean_equal_groups;
+      const top2Box = ext.p_ge4;
+      const activeGroups = GROUPS.filter((group) => ext.by_group && ext.by_group[group] && ext.by_group[group].n > 0);
+      const groupCoverage = GROUPS.length ? activeGroups.length / GROUPS.length : null;
+
+      const p = weightedAverage([
+        { value: int.subdims && int.subdims.probabilidad ? int.subdims.probabilidad.mean : null, weight: legacyPWeights.probabilidad },
+        { value: int.subdims && int.subdims.probabilidad_financiera ? int.subdims.probabilidad_financiera.mean : null, weight: legacyPWeights.probabilidad_financiera },
+      ]);
+
+      const s = weightedAverage([
+        { value: int.subdims && int.subdims.severidad ? int.subdims.severidad.mean : null, weight: legacySWeights.severidad },
+        { value: int.subdims && int.subdims.alcance ? int.subdims.alcance.mean : null, weight: legacySWeights.alcance },
+        { value: int.subdims && int.subdims.irremediabilidad ? int.subdims.irremediabilidad.mean : null, weight: legacySWeights.irremediabilidad },
+      ]);
+
+      const b = weightedAverage([
+        { value: int.subdims && int.subdims.impacto_financiero ? int.subdims.impacto_financiero.mean : null, weight: legacyBWeights.financiero },
+        { value: stakeholderMean, weight: legacyBWeights.relevancia_externa },
+      ]);
+
+      const e = scaleRating5ToLegacy4(stakeholderMean);
+      const c = scaleShareToLegacy4(top2Box);
+      const f = scaleShareToLegacy4(groupCoverage);
+
+      const calc = computeLegacyMatrixRow({ p, s, b, e, c, f, grupos_relacionados: activeGroups.join(", ") }, safeFactor);
+
       return {
         tema_id: topic.tema_id,
         tema_nombre: topic.tema_nombre,
-        p: input.p,
-        s: input.s,
-        b: input.b,
-        legislacion: input.legislacion || "NO",
-        grupos_relacionados: input.grupos_relacionados || "",
-        e: input.e,
-        c: input.c,
-        f: input.f,
+        stakeholder_mean: stakeholderMean,
+        top2box: top2Box,
+        active_groups_count: activeGroups.length,
+        active_groups_share: groupCoverage,
+        grupos_relacionados: activeGroups.join(", "),
+        grupos_resumen: activeGroups.length ? `${activeGroups.length}/${GROUPS.length}` : "",
+        prob_social: int.subdims && int.subdims.probabilidad ? int.subdims.probabilidad.mean : null,
+        prob_financiera: int.subdims && int.subdims.probabilidad_financiera ? int.subdims.probabilidad_financiera.mean : null,
+        severidad: int.subdims && int.subdims.severidad ? int.subdims.severidad.mean : null,
+        alcance: int.subdims && int.subdims.alcance ? int.subdims.alcance.mean : null,
+        irremediabilidad: int.subdims && int.subdims.irremediabilidad ? int.subdims.irremediabilidad.mean : null,
+        impacto_financiero: int.subdims && int.subdims.impacto_financiero ? int.subdims.impacto_financiero.mean : null,
+        score_financiero: int.dims && int.dims.financiero ? int.dims.financiero.mean : null,
+        p,
+        s,
+        b,
+        legislacion: "",
+        e,
+        c,
+        f,
         factor: safeFactor,
         ...calc,
         prioridad_total: calc.significancia !== null && calc.expectativas_total !== null ? calc.significancia + calc.expectativas_total : null,
@@ -967,31 +1065,31 @@ function computeScores(db) {
     };
   }
 
-  function renderLegacyInputTable(db) {
-    const tbody = document.querySelector("#tableLegacyInput tbody");
+  function renderLegacyDriversTable(db) {
+    const tbody = document.querySelector("#tableLegacyDrivers tbody");
     if (!tbody) return;
 
     const legacy = computeLegacyMatrix(db);
-    tbody.innerHTML = legacy.rows.map((row) => `
+    const sorted = [...legacy.rows].sort((a, b) => {
+      const ap = a.prioridad_total ?? -1;
+      const bp = b.prioridad_total ?? -1;
+      if (bp !== ap) return bp - ap;
+      return (b.significancia ?? -1) - (a.significancia ?? -1);
+    });
+
+    tbody.innerHTML = sorted.map((row) => `
       <tr class="topic-block" data-tid="${escapeHTML(row.tema_id)}">
         <td class="legacy-topic-cell"><strong>${escapeHTML(row.tema_id)}</strong> · ${escapeHTML(row.tema_nombre)}</td>
-        <td><input class="legacy-number" data-field="p" type="number" min="1" max="5" step="1" value="${row.p ?? ""}" /></td>
-        <td><input class="legacy-number" data-field="s" type="number" min="1" max="5" step="1" value="${row.s ?? ""}" /></td>
-        <td><input class="legacy-number" data-field="b" type="number" min="1" max="5" step="1" value="${row.b ?? ""}" /></td>
-        <td>
-          <select class="legacy-select" data-field="legislacion">
-            <option value="NO" ${row.legislacion === "NO" ? "selected" : ""}>NO</option>
-            <option value="SI" ${row.legislacion === "SI" ? "selected" : ""}>SI</option>
-          </select>
-        </td>
-        <td><input class="legacy-number" data-field="e" type="number" min="1" max="4" step="1" value="${row.e ?? ""}" /></td>
-        <td><input class="legacy-number" data-field="c" type="number" min="1" max="4" step="1" value="${row.c ?? ""}" /></td>
-        <td><input class="legacy-number" data-field="f" type="number" min="1" max="4" step="1" value="${row.f ?? ""}" /></td>
-        <td><input class="legacy-text" data-field="grupos_relacionados" type="text" value="${escapeHTML(row.grupos_relacionados || "")}" placeholder="Opcional" /></td>
-        <td class="right legacy-computed">${row.riesgo === null ? "" : fmt(row.riesgo, 0)}</td>
-        <td class="right legacy-computed">${row.oportunidad === null ? "" : fmt(row.oportunidad, 0)}</td>
-        <td class="right legacy-computed"><strong>${row.significancia === null ? "" : fmt(row.significancia, 0)}</strong></td>
-        <td class="right legacy-computed">${row.madurez === null ? "" : fmt(row.madurez, 0)}</td>
+        <td class="right legacy-computed">${row.stakeholder_mean === null ? "" : fmt(row.stakeholder_mean, 2)}</td>
+        <td class="right legacy-computed">${row.top2box === null ? "" : `${fmt(row.top2box * 100, 1)}%`}</td>
+        <td class="right legacy-computed">${row.active_groups_share === null ? "" : `${fmt(row.active_groups_share * 100, 1)}%`}</td>
+        <td class="right legacy-computed">${row.p === null ? "" : fmt(row.p, 2)}</td>
+        <td class="right legacy-computed">${row.s === null ? "" : fmt(row.s, 2)}</td>
+        <td class="right legacy-computed">${row.b === null ? "" : fmt(row.b, 2)}</td>
+        <td class="right legacy-computed">${row.e === null ? "" : fmt(row.e, 2)}</td>
+        <td class="right legacy-computed">${row.c === null ? "" : fmt(row.c, 2)}</td>
+        <td class="right legacy-computed">${row.f === null ? "" : fmt(row.f, 2)}</td>
+        <td class="right legacy-computed"><strong>${row.significancia === null ? "" : fmt(row.significancia, 2)}</strong></td>
         <td class="right legacy-computed">${row.expectativas_total === null ? "" : fmt(row.expectativas_total, 2)}</td>
       </tr>
     `).join("");
@@ -1018,14 +1116,16 @@ function computeScores(db) {
     tbody.innerHTML = "";
     for (const row of sorted) {
       const tr = document.createElement("tr");
+      tr.className = "topic-block";
+      tr.setAttribute("data-tid", row.tema_id);
       tr.innerHTML = `
-        <td>${escapeHTML(row.tema_id)} · ${escapeHTML(row.tema_nombre)}</td>
-        <td class="right">${row.significancia === null ? "" : fmt(row.significancia, 0)}</td>
+        <td class="legacy-topic-cell">${escapeHTML(row.tema_id)} · ${escapeHTML(row.tema_nombre)}</td>
+        <td class="right">${row.significancia === null ? "" : fmt(row.significancia, 2)}</td>
         <td class="right">${row.expectativas_total === null ? "" : fmt(row.expectativas_total, 2)}</td>
-        <td class="right">${row.riesgo === null ? "" : fmt(row.riesgo, 0)}</td>
-        <td class="right">${row.oportunidad === null ? "" : fmt(row.oportunidad, 0)}</td>
+        <td class="right">${row.riesgo === null ? "" : fmt(row.riesgo, 2)}</td>
+        <td class="right">${row.oportunidad === null ? "" : fmt(row.oportunidad, 2)}</td>
         <td>${escapeHTML(row.cuadrante || "")}</td>
-        <td>${escapeHTML(row.legislacion || "NO")}</td>
+        <td title="${escapeHTML(row.grupos_relacionados || "")}">${escapeHTML(row.grupos_resumen || "")}</td>
       `;
       tbody.appendChild(tr);
     }
@@ -1059,7 +1159,7 @@ function computeScores(db) {
     const legacy = computeLegacyMatrix(db);
     if (!legacy.validRows.length) {
       try { Plotly.purge(target); } catch {}
-      target.innerHTML = `<div class="muted">Complete P, S, B, E, C y F por tema para visualizar la matriz clásica.</div>`;
+      target.innerHTML = `<div class="muted">Se requieren respuestas externas e internas suficientes para reconstruir la matriz clásica.</div>`;
       return;
     }
 
@@ -1107,10 +1207,70 @@ function computeScores(db) {
     Plotly.newPlot(targetId, data, layout, { displayModeBar: false, responsive: true });
   }
 
+  function renderLegacyRankingPlot(db, targetId) {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+
+    const legacy = computeLegacyMatrix(db);
+    const rows = [...legacy.validRows]
+      .sort((a, b) => {
+        const ap = a.prioridad_total ?? -1;
+        const bp = b.prioridad_total ?? -1;
+        if (bp !== ap) return bp - ap;
+        return (b.significancia ?? -1) - (a.significancia ?? -1);
+      });
+
+    if (!rows.length) {
+      try { Plotly.purge(target); } catch {}
+      target.innerHTML = `<div class="muted">No hay suficientes temas completos para construir el ranking clásico.</div>`;
+      return;
+    }
+
+    const labels = rows.map((row) => `${row.tema_id} · ${row.tema_nombre}`);
+    const impactos = rows.map((row) => row.significancia);
+    const expectativas = rows.map((row) => row.expectativas_total);
+    const height = Math.max(460, rows.length * 28);
+
+    const data = [
+      {
+        x: impactos,
+        y: labels,
+        type: "bar",
+        orientation: "h",
+        name: "Impactos",
+        marker: { color: "#14532d" },
+        hovertemplate: "<b>%{y}</b><br>Impactos: %{x:.2f}<extra></extra>",
+      },
+      {
+        x: expectativas,
+        y: labels,
+        type: "bar",
+        orientation: "h",
+        name: "Expectativas",
+        marker: { color: "#0f766e" },
+        hovertemplate: "<b>%{y}</b><br>Expectativas: %{x:.2f}<extra></extra>",
+      },
+    ];
+
+    const layout = {
+      margin: { l: 210, r: 20, t: 10, b: 50 },
+      height,
+      barmode: "group",
+      xaxis: { title: "Puntaje", gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
+      yaxis: { automargin: true, autorange: "reversed" },
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(255,255,255,0.75)",
+      legend: { orientation: "h", y: 1.08, x: 0 },
+    };
+
+    Plotly.newPlot(targetId, data, layout, { displayModeBar: false, responsive: true });
+  }
+
   function renderLegacyView(db) {
-    renderLegacyInputTable(db);
+    renderLegacyDriversTable(db);
     renderLegacySummary(db);
     renderLegacyMatrixPlot(db, "plotLegacyMatrix");
+    renderLegacyRankingPlot(db, "plotLegacyRanking");
   }
 
   function getDimensionMetaForTopic(temaId) {
@@ -1846,6 +2006,13 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     document.getElementById("wFinImp").value = String(p.wFin.impacto_financiero);
     document.getElementById("wFinProb").value = String(p.wFin.probabilidad_financiera);
     document.getElementById("legacyExpectationFactor").value = String(Number(p.legacyExpectationFactor || DEFAULT_PARAMS.legacyExpectationFactor).toFixed(4));
+    document.getElementById("legacyPProb").value = String(p.legacyPWeights.probabilidad);
+    document.getElementById("legacyPFinProb").value = String(p.legacyPWeights.probabilidad_financiera);
+    document.getElementById("legacySSev").value = String(p.legacySWeights.severidad);
+    document.getElementById("legacySAlc").value = String(p.legacySWeights.alcance);
+    document.getElementById("legacySIrr").value = String(p.legacySWeights.irremediabilidad);
+    document.getElementById("legacyBFin").value = String(p.legacyBWeights.financiero);
+    document.getElementById("legacyBStake").value = String(p.legacyBWeights.relevancia_externa);
 
     document.getElementById("chkStakeWeightByN").checked = !!p.stakeWeightByN;
 
@@ -1872,6 +2039,19 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       probabilidad_financiera: Number(document.getElementById("wFinProb").value),
     };
     p.legacyExpectationFactor = Number(document.getElementById("legacyExpectationFactor").value);
+    p.legacyPWeights = {
+      probabilidad: Number(document.getElementById("legacyPProb").value),
+      probabilidad_financiera: Number(document.getElementById("legacyPFinProb").value),
+    };
+    p.legacySWeights = {
+      severidad: Number(document.getElementById("legacySSev").value),
+      alcance: Number(document.getElementById("legacySAlc").value),
+      irremediabilidad: Number(document.getElementById("legacySIrr").value),
+    };
+    p.legacyBWeights = {
+      financiero: Number(document.getElementById("legacyBFin").value),
+      relevancia_externa: Number(document.getElementById("legacyBStake").value),
+    };
 
     p.stakeWeightByN = document.getElementById("chkStakeWeightByN").checked;
     p.groupFilter = document.getElementById("groupFilter").value || "TODOS";
@@ -1886,6 +2066,19 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     p.wFin = normalizeWeights({
       impacto_financiero: clamp01(p.wFin.impacto_financiero),
       probabilidad_financiera: clamp01(p.wFin.probabilidad_financiera),
+    });
+    p.legacyPWeights = normalizeWeights({
+      probabilidad: clamp01(p.legacyPWeights.probabilidad),
+      probabilidad_financiera: clamp01(p.legacyPWeights.probabilidad_financiera),
+    });
+    p.legacySWeights = normalizeWeights({
+      severidad: clamp01(p.legacySWeights.severidad),
+      alcance: clamp01(p.legacySWeights.alcance),
+      irremediabilidad: clamp01(p.legacySWeights.irremediabilidad),
+    });
+    p.legacyBWeights = normalizeWeights({
+      financiero: clamp01(p.legacyBWeights.financiero),
+      relevancia_externa: clamp01(p.legacyBWeights.relevancia_externa),
     });
     if (!isFinite(p.legacyExpectationFactor) || p.legacyExpectationFactor <= 0) {
       p.legacyExpectationFactor = DEFAULT_PARAMS.legacyExpectationFactor;
@@ -1911,7 +2104,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     tauImpact.addEventListener("input", onSlide);
     tauFin.addEventListener("input", onSlide);
 
-    ["ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyExpectationFactor", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
+    ["ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyExpectationFactor", "legacyPProb", "legacyPFinProb", "legacySSev", "legacySAlc", "legacySIrr", "legacyBFin", "legacyBStake", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
       document.getElementById(id).addEventListener("change", () => {
         const db = ensureDB();
         readParamsFromUI(db);
@@ -2232,39 +2425,18 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   }
 
   function hookLegacyView() {
-    const tbody = document.querySelector("#tableLegacyInput tbody");
-    if (tbody) {
-      tbody.addEventListener("change", (ev) => {
-        const tr = ev.target.closest("tr[data-tid]");
-        if (!tr) return;
-        const temaId = tr.getAttribute("data-tid");
-        const db = ensureDB();
-        setLegacyMatrixRow(db, temaId, {
-          p: tr.querySelector('[data-field="p"]').value,
-          s: tr.querySelector('[data-field="s"]').value,
-          b: tr.querySelector('[data-field="b"]').value,
-          legislacion: tr.querySelector('[data-field="legislacion"]').value,
-          e: tr.querySelector('[data-field="e"]').value,
-          c: tr.querySelector('[data-field="c"]').value,
-          f: tr.querySelector('[data-field="f"]').value,
-          grupos_relacionados: tr.querySelector('[data-field="grupos_relacionados"]').value,
-        });
-        saveDB(db);
-        renderLegacyView(db);
-        if (document.getElementById("view-report").classList.contains("active")) renderReport(db);
-      });
-    }
-
     const clearBtn = document.getElementById("btnLegacyClear");
     if (clearBtn) {
       clearBtn.addEventListener("click", () => {
-        const ok = confirm("¿Restablecer la matriz clásica 2021 y borrar todos sus inputs manuales?");
+        const ok = confirm("¿Restablecer los parámetros sugeridos de la matriz clásica?");
         if (!ok) return;
         const db = ensureDB();
-        db.legacyMatrix = { rowsByTheme: {} };
         db.params = {
           ...getParams(db),
           legacyExpectationFactor: DEFAULT_PARAMS.legacyExpectationFactor,
+          legacyPWeights: cloneDeep(DEFAULT_PARAMS.legacyPWeights),
+          legacySWeights: cloneDeep(DEFAULT_PARAMS.legacySWeights),
+          legacyBWeights: cloneDeep(DEFAULT_PARAMS.legacyBWeights),
         };
         saveDB(db);
         syncParamsToUI(db);
@@ -2272,7 +2444,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       });
     }
 
-    applyTopicSearch("topicSearchLegacy", "#tableLegacyInput", ".topic-block", ".legacy-topic-cell");
+    applyTopicSearch("topicSearchLegacy", "#view-legacy", ".topic-block", ".legacy-topic-cell");
   }
 
   // ---------------------------------------------------------------------------
@@ -2786,6 +2958,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     renderRadarPlot(db, "plotRadarReport");
     renderDimensionPlot(db, "plotDimensionReport");
     renderLegacyMatrixPlot(db, "plotLegacyMatrixReport");
+    renderLegacyRankingPlot(db, "plotLegacyRankingReport");
     renderTop5KPIs(db);
   }
 
@@ -2888,17 +3061,20 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       })
     ));
 
-    downloadCSV(`${prefix}_matriz_clasica_2021.csv`, legacy.rows.map((row) => ({
+    downloadCSV(`${prefix}_matriz_clasica.csv`, legacy.rows.map((row) => ({
       tema_id: row.tema_id,
       tema_nombre: row.tema_nombre,
+      stakeholder_mean: row.stakeholder_mean ?? "",
+      top2box: row.top2box ?? "",
+      active_groups_count: row.active_groups_count ?? "",
+      active_groups_share: row.active_groups_share ?? "",
       p: row.p ?? "",
       s: row.s ?? "",
       b: row.b ?? "",
-      legislacion: row.legislacion ?? "NO",
+      grupos_relacionados: row.grupos_relacionados ?? "",
       e: row.e ?? "",
       c: row.c ?? "",
       f: row.f ?? "",
-      grupos_relacionados: row.grupos_relacionados ?? "",
       riesgo: row.riesgo ?? "",
       oportunidad: row.oportunidad ?? "",
       significancia: row.significancia ?? "",
@@ -3094,6 +3270,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       { id: "plotRadarReport", file: "image003.png" },
       { id: "plotMatrixReport", file: "image004.png" },
       { id: "plotLegacyMatrixReport", file: "image005.png" },
+      { id: "plotLegacyRankingReport", file: "image006.png" },
     ];
     const parts = [];
     const refs = {};
@@ -3285,7 +3462,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   <h3>4.4. Prioridades Integradas</h3>
   ${tableWordHtml("tableReportPriority", { widths: [38, 14, 14, 14, 20], fontSize: "7.8pt" })}
   <h3>4.5. Matriz Clásica de Impacto y Expectativas</h3>
-  ${buildWordFigure("4.5. Matriz Clásica 2021", imageRefs.plotLegacyMatrixReport, "Replica metodológica del cruce histórico entre impactos y expectativas.")}
+  ${buildWordFigure("4.5. Matriz Clásica", imageRefs.plotLegacyMatrixReport, "Cruce reconstruido entre impactos y expectativas a partir de ambas encuestas.")}
+  ${buildWordFigure("4.6. Ranking Comparado", imageRefs.plotLegacyRankingReport, "Comparativo por tema entre significancia de impactos y puntaje de expectativas.")}
   ${tableWordHtml("tableLegacyReport", { widths: [36, 12, 14, 12, 12, 8, 6], fontSize: "7.4pt" })}
 
   <div class="page-break"></div>
