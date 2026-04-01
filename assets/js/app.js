@@ -11,7 +11,7 @@
   const APP_KEY = "materialidad_instrument_app_v2";
   const LEGACY_APP_KEY = "materialidad_instrument_app_v1";
   const SYNC_QUEUE_KEY = "materialidad_instrument_sync_queue_v1";
-  const CURRENT_SCHEMA_VERSION = 2;
+  const CURRENT_SCHEMA_VERSION = 3;
   const DATA = {
     topics: [],
     scale: [],
@@ -42,9 +42,19 @@
     wFin: { impacto_financiero: 0.60, probabilidad_financiera: 0.40 },
     stakeWeightByN: true,
     groupFilter: "TODOS",
+    legacyExpectationFactor: 25 / 12,
   };
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbx4I7BLRHUkwPKhzR-mHdveboNEUNn0XeYNP8hX99GF_FoCFwOla94cM2HW73A_cZ_hRA/exec";
+  const OFFICIAL_APP_URL = "https://monitorimpactosocial.github.io/materialidadV2/";
+  const PRIMARY_LOGIN_USER = "user";
+  const PRIMARY_LOGIN_PASSWORD = "123";
+  const OBSOLETE_INTERNAL_SEED_IDS = new Set([
+    "ace41635-d886-45c0-92fc-31ec0bdee7a5",
+    "f1cc6953-8b58-4bd8-ad97-e92b1398e096",
+    "54823a13-24a0-4ade-87a7-5a7c4ff30f71",
+    "c630d1ff-af1d-45f0-abe7-f81bf4668d57",
+  ]);
 
 
 // ---------------------------------------------------------------------------
@@ -330,6 +340,110 @@ function sanitizeRating(value) {
   return n;
 }
 
+function getOfficialAppUrl() {
+  try {
+    const currentUrl = new URL("./", window.location.href).href;
+    if (/^https:\/\/monitorimpactosocial\.github\.io\//i.test(currentUrl)) return currentUrl;
+  } catch (err) {
+    console.warn("No se pudo inferir la URL publica actual.", err);
+  }
+  return OFFICIAL_APP_URL;
+}
+
+function sanitizeScaleValue(value, min, max) {
+  const n = Number(value);
+  if (!isFinite(n)) return null;
+  const rounded = Math.round(n);
+  if (rounded < min || rounded > max) return null;
+  return rounded;
+}
+
+function sanitizeLegacyYesNo(value) {
+  return String(value || "").trim().toUpperCase() === "SI" ? "SI" : "NO";
+}
+
+function normalizeLegacyMatrixRow(row) {
+  return {
+    p: sanitizeScaleValue(row && row.p, 1, 5),
+    s: sanitizeScaleValue(row && row.s, 1, 5),
+    b: sanitizeScaleValue(row && row.b, 1, 5),
+    legislacion: sanitizeLegacyYesNo(row && row.legislacion),
+    grupos_relacionados: sanitizeText(row && row.grupos_relacionados, 800),
+    e: sanitizeScaleValue(row && row.e, 1, 4),
+    c: sanitizeScaleValue(row && row.c, 1, 4),
+    f: sanitizeScaleValue(row && row.f, 1, 4),
+  };
+}
+
+function isLegacyMatrixRowEmpty(row) {
+  if (!row) return true;
+  return row.p === null &&
+    row.s === null &&
+    row.b === null &&
+    !row.grupos_relacionados &&
+    row.e === null &&
+    row.c === null &&
+    row.f === null &&
+    sanitizeLegacyYesNo(row.legislacion) === "NO";
+}
+
+function normalizeLegacyMatrix(raw) {
+  const sourceRows = raw && typeof raw === "object" ? (raw.rowsByTheme || raw) : {};
+  const rowsByTheme = {};
+  Object.entries(sourceRows || {}).forEach(([temaId, row]) => {
+    const clean = normalizeLegacyMatrixRow(row);
+    if (!isLegacyMatrixRowEmpty(clean)) rowsByTheme[temaId] = clean;
+  });
+  return { rowsByTheme };
+}
+
+function mergeLegacyMatrix(baseMatrix, srcMatrix) {
+  const out = normalizeLegacyMatrix(baseMatrix);
+  const src = normalizeLegacyMatrix(srcMatrix);
+  Object.entries(src.rowsByTheme || {}).forEach(([temaId, row]) => {
+    out.rowsByTheme[temaId] = normalizeLegacyMatrixRow(row);
+  });
+  return out;
+}
+
+function getLegacyMatrixRow(db, temaId) {
+  return normalizeLegacyMatrixRow(db && db.legacyMatrix && db.legacyMatrix.rowsByTheme ? db.legacyMatrix.rowsByTheme[temaId] : {});
+}
+
+function setLegacyMatrixRow(db, temaId, row) {
+  if (!db.legacyMatrix) db.legacyMatrix = { rowsByTheme: {} };
+  const clean = normalizeLegacyMatrixRow(row);
+  if (isLegacyMatrixRowEmpty(clean)) delete db.legacyMatrix.rowsByTheme[temaId];
+  else db.legacyMatrix.rowsByTheme[temaId] = clean;
+  return clean;
+}
+
+function computeLegacyMatrixRow(row, factor) {
+  const p = sanitizeScaleValue(row && row.p, 1, 5);
+  const s = sanitizeScaleValue(row && row.s, 1, 5);
+  const b = sanitizeScaleValue(row && row.b, 1, 5);
+  const e = sanitizeScaleValue(row && row.e, 1, 4);
+  const c = sanitizeScaleValue(row && row.c, 1, 4);
+  const f = sanitizeScaleValue(row && row.f, 1, 4);
+  const expectationFactor = Number(factor);
+
+  const riesgo = p !== null && s !== null ? p * s : null;
+  const oportunidad = p !== null && b !== null ? p * b : null;
+  const significancia = riesgo !== null && oportunidad !== null ? riesgo + oportunidad : null;
+  const madurez = e !== null && c !== null && f !== null ? e + c + f : null;
+  const expectativas_total = madurez !== null && isFinite(expectationFactor) && expectationFactor > 0 ? madurez * expectationFactor : null;
+
+  return {
+    riesgo,
+    oportunidad,
+    significancia,
+    madurez,
+    expectativas_total,
+    completa: significancia !== null && expectativas_total !== null,
+    tiene_alguna_carga: [p, s, b, e, c, f].some((v) => v !== null) || !!sanitizeText(row && row.grupos_relacionados, 800),
+  };
+}
+
 function estimatePayloadBytes(value) {
   try {
     return new Blob([JSON.stringify(value)]).size;
@@ -452,6 +566,12 @@ function dedupeRows(rows, stampKey = "ts") {
   return Array.from(map.values()).sort((a, b) => String(a[stampKey] || "").localeCompare(String(b[stampKey] || "")));
 }
 
+function pruneObsoleteSeedData(db) {
+  if (!db) return db;
+  db.internalAssessments = (db.internalAssessments || []).filter((row) => !OBSOLETE_INTERNAL_SEED_IDS.has(String(row && row.id || "")));
+  return db;
+}
+
 function migrateDB(raw) {
   if (!raw || typeof raw !== "object") return null;
   const params = {
@@ -465,6 +585,10 @@ function migrateDB(raw) {
   params.ruleDouble = (raw.params && raw.params.ruleDouble === "OR") ? "OR" : "AND";
   params.groupFilter = sanitizeText(raw.params && raw.params.groupFilter ? raw.params.groupFilter : DEFAULT_PARAMS.groupFilter, 120) || "TODOS";
   params.stakeWeightByN = raw.params && raw.params.stakeWeightByN !== undefined ? !!raw.params.stakeWeightByN : DEFAULT_PARAMS.stakeWeightByN;
+  params.legacyExpectationFactor = Number(raw.params && raw.params.legacyExpectationFactor !== undefined ? raw.params.legacyExpectationFactor : DEFAULT_PARAMS.legacyExpectationFactor);
+  if (!isFinite(params.legacyExpectationFactor) || params.legacyExpectationFactor <= 0) {
+    params.legacyExpectationFactor = DEFAULT_PARAMS.legacyExpectationFactor;
+  }
 
   let editions = Array.isArray(raw.editions) ? raw.editions.map(normalizeEditionRow) : [];
   if (editions.length === 0) {
@@ -499,7 +623,9 @@ function migrateDB(raw) {
     interna: sanitizeText(raw.emails.interna, 4000),
   } : { externa: "", interna: "" };
 
-  return {
+  const legacyMatrix = normalizeLegacyMatrix(raw.legacyMatrix || {});
+
+  return pruneObsoleteSeedData({
     version: CURRENT_SCHEMA_VERSION,
     updatedAt: raw.updatedAt || nowISO(),
     editions,
@@ -509,7 +635,8 @@ function migrateDB(raw) {
     params,
     lastScenarioId: sanitizeText(raw.lastScenarioId || "base_moderado", 120) || "base_moderado",
     emails,
-  };
+    legacyMatrix,
+  });
 }
 
 function mergeDBs(...sources) {
@@ -527,6 +654,7 @@ function mergeDBs(...sources) {
     base.editions = Array.from(editionMap.values()).sort((a, b) => String(a.startDate || "").localeCompare(String(b.startDate || "")));
     base.externalResponses = dedupeRows([...(base.externalResponses || []), ...(src.externalResponses || [])]);
     base.internalAssessments = dedupeRows([...(base.internalAssessments || []), ...(src.internalAssessments || [])]);
+    base.legacyMatrix = mergeLegacyMatrix(base.legacyMatrix, src.legacyMatrix);
     if (String(src.updatedAt || "") >= String(base.updatedAt || "")) {
       base.params = src.params;
       base.lastScenarioId = src.lastScenarioId;
@@ -585,7 +713,8 @@ function ensureDB() {
       internalAssessments: [],
       params: cloneDeep(DEFAULT_PARAMS),
       lastScenarioId: "base_moderado",
-      emails: { externa: "", interna: "" }
+      emails: { externa: "", interna: "" },
+      legacyMatrix: { rowsByTheme: {} }
     });
   }
 
@@ -780,6 +909,203 @@ function computeScores(db) {
     return { rows, stake, internal };
   }
 
+  function computeLegacyMatrix(db) {
+    const params = getParams(db);
+    const factor = Number(params.legacyExpectationFactor || DEFAULT_PARAMS.legacyExpectationFactor);
+    const safeFactor = isFinite(factor) && factor > 0 ? factor : DEFAULT_PARAMS.legacyExpectationFactor;
+
+    const rows = DATA.topics.map((topic) => {
+      const input = getLegacyMatrixRow(db, topic.tema_id);
+      const calc = computeLegacyMatrixRow(input, safeFactor);
+      return {
+        tema_id: topic.tema_id,
+        tema_nombre: topic.tema_nombre,
+        p: input.p,
+        s: input.s,
+        b: input.b,
+        legislacion: input.legislacion || "NO",
+        grupos_relacionados: input.grupos_relacionados || "",
+        e: input.e,
+        c: input.c,
+        f: input.f,
+        factor: safeFactor,
+        ...calc,
+        prioridad_total: calc.significancia !== null && calc.expectativas_total !== null ? calc.significancia + calc.expectativas_total : null,
+      };
+    });
+
+    const valid = rows.filter((row) => row.completa);
+    const refImpact = averageOf(valid.map((row) => row.significancia));
+    const refExpect = averageOf(valid.map((row) => row.expectativas_total));
+
+    rows.forEach((row) => {
+      if (row.significancia === null || row.expectativas_total === null || refImpact === null || refExpect === null) {
+        row.cuadrante = "";
+        return;
+      }
+      const impactLevel = row.significancia >= refImpact ? "ALTO" : "BAJO";
+      const expectLevel = row.expectativas_total >= refExpect ? "ALTO" : "BAJO";
+      row.cuadrante = `${impactLevel}-${expectLevel}`;
+    });
+
+    return {
+      rows,
+      validRows: valid,
+      factor: safeFactor,
+      refImpact,
+      refExpect,
+      configuredThemes: rows.filter((row) => row.tiene_alguna_carga).length,
+      completeThemes: valid.length,
+      highHighCount: rows.filter((row) => row.cuadrante === "ALTO-ALTO").length,
+    };
+  }
+
+  function renderLegacyInputTable(db) {
+    const tbody = document.querySelector("#tableLegacyInput tbody");
+    if (!tbody) return;
+
+    const legacy = computeLegacyMatrix(db);
+    tbody.innerHTML = legacy.rows.map((row) => `
+      <tr class="topic-block" data-tid="${escapeHTML(row.tema_id)}">
+        <td class="legacy-topic-cell"><strong>${escapeHTML(row.tema_id)}</strong> · ${escapeHTML(row.tema_nombre)}</td>
+        <td><input class="legacy-number" data-field="p" type="number" min="1" max="5" step="1" value="${row.p ?? ""}" /></td>
+        <td><input class="legacy-number" data-field="s" type="number" min="1" max="5" step="1" value="${row.s ?? ""}" /></td>
+        <td><input class="legacy-number" data-field="b" type="number" min="1" max="5" step="1" value="${row.b ?? ""}" /></td>
+        <td>
+          <select class="legacy-select" data-field="legislacion">
+            <option value="NO" ${row.legislacion === "NO" ? "selected" : ""}>NO</option>
+            <option value="SI" ${row.legislacion === "SI" ? "selected" : ""}>SI</option>
+          </select>
+        </td>
+        <td><input class="legacy-number" data-field="e" type="number" min="1" max="4" step="1" value="${row.e ?? ""}" /></td>
+        <td><input class="legacy-number" data-field="c" type="number" min="1" max="4" step="1" value="${row.c ?? ""}" /></td>
+        <td><input class="legacy-number" data-field="f" type="number" min="1" max="4" step="1" value="${row.f ?? ""}" /></td>
+        <td><input class="legacy-text" data-field="grupos_relacionados" type="text" value="${escapeHTML(row.grupos_relacionados || "")}" placeholder="Opcional" /></td>
+        <td class="right legacy-computed">${row.riesgo === null ? "" : fmt(row.riesgo, 0)}</td>
+        <td class="right legacy-computed">${row.oportunidad === null ? "" : fmt(row.oportunidad, 0)}</td>
+        <td class="right legacy-computed"><strong>${row.significancia === null ? "" : fmt(row.significancia, 0)}</strong></td>
+        <td class="right legacy-computed">${row.madurez === null ? "" : fmt(row.madurez, 0)}</td>
+        <td class="right legacy-computed">${row.expectativas_total === null ? "" : fmt(row.expectativas_total, 2)}</td>
+      </tr>
+    `).join("");
+
+    const progress = document.getElementById("legacyProgress");
+    const progressBar = document.getElementById("legacyProgressBar");
+    if (progress) progress.textContent = `${legacy.completeThemes} / ${DATA.topics.length}`;
+    if (progressBar) progressBar.value = legacy.completeThemes;
+  }
+
+  function renderLegacyResultsTable(tableId, rows) {
+    const tbody = document.querySelector(`#${tableId} tbody`);
+    if (!tbody) return;
+
+    const sorted = [...rows]
+      .filter((row) => row.completa)
+      .sort((a, b) => {
+        const ap = a.prioridad_total ?? -1;
+        const bp = b.prioridad_total ?? -1;
+        if (bp !== ap) return bp - ap;
+        return (b.significancia ?? -1) - (a.significancia ?? -1);
+      });
+
+    tbody.innerHTML = "";
+    for (const row of sorted) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHTML(row.tema_id)} · ${escapeHTML(row.tema_nombre)}</td>
+        <td class="right">${row.significancia === null ? "" : fmt(row.significancia, 0)}</td>
+        <td class="right">${row.expectativas_total === null ? "" : fmt(row.expectativas_total, 2)}</td>
+        <td class="right">${row.riesgo === null ? "" : fmt(row.riesgo, 0)}</td>
+        <td class="right">${row.oportunidad === null ? "" : fmt(row.oportunidad, 0)}</td>
+        <td>${escapeHTML(row.cuadrante || "")}</td>
+        <td>${escapeHTML(row.legislacion || "NO")}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderLegacySummary(db) {
+    const legacy = computeLegacyMatrix(db);
+    const avgImpact = averageOf(legacy.validRows.map((row) => row.significancia));
+    const avgExpect = averageOf(legacy.validRows.map((row) => row.expectativas_total));
+
+    const setText = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    };
+
+    setText("legacyConfiguredThemes", String(legacy.configuredThemes));
+    setText("legacyCompleteThemes", String(legacy.completeThemes));
+    setText("legacyAvgImpact", avgImpact === null ? "N/D" : fmt(avgImpact, 2));
+    setText("legacyAvgExpect", avgExpect === null ? "N/D" : fmt(avgExpect, 2));
+    setText("legacyHighHigh", String(legacy.highHighCount));
+    setText("legacyRefImpact", legacy.refImpact === null ? "N/D" : fmt(legacy.refImpact, 2));
+    setText("legacyRefExpect", legacy.refExpect === null ? "N/D" : fmt(legacy.refExpect, 2));
+
+    renderLegacyResultsTable("tableLegacyResults", legacy.rows);
+  }
+
+  function renderLegacyMatrixPlot(db, targetId) {
+    const target = document.getElementById(targetId);
+    if (!target) return;
+
+    const legacy = computeLegacyMatrix(db);
+    if (!legacy.validRows.length) {
+      try { Plotly.purge(target); } catch {}
+      target.innerHTML = `<div class="muted">Complete P, S, B, E, C y F por tema para visualizar la matriz clásica.</div>`;
+      return;
+    }
+
+    const x = legacy.validRows.map((row) => row.significancia);
+    const y = legacy.validRows.map((row) => row.expectativas_total);
+    const text = legacy.validRows.map((row) => `${row.tema_id} · ${row.tema_nombre}`);
+    const color = legacy.validRows.map((row) => {
+      if (row.cuadrante === "ALTO-ALTO") return "#064e3b";
+      if (row.cuadrante === "ALTO-BAJO") return "#2563eb";
+      if (row.cuadrante === "BAJO-ALTO") return "#d97706";
+      return "#94a3b8";
+    });
+
+    const maxX = Math.max(52, ...x.map((value) => Number(value || 0) + 2));
+    const maxY = Math.max(26, ...y.map((value) => Number(value || 0) + 1));
+
+    const data = [{
+      x,
+      y,
+      text,
+      mode: "markers",
+      type: "scatter",
+      marker: { size: 18, color, opacity: 0.88, line: { width: 1, color: "rgba(15,23,42,0.18)" } },
+      hovertemplate: "<b>%{text}</b><br>Impactos: %{x:.2f}<br>Expectativas: %{y:.2f}<extra></extra>"
+    }];
+
+    const shapes = [];
+    if (legacy.refImpact !== null) {
+      shapes.push({ type: "line", x0: legacy.refImpact, x1: legacy.refImpact, y0: 0, y1: maxY, line: { color: "rgba(185,28,28,0.55)", width: 2, dash: "dot" } });
+    }
+    if (legacy.refExpect !== null) {
+      shapes.push({ type: "line", x0: 0, x1: maxX, y0: legacy.refExpect, y1: legacy.refExpect, line: { color: "rgba(185,28,28,0.55)", width: 2, dash: "dot" } });
+    }
+
+    const layout = {
+      margin: { l: 60, r: 20, t: 10, b: 55 },
+      xaxis: { title: "Puntaje de impactos (Riesgo + Oportunidad)", range: [0, maxX], gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
+      yaxis: { title: "Puntaje de expectativas", range: [0, maxY], gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
+      shapes,
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor: "rgba(255,255,255,0.75)",
+      showlegend: false
+    };
+
+    Plotly.newPlot(targetId, data, layout, { displayModeBar: false, responsive: true });
+  }
+
+  function renderLegacyView(db) {
+    renderLegacyInputTable(db);
+    renderLegacySummary(db);
+    renderLegacyMatrixPlot(db, "plotLegacyMatrix");
+  }
+
   // ---------------------------------------------------------------------------
   // UI: Navegación
   // ---------------------------------------------------------------------------
@@ -794,6 +1120,7 @@ function computeScores(db) {
     // report requiere render específico
     const db = ensureDB();
     if (viewName === "dashboard") renderDashboard(db);
+    if (viewName === "legacy") renderLegacyView(db);
     if (viewName === "report") renderReport(db);
   }
 
@@ -1064,6 +1391,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
     document.getElementById("wFinImp").value = String(p.wFin.impacto_financiero);
     document.getElementById("wFinProb").value = String(p.wFin.probabilidad_financiera);
+    document.getElementById("legacyExpectationFactor").value = String(Number(p.legacyExpectationFactor || DEFAULT_PARAMS.legacyExpectationFactor).toFixed(4));
 
     document.getElementById("chkStakeWeightByN").checked = !!p.stakeWeightByN;
 
@@ -1089,6 +1417,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       impacto_financiero: Number(document.getElementById("wFinImp").value),
       probabilidad_financiera: Number(document.getElementById("wFinProb").value),
     };
+    p.legacyExpectationFactor = Number(document.getElementById("legacyExpectationFactor").value);
 
     p.stakeWeightByN = document.getElementById("chkStakeWeightByN").checked;
     p.groupFilter = document.getElementById("groupFilter").value || "TODOS";
@@ -1104,6 +1433,9 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       impacto_financiero: clamp01(p.wFin.impacto_financiero),
       probabilidad_financiera: clamp01(p.wFin.probabilidad_financiera),
     });
+    if (!isFinite(p.legacyExpectationFactor) || p.legacyExpectationFactor <= 0) {
+      p.legacyExpectationFactor = DEFAULT_PARAMS.legacyExpectationFactor;
+    }
 
     db.params = p;
     return db;
@@ -1125,7 +1457,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     tauImpact.addEventListener("input", onSlide);
     tauFin.addEventListener("input", onSlide);
 
-    ["ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
+    ["ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyExpectationFactor", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
       document.getElementById(id).addEventListener("change", () => {
         const db = ensureDB();
         readParamsFromUI(db);
@@ -1443,6 +1775,50 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         isSubmittingInternal = false;
       }
     });
+  }
+
+  function hookLegacyView() {
+    const tbody = document.querySelector("#tableLegacyInput tbody");
+    if (tbody) {
+      tbody.addEventListener("change", (ev) => {
+        const tr = ev.target.closest("tr[data-tid]");
+        if (!tr) return;
+        const temaId = tr.getAttribute("data-tid");
+        const db = ensureDB();
+        setLegacyMatrixRow(db, temaId, {
+          p: tr.querySelector('[data-field="p"]').value,
+          s: tr.querySelector('[data-field="s"]').value,
+          b: tr.querySelector('[data-field="b"]').value,
+          legislacion: tr.querySelector('[data-field="legislacion"]').value,
+          e: tr.querySelector('[data-field="e"]').value,
+          c: tr.querySelector('[data-field="c"]').value,
+          f: tr.querySelector('[data-field="f"]').value,
+          grupos_relacionados: tr.querySelector('[data-field="grupos_relacionados"]').value,
+        });
+        saveDB(db);
+        renderLegacyView(db);
+        if (document.getElementById("view-report").classList.contains("active")) renderReport(db);
+      });
+    }
+
+    const clearBtn = document.getElementById("btnLegacyClear");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        const ok = confirm("¿Restablecer la matriz clásica 2021 y borrar todos sus inputs manuales?");
+        if (!ok) return;
+        const db = ensureDB();
+        db.legacyMatrix = { rowsByTheme: {} };
+        db.params = {
+          ...getParams(db),
+          legacyExpectationFactor: DEFAULT_PARAMS.legacyExpectationFactor,
+        };
+        saveDB(db);
+        syncParamsToUI(db);
+        renderAll(db);
+      });
+    }
+
+    applyTopicSearch("topicSearchLegacy", "#tableLegacyInput", ".topic-block", ".legacy-topic-cell");
   }
 
   // ---------------------------------------------------------------------------
@@ -1798,6 +2174,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     const edition = db.editions.find((e) => e.id === db.currentEditionId);
 
     const { rows } = computeScores(db);
+    const legacy = computeLegacyMatrix(db);
     const doubleRows = rows.filter((r) => r.double_mat);
     const impactOnlyRows = rows.filter((r) => r.impact_mat && !r.fin_mat);
     const finOnlyRows = rows.filter((r) => !r.impact_mat && r.fin_mat);
@@ -1947,11 +2324,14 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       }
     }
 
+    renderLegacyResultsTable("tableLegacyReport", legacy.rows);
+
     // plot en reporte
     renderExternalTop10(db, "plotExternalTop10");
     renderMatrixPlot(db, "plotMatrixReport");
     renderRadarPlot(db, "plotRadarReport");
     renderDimensionPlot(db, "plotDimensionReport");
+    renderLegacyMatrixPlot(db, "plotLegacyMatrixReport");
     renderTop5KPIs(db);
   }
 
@@ -1960,8 +2340,10 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     renderQuickTable(db);
     renderExternalLog(db);
     renderInternalLog(db);
+    renderLegacyView(db);
     // si vista actual es dashboard/reporte, actualizar
     if (document.getElementById("view-dashboard").classList.contains("active")) renderDashboard(db);
+    if (document.getElementById("view-legacy").classList.contains("active")) renderLegacyView(db);
     if (document.getElementById("view-report").classList.contains("active")) renderReport(db);
   }
 
@@ -1975,6 +2357,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
   function exportCSVPack(db) {
     const { rows } = computeScores(db);
+    const legacy = computeLegacyMatrix(db);
     const edition = db.editions.find((e) => e.id === db.currentEditionId);
     const prefix = edition ? edition.name.replace(/\s+/g, "_") : "edicion";
 
@@ -2048,6 +2431,27 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         };
       })
     ));
+
+    downloadCSV(`${prefix}_matriz_clasica_2021.csv`, legacy.rows.map((row) => ({
+      tema_id: row.tema_id,
+      tema_nombre: row.tema_nombre,
+      p: row.p ?? "",
+      s: row.s ?? "",
+      b: row.b ?? "",
+      legislacion: row.legislacion ?? "NO",
+      e: row.e ?? "",
+      c: row.c ?? "",
+      f: row.f ?? "",
+      grupos_relacionados: row.grupos_relacionados ?? "",
+      riesgo: row.riesgo ?? "",
+      oportunidad: row.oportunidad ?? "",
+      significancia: row.significancia ?? "",
+      madurez: row.madurez ?? "",
+      factor: row.factor ?? "",
+      expectativas_total: row.expectativas_total ?? "",
+      cuadrante: row.cuadrante ?? "",
+      prioridad_total: row.prioridad_total ?? "",
+    })));
   }
 
   function delay(ms) {
@@ -2233,6 +2637,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       { id: "plotDimensionReport", file: "image002.png" },
       { id: "plotRadarReport", file: "image003.png" },
       { id: "plotMatrixReport", file: "image004.png" },
+      { id: "plotLegacyMatrixReport", file: "image005.png" },
     ];
     const parts = [];
     const refs = {};
@@ -2423,6 +2828,9 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   </table>
   <h3>4.4. Prioridades Integradas</h3>
   ${tableWordHtml("tableReportPriority", { widths: [38, 14, 14, 14, 20], fontSize: "7.8pt" })}
+  <h3>4.5. Matriz Clásica de Impacto y Expectativas</h3>
+  ${buildWordFigure("4.5. Matriz Clásica 2021", imageRefs.plotLegacyMatrixReport, "Replica metodológica del cruce histórico entre impactos y expectativas.")}
+  ${tableWordHtml("tableLegacyReport", { widths: [36, 12, 14, 12, 12, 8, 6], fontSize: "7.4pt" })}
 
   <div class="page-break"></div>
   <h2>5. Anexo y Cierre</h2>
@@ -2529,17 +2937,17 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       }
       const bcc = emailsText.split(/[\n,;]+/).map(v => v.trim()).filter(v => v).join(",");
       const subject = encodeURIComponent(type === "externa" ? "Encuesta Externa de Materialidad - Paracel" : "Evaluación Interna de Materialidad - Paracel");
-      const credUser = type === "externa" ? "encuesta" : "comite";
+      const appUrl = getOfficialAppUrl();
       const bodyData = `Estimado/a,
 
 Le extendemos una cordial invitación para participar en el ejercicio de Análisis de Doble Materialidad de PARACEL. Su perspectiva es fundamental para nuestra organización, ya que nos permitirá identificar y priorizar los temas ambientales, sociales y de gobernanza (ASG) más relevantes para nuestra gestión y relación con ustedes.
 
 Para completar el cuestionario, por favor ingrese al siguiente enlace:
-🔗 https://monitorimpactosocial.github.io/materialidad
+🔗 ${appUrl}
 
 🔒 Datos de Acceso:
-Usuario: ${credUser}
-Contraseña: paracel
+Usuario: ${PRIMARY_LOGIN_USER}
+Contraseña: ${PRIMARY_LOGIN_PASSWORD}
 
 💡 Nota técnica: El cuestionario se puede rellenar y guardar en su equipo incluso si experimenta intermitencia de internet (modo offline). La respuesta quedará registrada.
 
@@ -2834,9 +3242,7 @@ Equipo PARACEL`;
       const u = document.getElementById("sysUser").value;
       const p = document.getElementById("sysPass").value;
       let newRole = null;
-      if (u === "user" && p === "123") newRole = "admin";
-      else if (u === "encuesta" && p === "paracel") newRole = "externa";
-      else if (u === "comite" && p === "paracel") newRole = "interna";
+      if (u === PRIMARY_LOGIN_USER && p === PRIMARY_LOGIN_PASSWORD) newRole = "admin";
 
       if (newRole) {
         sessionStorage.setItem("appRole", newRole);
@@ -2937,7 +3343,7 @@ Equipo PARACEL`;
 // ----------------------------------------------------
 const initialDB = await loadOptionalJSON("data/initial_db.json");
 const localDB = loadLocalDB();
-let mergedDB = mergeDBs(initialDB, localDB);
+let mergedDB = mergeDBs(localDB);
 
 try {
   const cloudDB = await fetchCloudDB();
@@ -2945,6 +3351,10 @@ try {
 } catch(err) {
   console.error("Fallo crítico: No se pudo leer Google Sheets.", err);
   alert("Atención: No se pudieron cargar los datos de la nube. La aplicación continuará en modo local.");
+}
+
+if (!mergedDB) {
+  mergedDB = mergeDBs(initialDB);
 }
 
 if (mergedDB) {
@@ -2968,6 +3378,7 @@ const db = ensureDB();
     hookParamsUI();
     hookExternalForm();
     hookInternalForm();
+    hookLegacyView();
     hookAdmin();
     hookShortcuts();
 

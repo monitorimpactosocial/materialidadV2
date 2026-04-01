@@ -858,3 +858,51 @@ progress::-webkit-progress-value {
   transform: scale(1.1);
   z-index: 2;
 }
+
+.legacy-kpi-row{
+  grid-template-columns: repeat(3, 1fr);
+}
+.legacy-ref-box{
+  font-size: 18px;
+  line-height: 1.2;
+}
+.legacy-helper{
+  line-height: 1.6;
+}
+.legacy-topic-cell{
+  min-width: 280px;
+  font-weight: 700;
+}
+.legacy-number,
+.legacy-select,
+.legacy-text{
+  width: 100%;
+  border: 1px solid rgba(6,78,59,0.18);
+  border-radius: 10px;
+  padding: 8px 8px;
+  background: rgba(255,255,255,0.96);
+  font-size: 12px;
+}
+.legacy-number{
+  min-width: 62px;
+  text-align: center;
+  font-family: var(--mono);
+}
+.legacy-select{
+  min-width: 72px;
+}
+.legacy-text{
+  min-width: 180px;
+}
+.legacy-computed{
+  font-family: var(--mono);
+  background: rgba(240,253,244,0.6);
+}
+@media (max-width: 900px){
+  .legacy-kpi-row{
+    grid-template-columns: 1fr;
+  }
+  .legacy-topic-cell{
+    min-width: 220px;
+  }
+}

@@ -65,6 +65,9 @@
       <button class="nav-item" data-view="dashboard" type="button">
         <span class="nav-icon">📊</span><span>Tablero</span>
       </button>
+      <button class="nav-item" data-view="legacy" type="button">
+        <span class="nav-icon">🧮</span><span>Matriz Clásica</span>
+      </button>
       <button class="nav-item" data-view="report" type="button">
         <span class="nav-icon">🧾</span><span>Reporte</span>
       </button>
@@ -219,6 +222,16 @@
                 <div class="field">
                   <label for="groupFilter">Filtro por grupo de interés (tablero)</label>
                   <select id="groupFilter"></select>
+                </div>
+              </div>
+
+              <div class="form-grid mt-12">
+                <div class="field">
+                  <label for="legacyExpectationFactor">Factor de expectativas, matriz clásica</label>
+                  <input id="legacyExpectationFactor" type="number" min="0.01" step="0.0001" value="2.0833" />
+                  <div class="muted small">
+                    Escala el total de expectativas de la matriz histórica basada en P, S, B, E, C y F.
+                  </div>
                 </div>
               </div>
 
@@ -520,6 +533,135 @@
         </div>
       </section>
 
+      <!-- MATRIZ CLASICA -->
+      <section class="view" id="view-legacy">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h2>Matriz clásica 2021</h2>
+              <p class="muted">Replica la lógica del Excel histórico de impactos y expectativas, con insumos manuales configurables desde la app.</p>
+            </div>
+            <div class="card-body">
+              <div class="kpi-row legacy-kpi-row">
+                <div class="kpi">
+                  <div class="kpi-label">Temas con alguna carga</div>
+                  <div class="kpi-value" id="legacyConfiguredThemes">0</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-label">Temas completos</div>
+                  <div class="kpi-value" id="legacyCompleteThemes">0</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-label">Cuadrante alto-alto</div>
+                  <div class="kpi-value" id="legacyHighHigh">0</div>
+                </div>
+              </div>
+
+              <div class="kpi-row legacy-kpi-row mt-12">
+                <div class="kpi">
+                  <div class="kpi-label">Promedio impactos</div>
+                  <div class="kpi-value" id="legacyAvgImpact">N/D</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-label">Promedio expectativas</div>
+                  <div class="kpi-value" id="legacyAvgExpect">N/D</div>
+                </div>
+                <div class="kpi">
+                  <div class="kpi-label">Referencias</div>
+                  <div class="kpi-value legacy-ref-box"><span id="legacyRefImpact">N/D</span> / <span id="legacyRefExpect">N/D</span></div>
+                </div>
+              </div>
+
+              <div class="topics-toolbar sticky-toolbar">
+                <input id="topicSearchLegacy" class="search" type="search" placeholder="Buscar tema en la matriz clásica"/>
+                <div class="progress-box">
+                  <div class="progress-info">
+                    <span class="muted">Temas completos</span>
+                    <span class="badge" id="legacyProgress">0 / 27</span>
+                  </div>
+                  <progress id="legacyProgressBar" value="0" max="27"></progress>
+                </div>
+              </div>
+
+              <div class="btn-row">
+                <button class="btn btn-secondary" id="btnLegacyClear" type="button">Restablecer matriz clásica</button>
+              </div>
+
+              <div class="muted small mt-8 legacy-helper">
+                Definiciones del modelo histórico: `Riesgo = P × S`, `Oportunidad = P × B`, `Significancia = Riesgo + Oportunidad`, `Madurez = E + C + F`, `Expectativas = Madurez × Factor`.
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Gráfico histórico de materialidad</h2>
+              <p class="muted">Cruce entre puntaje de impactos y puntaje de expectativas usando referencias medias del conjunto completo.</p>
+            </div>
+            <div class="card-body">
+              <div id="plotLegacyMatrix" class="plot"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-header">
+            <h2>Carga manual por tema</h2>
+            <p class="muted">Los inputs replican la estructura del Excel `210117- Matriz de Materialidad - Temas Materiales GI v00.xlsx` y alimentan automáticamente tablas y gráfico.</p>
+          </div>
+          <div class="card-body">
+            <div class="table-wrap">
+              <table class="table table-compact" id="tableLegacyInput">
+                <thead>
+                  <tr>
+                    <th>Tema</th>
+                    <th class="center">P</th>
+                    <th class="center">S</th>
+                    <th class="center">B</th>
+                    <th class="center">Leg.</th>
+                    <th class="center">E</th>
+                    <th class="center">C</th>
+                    <th class="center">F</th>
+                    <th>Grupos relacionados</th>
+                    <th class="right">Riesgo</th>
+                    <th class="right">Oport.</th>
+                    <th class="right">Signific.</th>
+                    <th class="right">Madurez</th>
+                    <th class="right">Expect.</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-header">
+            <h2>Resultados ordenados</h2>
+            <p class="muted">Ranking de la matriz clásica con cuadrantes y trazabilidad legal.</p>
+          </div>
+          <div class="card-body">
+            <div class="table-wrap">
+              <table class="table" id="tableLegacyResults">
+                <thead>
+                  <tr>
+                    <th>Tema</th>
+                    <th class="right">Impactos</th>
+                    <th class="right">Expectativas</th>
+                    <th class="right">Riesgo</th>
+                    <th class="right">Oportunidad</th>
+                    <th>Cuadrante</th>
+                    <th>Leg.</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- REPORTE -->
       <section class="view" id="view-report">
         <div class="card print-area" id="reportArea" style="border: none; box-shadow: none; background: #fff;">
@@ -763,7 +905,31 @@
               </table>
             </div>
 
-            <h3 class="mt-16">3.5. Anexo, ranking completo</h3>
+            <h3 class="mt-16">3.5. Matriz clásica de impacto y expectativas</h3>
+            <div class="callout callout-info mt-8" style="background:#f8fafc; border-left-color:#334155;">
+              <p style="margin:0;">Esta lectura complementaria replica la estructura del archivo histórico de impactos y expectativas, preservando las fórmulas `P×S`, `P×B` y `M×Factor` para comparación metodológica.</p>
+            </div>
+
+            <div id="plotLegacyMatrixReport" class="plot plot-print"></div>
+
+            <div class="table-wrap mt-12">
+              <table class="table table-compact" id="tableLegacyReport">
+                <thead>
+                  <tr>
+                    <th>Tema</th>
+                    <th class="right">Impactos</th>
+                    <th class="right">Expectativas</th>
+                    <th class="right">Riesgo</th>
+                    <th class="right">Oportunidad</th>
+                    <th>Cuadrante</th>
+                    <th>Leg.</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <h3 class="mt-16">3.6. Anexo, ranking completo</h3>
             <div class="table-wrap">
               <table class="table table-compact" id="tableReportAll">
                 <thead>

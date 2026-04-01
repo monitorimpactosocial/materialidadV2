@@ -1,6 +1,10 @@
-# materialidad-dashboard, versión auditada y robustecida
+# materialidadV2 · Instrumento web de doble materialidad
 
-Esta versión incorpora una auditoría técnica integral y una refactorización orientada a robustez operativa en entorno estático (GitHub Pages) con sincronización tolerante a fallas.
+Esta es la versión oficial vigente del instrumento web de doble materialidad de PARACEL, preparada para GitHub Pages y sincronización tolerante a fallas.
+
+## URL oficial
+
+- `https://monitorimpactosocial.github.io/materialidadV2/`
 
 ## Mejoras incorporadas
 
@@ -13,16 +17,12 @@ Esta versión incorpora una auditoría técnica integral y una refactorización 
 7. Prevención de doble envío. Se bloquean envíos simultáneos del mismo formulario.
 8. Exportaciones enriquecidas. Además de resúmenes, se generan archivos CSV detallados por tema para externos e internos.
 9. Diagnóstico operativo visible. La interfaz reporta pendientes de sincronización e integridad parcial en la edición activa.
-10. Credenciales administrativas cambiadas respecto a la versión auditada.
+10. Unificación de acceso y limpieza de referencias obsoletas.
 
 ## Credenciales de acceso
 
-- Administrador: `admin`
-- Contraseña administrador: `paracel2026`
-- Encuesta externa: `encuesta`
-- Contraseña externa: `paracel`
-- Comité interno: `comite`
-- Contraseña interna: `paracel`
+- Usuario: `user`
+- Contraseña: `123`
 
 ## Advertencia de seguridad
 
@@ -30,7 +30,7 @@ Dado que esta es una app estática del lado cliente, las credenciales embebidas 
 
 ## Despliegue
 
-1. Suba el contenido del ZIP a la raíz del repositorio GitHub Pages.
+1. Suba el contenido del proyecto a la raíz del repositorio `monitorimpactosocial/materialidadV2`.
 2. Active Pages en la rama principal.
 3. Verifique que la carpeta `data/` permanezca pública y accesible.
 
