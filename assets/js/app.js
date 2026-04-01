@@ -43,6 +43,7 @@
     stakeWeightByN: true,
     groupFilter: "TODOS",
     legacyExpectationFactor: 25 / 12,
+    legacyTopN: 27,
     legacyPWeights: { probabilidad: 0.65, probabilidad_financiera: 0.35 },
     legacySWeights: { severidad: 0.40, alcance: 0.30, irremediabilidad: 0.30 },
     legacyBWeights: { financiero: 0.70, relevancia_externa: 0.30 },
@@ -631,7 +632,11 @@ function migrateDB(raw) {
   params.ruleDouble = (raw.params && raw.params.ruleDouble === "OR") ? "OR" : "AND";
   params.groupFilter = sanitizeText(raw.params && raw.params.groupFilter ? raw.params.groupFilter : DEFAULT_PARAMS.groupFilter, 120) || "TODOS";
   params.stakeWeightByN = raw.params && raw.params.stakeWeightByN !== undefined ? !!raw.params.stakeWeightByN : DEFAULT_PARAMS.stakeWeightByN;
+  params.legacyTopN = Number(raw.params && raw.params.legacyTopN !== undefined ? raw.params.legacyTopN : DEFAULT_PARAMS.legacyTopN);
   params.legacyExpectationFactor = Number(raw.params && raw.params.legacyExpectationFactor !== undefined ? raw.params.legacyExpectationFactor : DEFAULT_PARAMS.legacyExpectationFactor);
+  if (!isFinite(params.legacyTopN) || params.legacyTopN <= 0) {
+    params.legacyTopN = DEFAULT_PARAMS.legacyTopN;
+  }
   if (!isFinite(params.legacyExpectationFactor) || params.legacyExpectationFactor <= 0) {
     params.legacyExpectationFactor = DEFAULT_PARAMS.legacyExpectationFactor;
   }
@@ -1049,6 +1054,15 @@ function computeScores(db) {
     });
 
     const valid = rows.filter((row) => row.completa);
+    const sortedValidRows = [...valid].sort((a, b) => {
+      const ap = a.prioridad_total ?? -1;
+      const bp = b.prioridad_total ?? -1;
+      if (bp !== ap) return bp - ap;
+      return (b.significancia ?? -1) - (a.significancia ?? -1);
+    });
+    const requestedTopN = Math.max(1, Math.round(Number(params.legacyTopN || DEFAULT_PARAMS.legacyTopN)));
+    const topN = Math.min(DATA.topics.length || requestedTopN, requestedTopN);
+    const displayRows = sortedValidRows.slice(0, topN);
     const axisMaxImpact = 52;
     const axisMaxExpect = 30;
     const impactBands = [axisMaxImpact / 3, (axisMaxImpact / 3) * 2];
@@ -1069,6 +1083,9 @@ function computeScores(db) {
     return {
       rows,
       validRows: valid,
+      sortedValidRows,
+      displayRows,
+      topN,
       factor: safeFactor,
       axisMaxImpact,
       axisMaxExpect,
@@ -1087,12 +1104,7 @@ function computeScores(db) {
     if (!tbody) return;
 
     const legacy = computeLegacyMatrix(db);
-    const sorted = [...legacy.rows].sort((a, b) => {
-      const ap = a.prioridad_total ?? -1;
-      const bp = b.prioridad_total ?? -1;
-      if (bp !== ap) return bp - ap;
-      return (b.significancia ?? -1) - (a.significancia ?? -1);
-    });
+    const sorted = legacy.displayRows;
 
     tbody.innerHTML = sorted.map((row) => `
       <tr class="topic-block" data-tid="${escapeHTML(row.tema_id)}">
@@ -1121,17 +1133,8 @@ function computeScores(db) {
     const tbody = document.querySelector(`#${tableId} tbody`);
     if (!tbody) return;
 
-    const sorted = [...rows]
-      .filter((row) => row.completa)
-      .sort((a, b) => {
-        const ap = a.prioridad_total ?? -1;
-        const bp = b.prioridad_total ?? -1;
-        if (bp !== ap) return bp - ap;
-        return (b.significancia ?? -1) - (a.significancia ?? -1);
-      });
-
     tbody.innerHTML = "";
-    for (const row of sorted) {
+    for (const row of rows) {
       const tr = document.createElement("tr");
       tr.className = "topic-block";
       tr.setAttribute("data-tid", row.tema_id);
@@ -1166,7 +1169,7 @@ function computeScores(db) {
     setText("legacyRefImpact", legacy.impactBands ? legacy.impactBands.map((value) => fmt(value, 1)).join(" | ") : "N/D");
     setText("legacyRefExpect", legacy.expectBands ? legacy.expectBands.map((value) => fmt(value, 1)).join(" | ") : "N/D");
 
-    renderLegacyResultsTable("tableLegacyResults", legacy.rows);
+    renderLegacyResultsTable("tableLegacyResults", legacy.displayRows);
   }
 
   function renderLegacyMatrixPlot(db, targetId) {
@@ -1174,17 +1177,17 @@ function computeScores(db) {
     if (!target) return;
 
     const legacy = computeLegacyMatrix(db);
-    if (!legacy.validRows.length) {
+    if (!legacy.displayRows.length) {
       try { Plotly.purge(target); } catch {}
       target.innerHTML = `<div class="muted">Se requieren respuestas externas e internas suficientes para reconstruir la matriz clásica.</div>`;
       return;
     }
 
-    const x = legacy.validRows.map((row) => row.significancia);
-    const y = legacy.validRows.map((row) => row.expectativas_total);
-    const text = legacy.validRows.map((row) => `${row.tema_id} · ${row.tema_nombre}`);
+    const x = legacy.displayRows.map((row) => row.significancia);
+    const y = legacy.displayRows.map((row) => row.expectativas_total);
+    const text = legacy.displayRows.map((row) => `${row.tema_id} · ${row.tema_nombre}`);
     const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd"];
-    const color = legacy.validRows.map((_, index) => palette[index % palette.length]);
+    const color = legacy.displayRows.map((_, index) => palette[index % palette.length]);
     const xLower = legacy.impactBands[0];
     const xUpper = legacy.impactBands[1];
     const yLower = legacy.expectBands[0];
@@ -1201,7 +1204,7 @@ function computeScores(db) {
       type: "scatter",
       marker: { size: isPrint ? 22 : 24, color, opacity: 0.96, line: { width: 2, color: "#ffffff" } },
       hovertemplate: "<b>%{text}</b><br>Impacto en la estrategia: %{x:.2f}<br>Expectativas grupos de interés: %{y:.2f}<br>Clasificación: %{customdata}<extra></extra>",
-      customdata: legacy.validRows.map((row) => row.cuadrante || "")
+      customdata: legacy.displayRows.map((row) => row.cuadrante || "")
     }];
 
     const shapes = [
@@ -1265,13 +1268,7 @@ function computeScores(db) {
     if (!target) return;
 
     const legacy = computeLegacyMatrix(db);
-    const rows = [...legacy.validRows]
-      .sort((a, b) => {
-        const ap = a.prioridad_total ?? -1;
-        const bp = b.prioridad_total ?? -1;
-        if (bp !== ap) return bp - ap;
-        return (b.significancia ?? -1) - (a.significancia ?? -1);
-      });
+    const rows = legacy.displayRows;
 
     if (!rows.length) {
       try { Plotly.purge(target); } catch {}
@@ -2057,6 +2054,11 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     document.getElementById("tauImpact").value = fmt(p.tauImpact, 2);
     document.getElementById("tauFin").value = fmt(p.tauFin, 2);
     document.getElementById("ruleSelect").value = p.ruleDouble;
+    const legacyTopNInput = document.getElementById("legacyTopN");
+    if (legacyTopNInput) {
+      legacyTopNInput.max = String(DATA.topics.length || 27);
+      legacyTopNInput.value = String(Math.min(DATA.topics.length || 27, Math.max(1, Math.round(Number(p.legacyTopN || DEFAULT_PARAMS.legacyTopN)))));
+    }
 
     document.getElementById("wSev").value = String(p.wImpact.severidad);
     document.getElementById("wAlc").value = String(p.wImpact.alcance);
@@ -2098,6 +2100,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       impacto_financiero: Number(document.getElementById("wFinImp").value),
       probabilidad_financiera: Number(document.getElementById("wFinProb").value),
     };
+    p.legacyTopN = Number(document.getElementById("legacyTopN").value);
     p.legacyExpectationFactor = Number(document.getElementById("legacyExpectationFactor").value);
     p.legacyPWeights = {
       probabilidad: Number(document.getElementById("legacyPProb").value),
@@ -2140,6 +2143,10 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       financiero: clamp01(p.legacyBWeights.financiero),
       relevancia_externa: clamp01(p.legacyBWeights.relevancia_externa),
     });
+    if (!isFinite(p.legacyTopN) || p.legacyTopN <= 0) {
+      p.legacyTopN = DEFAULT_PARAMS.legacyTopN;
+    }
+    p.legacyTopN = Math.min(DATA.topics.length || p.legacyTopN, Math.max(1, Math.round(p.legacyTopN)));
     if (!isFinite(p.legacyExpectationFactor) || p.legacyExpectationFactor <= 0) {
       p.legacyExpectationFactor = DEFAULT_PARAMS.legacyExpectationFactor;
     }
@@ -2158,7 +2165,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       renderAll(db);
     };
 
-    ["tauImpact", "tauFin", "ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyExpectationFactor", "legacyPProb", "legacyPFinProb", "legacySSev", "legacySAlc", "legacySIrr", "legacyBFin", "legacyBStake", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
+    ["tauImpact", "tauFin", "ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyTopN", "legacyExpectationFactor", "legacyPProb", "legacyPFinProb", "legacySSev", "legacySAlc", "legacySIrr", "legacyBFin", "legacyBStake", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("change", syncAndRender);
@@ -2484,6 +2491,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         const db = ensureDB();
         db.params = {
           ...getParams(db),
+          legacyTopN: DEFAULT_PARAMS.legacyTopN,
           legacyExpectationFactor: DEFAULT_PARAMS.legacyExpectationFactor,
           legacyPWeights: cloneDeep(DEFAULT_PARAMS.legacyPWeights),
           legacySWeights: cloneDeep(DEFAULT_PARAMS.legacySWeights),
@@ -3001,7 +3009,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       }
     }
 
-    renderLegacyResultsTable("tableLegacyReport", legacy.rows);
+    renderLegacyResultsTable("tableLegacyReport", legacy.displayRows);
 
     // plot en reporte
     renderExternalTop10(db, "plotExternalTop10");
