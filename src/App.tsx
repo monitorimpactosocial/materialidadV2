@@ -10,6 +10,7 @@ import {
 import { useData } from './lib/DataContext';
 import { MaterialityMatrix } from './components/MaterialityMatrix';
 import { SettingsPanel } from './components/SettingsPanel';
+import { ThemeParametersPanel, ThemeParameterConfig } from './components/ThemeParametersPanel';
 
 const App = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -20,16 +21,43 @@ const App = () => {
     const [tauFin, setTauFin] = useState<number>(3.0);
     const [ruleDouble, setRuleDouble] = useState<'AND' | 'OR'>('OR');
 
+    // Temas y pesos dinámicos
+    const [themes, setThemes] = useState<any[]>([]);
+    const [themeWeights, setThemeWeights] = useState<ThemeParameterConfig>({});
+    const [selectedThema, setSelectedThema] = useState<string>('');
+
     // Data
     const [matrixData, setMatrixData] = useState<any[]>([]);
     const [loadingQuery, setLoadingQuery] = useState(false);
 
+    // Cargar temas y configurar pesos
+    useEffect(() => {
+        if (!isLoaded || !conn) return;
+
+        const loadThemes = async () => {
+            try {
+                const result = await conn.query(`SELECT DISTINCT tema_id, tema_nombre FROM dim ORDER BY tema_id`);
+                const themesData = result.toArray().map((row: any) => row.toJSON());
+                setThemes(themesData);
+                if (themesData.length > 0) {
+                    setSelectedThema(themesData[0].tema_id);
+                }
+            } catch (e) {
+                console.error("Error cargando temas:", e);
+            }
+        };
+
+        loadThemes();
+    }, [isLoaded, conn]);
+
+    // Query principal: obtener datos RAW (sin ponderar) y aplicar pesos dinámicos
     useEffect(() => {
         if (!isLoaded || !conn) return;
 
         const runQuery = async () => {
             setLoadingQuery(true);
             try {
+                // Query que devuelve valores RAW sin ponderar
                 const sql = `
           WITH stakeholders_agg AS (
             SELECT tema_id, AVG(relevancia_num) as score_stakeholders
@@ -37,30 +65,69 @@ const App = () => {
             WHERE relevancia_num IS NOT NULL 
             GROUP BY tema_id
           ),
-          impact_agg AS (
+          impact_raw AS (
             SELECT tema_id, 
-                   0.25*severidad + 0.25*alcance + 0.25*irremediabilidad + 0.25*probabilidad as score_impact 
+                   AVG(CAST(severidad AS FLOAT)) as severidad,
+                   AVG(CAST(alcance AS FLOAT)) as alcance,
+                   AVG(CAST(irremediabilidad AS FLOAT)) as irremediabilidad,
+                   AVG(CAST(probabilidad AS FLOAT)) as probabilidad
             FROM imp
+            GROUP BY tema_id
           ),
-          fin_agg AS (
+          fin_raw AS (
             SELECT tema_id, 
-                   0.5*impacto_financiero + 0.5*probabilidad_financiera as score_fin 
+                   AVG(CAST(impacto_financiero AS FLOAT)) as impacto_financiero,
+                   AVG(CAST(probabilidad_financiera AS FLOAT)) as probabilidad_financiera
             FROM fin
+            GROUP BY tema_id
           )
           SELECT 
             d.tema_id, 
             d.tema_nombre,
             s.score_stakeholders,
-            i.score_impact,
-            f.score_fin
+            ir.severidad,
+            ir.alcance,
+            ir.irremediabilidad,
+            ir.probabilidad,
+            fr.impacto_financiero,
+            fr.probabilidad_financiera
           FROM dim d
           LEFT JOIN stakeholders_agg s ON d.tema_id = s.tema_id
-          LEFT JOIN impact_agg i ON d.tema_id = i.tema_id
-          LEFT JOIN fin_agg f ON d.tema_id = f.tema_id
+          LEFT JOIN impact_raw ir ON d.tema_id = ir.tema_id
+          LEFT JOIN fin_raw fr ON d.tema_id = fr.tema_id
         `;
 
                 const result = await conn.query(sql);
-                setMatrixData(result.toArray().map((row: any) => row.toJSON()));
+                const rawData = result.toArray().map((row: any) => row.toJSON());
+                
+                // Aplicar pesos dinámicos a los datos RAW
+                const processedData = rawData.map(row => {
+                    const tema_id = row.tema_id;
+                    const weights = themeWeights[tema_id] || {
+                        severidad: 0.25,
+                        alcance: 0.25,
+                        irremediabilidad: 0.25,
+                        probabilidad: 0.25
+                    };
+
+                    const score_impact =
+                        (weights.severidad * (row.severidad || 0)) +
+                        (weights.alcance * (row.alcance || 0)) +
+                        (weights.irremediabilidad * (row.irremediabilidad || 0)) +
+                        (weights.probabilidad * (row.probabilidad || 0));
+
+                    const score_fin =
+                        (0.5 * (row.impacto_financiero || 0)) +
+                        (0.5 * (row.probabilidad_financiera || 0));
+
+                    return {
+                        ...row,
+                        score_impact,
+                        score_fin
+                    };
+                });
+
+                setMatrixData(processedData);
             } catch (e) {
                 console.error("Query Error", e);
             } finally {
@@ -69,7 +136,12 @@ const App = () => {
         };
 
         runQuery();
-    }, [isLoaded, conn]);
+    }, [isLoaded, conn, themeWeights]);
+
+    const handleWeightsChange = (config: ThemeParameterConfig) => {
+        setThemeWeights(config);
+        // Redibujar la matriz automáticamente
+    };
 
     return (
         <div className="flex h-screen bg-slate-950 text-slate-200 overflow-hidden font-sans relative">
@@ -81,8 +153,8 @@ const App = () => {
             </div>
 
             {/* Sidebar / Navigation */}
-            <aside className="w-72 bg-slate-900/60 backdrop-blur-xl border-r border-white/5 flex flex-col z-20 shadow-2xl">
-                <div className="p-8 border-b border-white/5">
+            <aside className="w-72 bg-slate-900/60 backdrop-blur-xl border-r border-white/5 flex flex-col z-20 shadow-2xl overflow-y-auto">
+                <div className="p-8 border-b border-white/5 shrink-0">
                     <div className="flex items-center gap-3 text-emerald-400 font-bold text-xl mb-1 mt-2">
                         <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
                             <LayoutDashboard size={22} className="text-emerald-400" />
@@ -92,7 +164,7 @@ const App = () => {
                     <p className="text-xs text-slate-400 tracking-wide font-medium mt-3 ml-2">Doble Materialidad 2026</p>
                 </div>
 
-                <nav className="flex-1 p-6 space-y-3">
+                <nav className="flex-1 p-6 space-y-3 shrink-0">
                     <button
                         onClick={() => setActiveTab('dashboard')}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all duration-300 ${activeTab === 'dashboard' ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-emerald-300 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}
@@ -110,8 +182,17 @@ const App = () => {
                     </button>
                 </nav>
 
-                {/* Sidebar Settings Panel */}
-                <div className="p-6 border-t border-white/5 bg-slate-900/40">
+                {/* Scrollable content */}
+                <div className="flex-1 overflow-y-auto px-6 space-y-6 pb-6">
+                    {/* Theme Parameters Panel */}
+                    <ThemeParametersPanel
+                        themes={themes}
+                        onWeightsChange={handleWeightsChange}
+                        selectedTema={selectedThema}
+                        onSelectedTemaChange={setSelectedThema}
+                    />
+
+                    {/* Settings Panel */}
                     <SettingsPanel
                         tauImpact={tauImpact} setTauImpact={setTauImpact}
                         tauFin={tauFin} setTauFin={setTauFin}
@@ -120,7 +201,7 @@ const App = () => {
                     />
                 </div>
 
-                <div className="p-5 bg-slate-950/80 border-t border-white/5 text-xs text-slate-500 text-center tracking-[0.2em] font-bold">
+                <div className="p-5 bg-slate-950/80 border-t border-white/5 text-xs text-slate-500 text-center tracking-[0.2em] font-bold shrink-0">
                     PARACEL S.A.
                 </div>
             </aside>
@@ -197,6 +278,7 @@ const App = () => {
                                         tauImpact={tauImpact}
                                         tauFin={tauFin}
                                         ruleDouble={ruleDouble}
+                                        themeWeights={themeWeights}
                                     />
                                 </div>
                             )}

@@ -435,6 +435,10 @@ body{
 .no-print{ display: block; }
 
 @media print{
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
   body{ background: #ffffff !important; }
   .app-nav, .app-header, .no-print, #btnOpenAdmin{ display:none !important; }
   .app-shell{ grid-template-columns: 1fr; grid-template-rows: 1fr; grid-template-areas: "main"; }
@@ -445,3 +449,241 @@ body{
 }
 
 .btn-small{ padding: 6px 10px; border-radius: 10px; font-size: 12px; }
+/* GLOBAL LOGIN */
+.login-shell {
+  position: fixed; inset: 0; z-index: 9999;
+  background: radial-gradient(1200px 600px at 20% 0%, rgba(16,185,129,0.16), transparent 60%), radial-gradient(900px 500px at 90% 20%, rgba(6,78,59,0.12), transparent 60%), linear-gradient(180deg, var(--bg), var(--bg2));
+  display: flex; align-items: center; justify-content: center;
+}
+.login-card {
+  width: min(400px, 90vw);
+  padding: 32px 24px;
+}
+
+/* REDISEÑO EVALUACION INTERNA Y PROGRESO */
+.sticky-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(242, 251, 247, 0.95);
+  backdrop-filter: blur(8px);
+  padding: 10px 0;
+  border-bottom: 2px dashed rgba(6,78,59,0.15);
+  margin-bottom: 16px;
+}
+
+.progress-box {
+  flex: 1;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+progress {
+  width: 100%;
+  height: 10px;
+  border-radius: 6px;
+  appearance: none;
+  border: none;
+  overflow: hidden;
+}
+progress::-webkit-progress-bar {
+  background-color: rgba(6,78,59,0.12);
+  border-radius: 6px;
+}
+progress::-webkit-progress-value {
+  background: linear-gradient(90deg, var(--primary2), var(--accent));
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+
+.dimensions-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.dim-card {
+  background: rgba(255,255,255,0.85);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow2);
+}
+.dim-header {
+  padding: 14px 16px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: -0.01em;
+}
+/* Dimension Colors ISO 26000 */
+.dim-gobernanza .dim-header { background: linear-gradient(135deg, #1e3a8a, #2563eb); }
+.dim-derechos .dim-header { background: linear-gradient(135deg, #581c87, #9333ea); }
+.dim-laborales .dim-header { background: linear-gradient(135deg, #c2410c, #f97316); }
+.dim-medioambiente .dim-header { background: linear-gradient(135deg, #064e3b, #059669); }
+.dim-operacion .dim-header { background: linear-gradient(135deg, #334155, #64748b); }
+.dim-comunidad .dim-header { background: linear-gradient(135deg, #991b1b, #dc2626); }
+
+.dim-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.topic-block {
+  border-bottom: 1px dashed rgba(6,78,59,0.15);
+  padding-bottom: 24px;
+}
+.topic-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.topic-title-block {
+  font-weight: 850;
+  font-size: 15px;
+  margin-bottom: 16px;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px 24px;
+}
+
+.rating-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rating-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.rating-group {
+  display: flex;
+  background: rgba(6,78,59,0.06);
+  border-radius: 8px;
+  padding: 4px;
+  gap: 4px;
+  border: 1px solid rgba(6,78,59,0.10);
+}
+
+.rating-group label {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--muted);
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+.rating-group label:hover {
+  background: rgba(255,255,255,0.6);
+  color: var(--primary);
+}
+.rating-group input[type="radio"] {
+  display: none;
+}
+.rating-group input[type="radio"]:checked + label {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+  transform: scale(1.05);
+}
+
+/* MATRIZ DENSA (EVALUACION INTERNA) */
+.table-matrix-wrap {
+  width: 100%;
+  overflow-x: auto;
+  padding: 1px;
+}
+.table-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.table-matrix th {
+  font-size: 11px;
+  text-align: center;
+  vertical-align: bottom;
+  padding: 8px 4px;
+  background: rgba(242, 251, 247, 0.95);
+  color: var(--primary);
+  border-bottom: 2px solid rgba(6,78,59,0.15);
+  border-right: 1px dashed rgba(6,78,59,0.1);
+  line-height: 1.2;
+}
+.table-matrix th:first-child { text-align: left; }
+.table-matrix th:last-child { border-right: none; }
+.table-matrix td {
+  padding: 8px 6px;
+  vertical-align: middle;
+  text-align: center;
+  border-bottom: 1px solid rgba(6,78,59,0.08);
+  border-right: 1px dashed rgba(6,78,59,0.08);
+}
+.table-matrix td:first-child { 
+  font-weight: 700; 
+  text-align: left; 
+  min-width: 220px; 
+  color: var(--text);
+}
+.table-matrix td:last-child { border-right: none; }
+.table-matrix tr:last-child td { border-bottom: none; }
+.table-matrix tr:hover td { background: rgba(16,185,129,0.04); }
+
+.rating-group-matrix {
+  display: inline-flex;
+  background: rgba(6,78,59,0.05);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid rgba(6,78,59,0.08);
+}
+.rating-group-matrix label {
+  min-width: 24px;
+  padding: 0 4px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+.rating-group-matrix label:hover {
+  background: rgba(255,255,255,0.8);
+  color: var(--primary);
+}
+.rating-group-matrix input[type="radio"] { display: none; }
+.rating-group-matrix input[type="radio"]:checked + label {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  transform: scale(1.1);
+  z-index: 2;
+}

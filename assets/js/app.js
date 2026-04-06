@@ -9,6 +9,10 @@
   "use strict";
 
   const APP_KEY = "materialidad_instrument_app_v1";
+  const REMOTE_SYNC = {
+    enabled: true,
+    appsScriptUrl: "https://script.google.com/macros/s/AKfycbygA3Rb1RRwMXWosnHIMDOvebYyxzQn3hJBuFzu5gZdCV9523Do93MlyIaz-y74NT2dLg/exec",
+  };
   const DATA = {
     topics: [],
     scale: [],
@@ -133,6 +137,155 @@
     return await res.json();
   }
 
+  function simpleHash(input) {
+    let hash = 0;
+    const str = String(input || "");
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return `h${Math.abs(hash)}`;
+  }
+
+  function topicKeyToSortableValue(topicKey) {
+    const m = String(topicKey || "").match(/\d+/);
+    return m ? Number(m[0]) : 0;
+  }
+
+  function buildInternalAssessmentSemanticKey(row) {
+    const table = row && row.table ? row.table : {};
+    const serializedTable = Object.keys(table)
+      .sort((a, b) => topicKeyToSortableValue(a) - topicKeyToSortableValue(b))
+      .map((topicKey) => {
+        const item = table[topicKey] || {};
+        return [
+          topicKey,
+          item.severidad ?? "",
+          item.alcance ?? "",
+          item.irremediabilidad ?? "",
+          item.probabilidad ?? "",
+          item.impacto_financiero ?? "",
+          item.probabilidad_financiera ?? "",
+          item.horizonte ?? "",
+        ].join(":");
+      })
+      .join("|");
+
+    return [
+      String(row.area || "").trim().toUpperCase(),
+      String(row.rol || "").trim().toUpperCase(),
+      String(row.comentarios || "").trim().toUpperCase(),
+      serializedTable,
+    ].join("||");
+  }
+
+  function loadJSONP(url) {
+    return new Promise((resolve, reject) => {
+      const callbackName = `__materialidadJSONP_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+      const script = document.createElement("script");
+      const cleanup = () => {
+        if (script.parentNode) script.parentNode.removeChild(script);
+        delete window[callbackName];
+      };
+
+      window[callbackName] = (payload) => {
+        cleanup();
+        resolve(payload);
+      };
+
+      script.onerror = () => {
+        cleanup();
+        reject(new Error("No se pudo leer la base remota de Apps Script."));
+      };
+
+      script.src = `${url}${url.includes("?") ? "&" : "?"}callback=${callbackName}&_ts=${Date.now()}`;
+      document.body.appendChild(script);
+    });
+  }
+
+  function normalizeRemoteInternalAssessment(remoteRow, editionId) {
+    if (!remoteRow || !remoteRow.table) return null;
+
+    const table = {};
+    for (const topic of DATA.topics) {
+      const source = remoteRow.table[topic.tema_id] || remoteRow.table[String(topic.tema_id)] || null;
+      if (!source) continue;
+
+      table[topic.tema_id] = {
+        severidad: source.severidad === null || source.severidad === undefined ? null : Number(source.severidad),
+        alcance: source.alcance === null || source.alcance === undefined ? null : Number(source.alcance),
+        irremediabilidad: source.irremediabilidad === null || source.irremediabilidad === undefined ? null : Number(source.irremediabilidad),
+        probabilidad: source.probabilidad === null || source.probabilidad === undefined ? null : Number(source.probabilidad),
+        impacto_financiero: source.impacto_financiero === null || source.impacto_financiero === undefined ? null : Number(source.impacto_financiero),
+        probabilidad_financiera: source.probabilidad_financiera === null || source.probabilidad_financiera === undefined ? null : Number(source.probabilidad_financiera),
+        horizonte: source.horizonte || "MEDIO",
+      };
+    }
+
+    const normalized = {
+      id: `remote_${simpleHash(JSON.stringify(remoteRow))}`,
+      ts: remoteRow.timestamp ? new Date(remoteRow.timestamp).toISOString() : nowISO(),
+      editionId,
+      area: remoteRow.area || "",
+      rol: remoteRow.cargo || remoteRow.rol || "",
+      comentarios: remoteRow.comentarios || "",
+      table,
+      source: "apps_script_internal",
+      sourceKey: `apps_script_internal_${simpleHash(JSON.stringify(remoteRow))}`,
+    };
+
+    return Object.keys(normalized.table).length > 0 ? normalized : null;
+  }
+
+  async function syncRemoteInternalAssessments(db) {
+    if (!REMOTE_SYNC.enabled || !REMOTE_SYNC.appsScriptUrl) return false;
+    if (!DATA.topics || DATA.topics.length === 0) return false;
+
+    const payload = await loadJSONP(`${REMOTE_SYNC.appsScriptUrl}?type=internal`);
+    if (!payload || payload.status !== "success" || !Array.isArray(payload.rows)) {
+      throw new Error("La respuesta remota de evaluaciones internas no fue válida.");
+    }
+
+    const existingSourceKeys = new Set(db.internalAssessments.map((row) => row.sourceKey).filter(Boolean));
+    const existingSemanticKeys = new Set(db.internalAssessments.map((row) => buildInternalAssessmentSemanticKey(row)));
+    let added = 0;
+
+    for (const remoteRow of payload.rows) {
+      const normalized = normalizeRemoteInternalAssessment(remoteRow, db.currentEditionId);
+      if (!normalized) continue;
+
+      const semanticKey = buildInternalAssessmentSemanticKey(normalized);
+      if (existingSourceKeys.has(normalized.sourceKey) || existingSemanticKeys.has(semanticKey)) continue;
+
+      db.internalAssessments.push(normalized);
+      existingSourceKeys.add(normalized.sourceKey);
+      existingSemanticKeys.add(semanticKey);
+      added += 1;
+    }
+
+    db.remoteSync = {
+      ...(db.remoteSync || {}),
+      lastInternalSyncAt: nowISO(),
+      lastInternalRemoteCount: payload.rows.length,
+    };
+
+    if (added > 0) saveDB(db);
+    else saveDB(db);
+    return added > 0;
+  }
+
+  function syncRemoteInternalInBackground() {
+    const db = ensureDB();
+    syncRemoteInternalAssessments(db)
+      .then((changed) => {
+        if (changed) {
+          populateDatalists(db);
+          renderAll(db);
+        }
+      })
+      .catch((err) => console.warn("No se pudo sincronizar evaluaciones internas remotas:", err));
+  }
+
   // ---------------------------------------------------------------------------
   // Base local
   // ---------------------------------------------------------------------------
@@ -161,6 +314,10 @@
         internalAssessments: [],
         params: { ...DEFAULT_PARAMS },
         lastScenarioId: "base_moderado",
+        remoteSync: {
+          lastInternalSyncAt: null,
+          lastInternalRemoteCount: 0,
+        },
       };
     }
 
@@ -183,6 +340,7 @@
 
     if (!db.currentEditionId) db.currentEditionId = db.editions[0].id;
     if (!db.params) db.params = { ...DEFAULT_PARAMS };
+    if (!db.remoteSync) db.remoteSync = { lastInternalSyncAt: null, lastInternalRemoteCount: 0 };
 
     saveDB(db);
     return db;
@@ -406,6 +564,9 @@
     const db = ensureDB();
     if (viewName === "dashboard") renderDashboard(db);
     if (viewName === "report") renderReport(db);
+    if (viewName === "home" || viewName === "dashboard" || viewName === "report" || viewName === "internal") {
+      syncRemoteInternalInBackground();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -840,7 +1001,7 @@
       });
     }
 
-    form.addEventListener("submit", (ev) => {
+    form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const db = ensureDB();
 
@@ -1019,6 +1180,35 @@
       db.internalAssessments.push(row);
       saveDB(db);
       populateDatalists(db);
+
+      if (REMOTE_SYNC.enabled && REMOTE_SYNC.appsScriptUrl) {
+        const orderedTopics = [...DATA.topics].sort((a, b) => topicKeyToSortableValue(a.tema_id) - topicKeyToSortableValue(b.tema_id));
+        const respuestasImpacto = orderedTopics.map((topic) => {
+          const item = table[topic.tema_id] || {};
+          return item.severidad ?? "";
+        });
+        const respuestasFinanciero = orderedTopics.map((topic) => {
+          const item = table[topic.tema_id] || {};
+          return item.impacto_financiero ?? "";
+        });
+
+        fetch(REMOTE_SYNC.appsScriptUrl, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            type: "internal",
+            payload: {
+              nombreApellidos: "",
+              area,
+              cargo: rol,
+              respuestasImpacto,
+              respuestasFinanciero,
+              comentarios,
+            },
+          }),
+        }).catch((err) => console.warn("No se pudo replicar la evaluación interna en Apps Script:", err));
+      }
 
       form.reset();
       document.querySelectorAll('#internalCardsContainer input[type="radio"]').forEach((r) => (r.checked = false));
@@ -1865,6 +2055,11 @@ Equipo PARACEL`;
 
     // DB
     const db = ensureDB();
+    try {
+      await syncRemoteInternalAssessments(db);
+    } catch (err) {
+      console.warn("No se pudo sincronizar la base remota al iniciar:", err);
+    }
     populateDatalists(db);
 
     // asignar escenario al cargar
