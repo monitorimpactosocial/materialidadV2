@@ -4103,10 +4103,13 @@ Equipo PARACEL`;
 
 // ----------------------------------------------------
 // Carga y conciliación de datos (local, inicial y nube)
+// PRIORITY: initialDB (local file) > localDB (localStorage) > cloudDB (GAS)
 // ----------------------------------------------------
 const initialDB = await loadOptionalJSON("data/initial_db.json");
 const localDB = loadLocalDB();
-let mergedDB = mergeDBs(localDB);
+
+// Start with initialDB as base (prioritize local file data over cloud)
+let mergedDB = mergeDBs(initialDB, localDB);
 
 try {
   const cloudDB = await fetchCloudDB();
@@ -4117,7 +4120,7 @@ try {
 }
 
 if (!mergedDB) {
-  mergedDB = mergeDBs(initialDB);
+  mergedDB = mergeDBs(initialDB, localDB);
 }
 
 if (mergedDB) {
