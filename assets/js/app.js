@@ -4158,38 +4158,62 @@ if (!mergedDB) {
 }
 
 if (mergedDB) {
-  // Asegurar que todas las evaluaciones internas tengan editionId válido ANTES de normalizar
+  // Asegurar que todas las evaluaciones (externas e internas) tengan editionId válido ANTES de normalizar
+  const validEditionIds = new Set((mergedDB.editions || []).map(e => e.id));
+  const defaultEdition = (mergedDB.editions && mergedDB.editions[0]) ? mergedDB.editions[0].id : "edicion-historica";
+  
+  console.log("[INIT] Ediciones en mergedDB:", mergedDB.editions ? mergedDB.editions.map(e => e.id) : []);
+  console.log("[INIT] validEditionIds:", Array.from(validEditionIds));
+  console.log("[INIT] defaultEdition:", defaultEdition);
+  
+  // Asignar editionId a respuestas externas
+  if (mergedDB.externalResponses && mergedDB.externalResponses.length > 0) {
+    console.log("[INIT] Asignando editionId a respuestas externas...");
+    mergedDB.externalResponses = mergedDB.externalResponses.map(r => ({
+      ...r,
+      editionId: (r.editionId && validEditionIds.has(r.editionId)) ? r.editionId : defaultEdition
+    }));
+    console.log("[INIT] Respuestas externas asignadas:", mergedDB.externalResponses.length);
+  }
+  
+  // Asignar editionId a evaluaciones internas
   if (mergedDB.internalAssessments && mergedDB.internalAssessments.length > 0) {
     console.log("[INIT] Asignando editionId a evaluaciones internas...");
-    const validEditionIds = new Set((mergedDB.editions || []).map(e => e.id));
-    const defaultEdition = (mergedDB.editions && mergedDB.editions[0]) ? mergedDB.editions[0].id : "edicion-historica";
-    
     mergedDB.internalAssessments = mergedDB.internalAssessments.map(r => ({
       ...r,
       editionId: (r.editionId && validEditionIds.has(r.editionId)) ? r.editionId : defaultEdition
     }));
-    console.log("[INIT] Después de asignar editionId:");
-    mergedDB.internalAssessments.forEach(r => {
-      console.log(`  - ID ${r.id.substring(0, 8)}: editionId=${r.editionId}, area=${r.area}`);
-    });
+    console.log("[INIT] Evaluaciones internas asignadas:", mergedDB.internalAssessments.length);
   }
   
   ACTIVE_DB = saveDB(mergedDB, { skipConfigSync: true });
 }
 
 const db = ensureDB();
-console.log("[INIT] DB después de normalización:");
+console.log("[INIT] DB después de normalización (migrateDB):");
 console.log("  - currentEditionId:", db.currentEditionId);
+console.log("  - Ediciones:", db.editions ? db.editions.map(e => `${e.id} (${e.status})`) : []);
+console.log("  - Respuestas externas totales:", db.externalResponses ? db.externalResponses.length : 0);
 console.log("  - Evaluaciones internas totales:", db.internalAssessments ? db.internalAssessments.length : 0);
+
+if (db.externalResponses && db.externalResponses.length > 0) {
+  console.log("[INIT] Desglose de respuestas externas por editionId:");
+  const byExtEdition = {};
+  db.externalResponses.forEach(r => {
+    const eid = r.editionId || "sin-edition";
+    byExtEdition[eid] = (byExtEdition[eid] || 0) + 1;
+  });
+  Object.entries(byExtEdition).forEach(([eid, count]) => console.log(`    - ${eid}: ${count}`));
+}
+
 if (db.internalAssessments && db.internalAssessments.length > 0) {
-  console.log("  - Primera evaluación interna:", { id: db.internalAssessments[0].id, area: db.internalAssessments[0].area, editionId: db.internalAssessments[0].editionId });
-  console.log("  - Evaluaciones por editionId:");
-  const byEdition = {};
+  console.log("[INIT] Desglose de evaluaciones internas por editionId:");
+  const byIntEdition = {};
   db.internalAssessments.forEach(r => {
     const eid = r.editionId || "sin-edition";
-    byEdition[eid] = (byEdition[eid] || 0) + 1;
+    byIntEdition[eid] = (byIntEdition[eid] || 0) + 1;
   });
-  Object.entries(byEdition).forEach(([eid, count]) => console.log(`    - ${eid}: ${count}`));
+  Object.entries(byIntEdition).forEach(([eid, count]) => console.log(`    - ${eid}: ${count}`));
 }
     populateDatalists(db);
 
