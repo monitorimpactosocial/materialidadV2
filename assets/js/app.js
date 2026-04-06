@@ -508,8 +508,14 @@ function persistLocalDB(db) {
 }
 
 function normalizeEditionRow(row) {
+  let id = sanitizeText(row && row.id ? row.id : String(new Date().getFullYear()), 120);
+  // Si el ID generado es solamente el año actual (sin datos legítimos), usar "edicion-historica"
+  const currentYear = String(new Date().getFullYear());
+  if (id === currentYear && !(row && row.id)) {
+    id = "edicion-historica";
+  }
   return {
-    id: sanitizeText(row && row.id ? row.id : String(new Date().getFullYear()), 120),
+    id,
     name: sanitizeText(row && row.name ? row.name : `Edición ${new Date().getFullYear()}`, 120),
     startDate: row && row.startDate ? row.startDate : nowISO(),
     endDate: row && row.endDate ? row.endDate : null,
