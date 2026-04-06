@@ -153,6 +153,10 @@ async function fetchCloudDB() {
     const r = await fetchWithTimeout(GAS_URL + "?t=" + Date.now(), {}, 12000);
     if (!r.ok) throw new Error("Network response was not ok");
     const data = await r.json();
+    console.log("[fetchCloudDB] Datos recibidos del GAS:");
+    console.log("[fetchCloudDB]   - internalAssessments:", data.internalAssessments ? data.internalAssessments.length : 0);
+    console.log("[fetchCloudDB]   - externalResponses:", data.externalResponses ? data.externalResponses.length : 0);
+    console.log("[fetchCloudDB]   - Primer internalAssessment:", data.internalAssessments && data.internalAssessments[0] ? { id: data.internalAssessments[0].id, area: data.internalAssessments[0].area } : "N/A");
     hideSyncPill();
     return data;
   } catch (err) {
@@ -624,6 +628,10 @@ function pruneObsoleteSeedData(db) {
 
 function migrateDB(raw) {
   if (!raw || typeof raw !== "object") return null;
+  console.log("[migrateDB] ====== INICIANDO MIGRACIÓN ======");
+  console.log("[migrateDB] raw.internalAssessments:", raw.internalAssessments ? raw.internalAssessments.length : 0);
+  console.log("[migrateDB] raw.externalResponses:", raw.externalResponses ? raw.externalResponses.length : 0);
+  
   const params = {
     ...cloneDeep(DEFAULT_PARAMS),
     ...(raw.params || {})
@@ -704,7 +712,13 @@ function migrateDB(raw) {
 
   const legacyMatrix = normalizeLegacyMatrix(raw.legacyMatrix || {});
 
-  return pruneObsoleteSeedData({
+  console.log("[migrateDB] ANTES de pruneObsoleteSeedData:");
+  console.log("[migrateDB]   - internalAssessments:", internalAssessments ? internalAssessments.length : 0);
+  console.log("[migrateDB]   - externalResponses:", externalResponses ? externalResponses.length : 0);
+  console.log("[migrateDB]   - currentEditionId:", currentEditionId);
+  console.log("[migrateDB]   - OBSOLETE_INTERNAL_SEED_IDS count:", OBSOLETE_INTERNAL_SEED_IDS.size);
+  
+  const finalDB = pruneObsoleteSeedData({
     version: CURRENT_SCHEMA_VERSION,
     updatedAt: raw.updatedAt || nowISO(),
     editions,
@@ -716,6 +730,13 @@ function migrateDB(raw) {
     emails,
     legacyMatrix,
   });
+  
+  console.log("[migrateDB] DESPUÉS de pruneObsoleteSeedData:");
+  console.log("[migrateDB]   - internalAssessments:", finalDB.internalAssessments ? finalDB.internalAssessments.length : 0);
+  console.log("[migrateDB]   - externalResponses:", finalDB.externalResponses ? finalDB.externalResponses.length : 0);
+  console.log("[migrateDB] ====== FIN MIGRACIÓN ======");
+  
+  return finalDB;
 }
 
 function mergeDBs(...sources) {
