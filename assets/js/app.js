@@ -4151,8 +4151,9 @@ Equipo PARACEL`;
 
 
 // ----------------------------------------------------
-// Carga y conciliación de datos - SOLO DESDE GOOGLE SHEETS (Excel en línea)
-// IMPORTANTE: No se mezcla con localStorage ni con initialDB para evitar duplicados
+// Carga y conciliación de datos - GOOGLE SHEETS para externas + local initial_db.json para internas
+// IMPORTANTE: GAS devuelve externalResponses, pero NO devuelve internalAssessments
+// Usamos initial_db.json como fuente de evaluaciones internas registradas localmente
 // Se limpia localStorage al iniciar para asegurar estado limpio
 // ----------------------------------------------------
 
@@ -4164,19 +4165,29 @@ try {
   console.warn("[INIT] No se pudo limpiar localStorage:", err);
 }
 
-const initialDB = null; // No usar initialDB
 let mergedDB = null;
 
-// Cargar SOLO desde Google Sheets (Excel en línea)
+// Cargar inicial_db.json para evaluaciones internas
+const initialDB = await loadOptionalJSON("data/initial_db.json");
+console.log("[INIT] initial_db.json loaded:");
+console.log("  - internalAssessments:", initialDB && initialDB.internalAssessments ? initialDB.internalAssessments.length : 0);
+
+// Cargar desde Google Sheets (SOLO respuestas externas)
 try {
   const cloudDB = await fetchCloudDB();
   if (cloudDB) {
-    console.log("[INIT] Datos cargados desde Google Sheets:");
+    console.log("[INIT] Datos cargados desde Google Sheets (GAS):");
     console.log("  - Respuestas externas:", cloudDB.externalResponses ? cloudDB.externalResponses.length : 0);
     console.log("  - Evaluaciones internas:", cloudDB.internalAssessments ? cloudDB.internalAssessments.length : 0);
-    console.log("  - internalAssessments[0]:", cloudDB.internalAssessments && cloudDB.internalAssessments[0] ? { id: cloudDB.internalAssessments[0].id, area: cloudDB.internalAssessments[0].area, editionId: cloudDB.internalAssessments[0].editionId } : "N/A");
-    console.log("  - currentEditionId:", cloudDB.currentEditionId);
-    mergedDB = cloudDB;
+    
+    // Combinar: GAS externalResponses + initial_db.json internalAssessments
+    mergedDB = {
+      ...cloudDB,
+      internalAssessments: (initialDB && initialDB.internalAssessments) || []
+    };
+    console.log("[INIT] MERGED DB creado con:");
+    console.log("  - externalResponses del GAS:", mergedDB.externalResponses.length);
+    console.log("  - internalAssessments de initial_db.json:", mergedDB.internalAssessments.length);
   }
 } catch(err) {
   console.error("[INIT] Fallo al leer Google Sheets:", err);
@@ -4184,46 +4195,58 @@ try {
 }
 
 if (!mergedDB) {
-  // Si no hay datos en la nube, crear estructura vacía
-  console.log("[INIT] GAS devolvió vacío - creando estructura inicial");
-  mergedDB = {
-    version: CURRENT_SCHEMA_VERSION,
-    editions: [{ id: "edicion-historica", name: "Edición Histórica (2025)", startDate: new Date().toISOString(), status: "open" }],
-    currentEditionId: "edicion-historica",
-    externalResponses: [],
-    internalAssessments: [],
-    params: {},
-    lastScenarioId: "base_moderado"
-  };
+  // Si no hay datos en la nube, usar solo initial_db.json
+  console.log("[INIT] GAS devolvió vacío - usando solo initial_db.json");
+  if (initialDB) {
+    mergedDB = initialDB;
+  } else {
+    // Si tampoco hay initial_db.json, crear estructura vacía
+    console.log("[INIT] initial_db.json también vacío - creando estructura inicial");
+    mergedDB = {
+      version: CURRENT_SCHEMA_VERSION,
+      editions: [{ id: "edicion-historica", name: "Edición Histórica (2025)", startDate: new Date().toISOString(), status: "open" }],
+      currentEditionId: "edicion-historica",
+      externalResponses: [],
+      internalAssessments: [],
+      params: {},
+      lastScenarioId: "base_moderado"
+    };
+  }
 }
 
 if (mergedDB) {
-  // Asegurar que todas las evaluaciones (externas e internas) tengan editionId válido ANTES de normalizar
+  // Asegurar que todas las evaluaciones (externas e internas) tengan editionId válido
   const validEditionIds = new Set((mergedDB.editions || []).map(e => e.id));
   const defaultEdition = (mergedDB.editions && mergedDB.editions[0]) ? mergedDB.editions[0].id : "edicion-historica";
   
+  console.log("[INIT] Pre-procesamiento de evaluaciones:");
   console.log("[INIT] Ediciones en mergedDB:", mergedDB.editions ? mergedDB.editions.map(e => e.id) : []);
   console.log("[INIT] validEditionIds:", Array.from(validEditionIds));
   console.log("[INIT] defaultEdition:", defaultEdition);
+  console.log("[INIT] internalAssessments antes:", mergedDB.internalAssessments ? mergedDB.internalAssessments.length : 0);
   
-  // Asignar editionId a respuestas externas
-  if (mergedDB.externalResponses && mergedDB.externalResponses.length > 0) {
-    console.log("[INIT] Asignando editionId a respuestas externas...");
-    mergedDB.externalResponses = mergedDB.externalResponses.map(r => ({
-      ...r,
-      editionId: (r.editionId && validEditionIds.has(r.editionId)) ? r.editionId : defaultEdition
-    }));
-    console.log("[INIT] Respuestas externas asignadas:", mergedDB.externalResponses.length);
+  // Validar y asignar editionId a evaluaciones internas
+  if (mergedDB.internalAssessments && mergedDB.internalAssessments.length > 0) {
+    mergedDB.internalAssessments = mergedDB.internalAssessments.map(r => {
+      if (!r.editionId || !validEditionIds.has(r.editionId)) {
+        console.log(`[INIT] Corrigiendo internalAssessment ID ${r.id} - editionId cambió de "${r.editionId}" a "${defaultEdition}"`);
+        return { ...r, editionId: defaultEdition };
+      }
+      return r;
+    });
+    console.log("[INIT] internalAssessments después de validación:", mergedDB.internalAssessments.length);
   }
   
-  // Asignar editionId a evaluaciones internas
-  if (mergedDB.internalAssessments && mergedDB.internalAssessments.length > 0) {
-    console.log("[INIT] Asignando editionId a evaluaciones internas...");
-    mergedDB.internalAssessments = mergedDB.internalAssessments.map(r => ({
-      ...r,
-      editionId: (r.editionId && validEditionIds.has(r.editionId)) ? r.editionId : defaultEdition
-    }));
-    console.log("[INIT] Evaluaciones internas asignadas:", mergedDB.internalAssessments.length);
+  // Validar y asignar editionId a respuestas externas
+  if (mergedDB.externalResponses && mergedDB.externalResponses.length > 0) {
+    const beforeExt = mergedDB.externalResponses.length;
+    mergedDB.externalResponses = mergedDB.externalResponses.map(r => {
+      if (!r.editionId || !validEditionIds.has(r.editionId)) {
+        return { ...r, editionId: defaultEdition };
+      }
+      return r;
+    });
+    console.log(`[INIT] externalResponses validadas: ${beforeExt} mantuvieron su editionId o fueron asignadas a ${defaultEdition}`);
   }
   
   ACTIVE_DB = saveDB(mergedDB, { skipConfigSync: true });
