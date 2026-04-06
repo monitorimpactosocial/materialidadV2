@@ -652,12 +652,25 @@ function migrateDB(raw) {
       status: "open",
       nextDueDate: addYears(nowISO(), 2)
     }];
+  } else {
+    // Si hay ediciones pero ninguna es "edicion-historica", agregarlo como fallback
+    if (!editions.some(e => e.id === "edicion-historica")) {
+      console.warn("[migrateDB] No se encontró 'edicion-historica' en las ediciones del GAS. Agregando como fallback.");
+      editions.unshift({
+        id: "edicion-historica",
+        name: "Edición Histórica (2025)",
+        startDate: nowISO(),
+        endDate: null,
+        status: "open",
+        nextDueDate: addYears(nowISO(), 2)
+      });
+    }
   }
 
   let currentEditionId = sanitizeText(raw.currentEditionId || "", 120);
   if (!currentEditionId || !editions.some((e) => e.id === currentEditionId)) {
-    // Si currentEditionId no es válido, usar "edicion-historica" si existe, sino la primera
-    currentEditionId = editions.some(e => e.id === "edicion-historica") ? "edicion-historica" : editions[0].id;
+    // Si currentEditionId no es válido, usar "edicion-historica" (la más confiable)
+    currentEditionId = "edicion-historica";
   }
 
   const validEditionIds = new Set(editions.map((e) => e.id));
