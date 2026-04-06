@@ -4110,9 +4110,9 @@ Equipo PARACEL`;
 // Limpiar localStorage al iniciar - comienza con estado limpio
 try {
   localStorage.removeItem(APP_KEY);
-  console.log("localStorage limpiado - comenzando desde cero");
+  console.log("[INIT] localStorage limpiado - comenzando desde cero");
 } catch(err) {
-  console.warn("No se pudo limpiar localStorage:", err);
+  console.warn("[INIT] No se pudo limpiar localStorage:", err);
 }
 
 const initialDB = null; // No usar initialDB
@@ -4122,16 +4122,21 @@ let mergedDB = null;
 try {
   const cloudDB = await fetchCloudDB();
   if (cloudDB) {
+    console.log("[INIT] Datos cargados desde Google Sheets:");
+    console.log("  - Respuestas externas:", cloudDB.externalResponses ? cloudDB.externalResponses.length : 0);
+    console.log("  - Evaluaciones internas:", cloudDB.internalAssessments ? cloudDB.internalAssessments.length : 0);
+    console.log("  - internalAssessments[0]:", cloudDB.internalAssessments && cloudDB.internalAssessments[0] ? { id: cloudDB.internalAssessments[0].id, area: cloudDB.internalAssessments[0].area, editionId: cloudDB.internalAssessments[0].editionId } : "N/A");
+    console.log("  - currentEditionId:", cloudDB.currentEditionId);
     mergedDB = cloudDB;
-    console.log("✓ Datos cargados desde Google Sheets - respuestas externas:", (cloudDB.externalResponses || []).length, "evaluaciones internas:", (cloudDB.internalAssessments || []).length);
   }
 } catch(err) {
-  console.error("Fallo al leer Google Sheets:", err);
+  console.error("[INIT] Fallo al leer Google Sheets:", err);
   alert("Atención: No se pudieron cargar los datos del Excel en línea. Verifique su conexión.");
 }
 
 if (!mergedDB) {
   // Si no hay datos en la nube, crear estructura vacía
+  console.log("[INIT] GAS devolvió vacío - creando estructura inicial");
   mergedDB = {
     version: CURRENT_SCHEMA_VERSION,
     editions: [{ id: "edicion-historica", name: "Edición Histórica (2025)", startDate: new Date().toISOString(), status: "open" }],
@@ -4144,10 +4149,39 @@ if (!mergedDB) {
 }
 
 if (mergedDB) {
+  // Asegurar que todas las evaluaciones internas tengan editionId válido ANTES de normalizar
+  if (mergedDB.internalAssessments && mergedDB.internalAssessments.length > 0) {
+    console.log("[INIT] Asignando editionId a evaluaciones internas...");
+    const validEditionIds = new Set((mergedDB.editions || []).map(e => e.id));
+    const defaultEdition = (mergedDB.editions && mergedDB.editions[0]) ? mergedDB.editions[0].id : "edicion-historica";
+    
+    mergedDB.internalAssessments = mergedDB.internalAssessments.map(r => ({
+      ...r,
+      editionId: (r.editionId && validEditionIds.has(r.editionId)) ? r.editionId : defaultEdition
+    }));
+    console.log("[INIT] Después de asignar editionId:");
+    mergedDB.internalAssessments.forEach(r => {
+      console.log(`  - ID ${r.id.substring(0, 8)}: editionId=${r.editionId}, area=${r.area}`);
+    });
+  }
+  
   ACTIVE_DB = saveDB(mergedDB, { skipConfigSync: true });
 }
 
 const db = ensureDB();
+console.log("[INIT] DB después de normalización:");
+console.log("  - currentEditionId:", db.currentEditionId);
+console.log("  - Evaluaciones internas totales:", db.internalAssessments ? db.internalAssessments.length : 0);
+if (db.internalAssessments && db.internalAssessments.length > 0) {
+  console.log("  - Primera evaluación interna:", { id: db.internalAssessments[0].id, area: db.internalAssessments[0].area, editionId: db.internalAssessments[0].editionId });
+  console.log("  - Evaluaciones por editionId:");
+  const byEdition = {};
+  db.internalAssessments.forEach(r => {
+    const eid = r.editionId || "sin-edition";
+    byEdition[eid] = (byEdition[eid] || 0) + 1;
+  });
+  Object.entries(byEdition).forEach(([eid, count]) => console.log(`    - ${eid}: ${count}`));
+}
     populateDatalists(db);
 
     // asignar escenario al cargar
