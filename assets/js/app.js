@@ -643,13 +643,22 @@ function migrateDB(raw) {
 
   let editions = Array.isArray(raw.editions) ? raw.editions.map(normalizeEditionRow) : [];
   if (editions.length === 0) {
-    const start = nowISO();
-    const id = String(new Date().getFullYear());
-    editions = [{ id, name: `Edición ${new Date().getFullYear()}`, startDate: start, endDate: null, status: "open", nextDueDate: addYears(start, 2) }];
+    // Si no hay ediciones, crear la edición histórica default
+    editions = [{
+      id: "edicion-historica",
+      name: "Edición Histórica (2025)",
+      startDate: nowISO(),
+      endDate: null,
+      status: "open",
+      nextDueDate: addYears(nowISO(), 2)
+    }];
   }
 
   let currentEditionId = sanitizeText(raw.currentEditionId || "", 120);
-  if (!currentEditionId || !editions.some((e) => e.id === currentEditionId)) currentEditionId = editions[0].id;
+  if (!currentEditionId || !editions.some((e) => e.id === currentEditionId)) {
+    // Si currentEditionId no es válido, usar "edicion-historica" si existe, sino la primera
+    currentEditionId = editions.some(e => e.id === "edicion-historica") ? "edicion-historica" : editions[0].id;
+  }
 
   const validEditionIds = new Set(editions.map((e) => e.id));
 
