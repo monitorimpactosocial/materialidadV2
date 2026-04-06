@@ -12,7 +12,834 @@
   ],
   "currentEditionId": "edicion-historica",
   "externalResponses": [],
-  "internalAssessments": [],
+  "internalAssessments": [
+    {
+      "id": "7832f816-e184-4f1e-9a28-6aac758be537",
+      "ts": "2026-03-24T17:09:56.867Z",
+      "editionId": "edicion-historica",
+      "area": "Logistica",
+      "rol": "Director",
+      "comentarios": "Ninguno en especÃ­fico",
+      "table": {
+        "P01": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P02": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P03": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P04": {
+          "impacto": 4.0,
+          "financiero": 5.0
+        },
+        "P05": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P06": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P07": {
+          "impacto": 4.0,
+          "financiero": 2.0
+        },
+        "P08": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P09": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P10": {
+          "impacto": 4.0,
+          "financiero": 5.0
+        },
+        "P11": {
+          "impacto": 3.0,
+          "financiero": 5.0
+        },
+        "P12": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P13": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P14": {
+          "impacto": 3.0,
+          "financiero": 3.0
+        },
+        "P15": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P16": {
+          "impacto": 5.0,
+          "financiero": 3.0
+        },
+        "P17": {
+          "impacto": 3.0,
+          "financiero": 3.0
+        },
+        "P18": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P19": {
+          "impacto": 5.0,
+          "financiero": 2.0
+        },
+        "P20": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P21": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P22": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P23": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P24": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P25": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P26": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P27": {
+          "impacto": 3.0,
+          "financiero": 3.0
+        }
+      }
+    },
+    {
+      "id": "d078c612-5ff5-4635-8228-234db1aa29a7",
+      "ts": "2026-03-25T12:06:47.313Z",
+      "editionId": "edicion-historica",
+      "area": "ComunicaciÃ³n y Sustentabilidad Social",
+      "rol": "Directores/as",
+      "comentarios": "Ninguno en especÃ­fico",
+      "table": {
+        "P01": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P02": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P03": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P04": {
+          "impacto": 5.0,
+          "financiero": 3.0
+        },
+        "P05": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P06": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P07": {
+          "impacto": 2.0,
+          "financiero": 2.0
+        },
+        "P08": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P09": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P10": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P11": {
+          "impacto": 3.0,
+          "financiero": 3.0
+        },
+        "P12": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P13": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P14": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P15": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P16": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P17": {
+          "impacto": 3.0,
+          "financiero": 2.0
+        },
+        "P18": {
+          "impacto": 3.0,
+          "financiero": 3.0
+        },
+        "P19": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P20": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P21": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P22": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P23": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P24": {
+          "impacto": 2.0,
+          "financiero": 2.0
+        },
+        "P25": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P26": {
+          "impacto": 3.0,
+          "financiero": 4.0
+        },
+        "P27": {
+          "impacto": 2.0,
+          "financiero": 3.0
+        }
+      }
+    },
+    {
+      "id": "12efb6cb-5376-4210-9001-6644880db12a",
+      "ts": "2026-03-25T13:21:51.726Z",
+      "editionId": "edicion-historica",
+      "area": "Asuntos JurÃ­dicos & Regulatorios",
+      "rol": "Gerentes",
+      "comentarios": "Ninguno en especÃ­fico",
+      "table": {
+        "P01": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P02": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P03": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P04": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P05": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P06": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P07": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P08": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P09": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P10": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P11": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P12": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P13": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P14": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P15": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P16": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P17": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P18": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P19": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P20": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P21": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P22": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P23": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P24": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P25": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P26": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P27": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        }
+      }
+    },
+    {
+      "id": "e0a4f17d-9208-49a0-8d9a-737165893ef7",
+      "ts": "2026-03-26T11:25:05.938Z",
+      "editionId": "edicion-historica",
+      "area": "Talento Humano",
+      "rol": "Directores/as",
+      "comentarios": "Ninguno en especÃ­fico",
+      "table": {
+        "P01": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P02": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P03": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P04": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P05": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P06": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P07": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P08": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P09": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P10": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P11": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P12": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P13": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P14": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P15": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P16": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P17": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P18": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P19": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P20": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P21": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P22": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P23": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P24": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P25": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P26": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P27": {
+          "impacto": 3.0,
+          "financiero": 4.0
+        }
+      }
+    },
+    {
+      "id": "63af2369-6d47-428a-85c4-c8f0328674d6",
+      "ts": "2026-03-26T12:11:37.125Z",
+      "editionId": "edicion-historica",
+      "area": "Finanzas",
+      "rol": "Directores/as",
+      "comentarios": "Ninguno en especÃ­fico",
+      "table": {
+        "P01": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P02": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P03": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P04": {
+          "impacto": 3.0,
+          "financiero": 3.0
+        },
+        "P05": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P06": {
+          "impacto": 5.0,
+          "financiero": 3.0
+        },
+        "P07": {
+          "impacto": 3.0,
+          "financiero": 3.0
+        },
+        "P08": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P09": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P10": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P11": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P12": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P13": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P14": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P15": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P16": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P17": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P18": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P19": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P20": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P21": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P22": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P23": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P24": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P25": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P26": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P27": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        }
+      }
+    },
+    {
+      "id": "3e1c37b3-8626-46cd-a26a-0d0b81efda75",
+      "ts": "2026-03-27T11:50:59.627Z",
+      "editionId": "edicion-historica",
+      "area": "Forestal",
+      "rol": "Directores/as",
+      "comentarios": "Ninguno en especÃ­fico",
+      "table": {
+        "P01": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P02": {
+          "impacto": 3.0,
+          "financiero": 5.0
+        },
+        "P03": {
+          "impacto": 2.0,
+          "financiero": 4.0
+        },
+        "P04": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P05": {
+          "impacto": 3.0,
+          "financiero": 5.0
+        },
+        "P06": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P07": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P08": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P09": {
+          "impacto": 4.0,
+          "financiero": 5.0
+        },
+        "P10": {
+          "impacto": 3.0,
+          "financiero": 4.0
+        },
+        "P11": {
+          "impacto": 3.0,
+          "financiero": 4.0
+        },
+        "P12": {
+          "impacto": 5.0,
+          "financiero": 3.0
+        },
+        "P13": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P14": {
+          "impacto": 4.0,
+          "financiero": 2.0
+        },
+        "P15": {
+          "impacto": 5.0,
+          "financiero": 3.0
+        },
+        "P16": {
+          "impacto": 4.0,
+          "financiero": 5.0
+        },
+        "P17": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P18": {
+          "impacto": 3.0,
+          "financiero": 3.0
+        },
+        "P19": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P20": {
+          "impacto": 5.0,
+          "financiero": 4.0
+        },
+        "P21": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P22": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P23": {
+          "impacto": 4.0,
+          "financiero": 3.0
+        },
+        "P24": {
+          "impacto": 3.0,
+          "financiero": 5.0
+        },
+        "P25": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P26": {
+          "impacto": 3.0,
+          "financiero": 2.0
+        },
+        "P27": {
+          "impacto": 3.0,
+          "financiero": 3.0
+        }
+      }
+    },
+    {
+      "id": "d51e83d9-fe65-44f4-8fe6-b39509ea0826",
+      "ts": "2026-03-30T22:51:04.632Z",
+      "editionId": "edicion-historica",
+      "area": "TI",
+      "rol": "Directores/as",
+      "comentarios": "Ninguno en especÃ­fico",
+      "table": {
+        "P01": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P02": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P03": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P04": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P05": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P06": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P07": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P08": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P09": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P10": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P11": {
+          "impacto": 3.0,
+          "financiero": 3.0
+        },
+        "P12": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P13": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P14": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P15": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P16": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P17": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P18": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P19": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P20": {
+          "impacto": 5.0,
+          "financiero": 5.0
+        },
+        "P21": {
+          "impacto": 3.0,
+          "financiero": 3.0
+        },
+        "P22": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P23": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P24": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P25": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P26": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        },
+        "P27": {
+          "impacto": 4.0,
+          "financiero": 4.0
+        }
+      }
+    }
+  ],
   "params": {
     "tauImpact": 3.8,
     "tauFin": 3.5,
