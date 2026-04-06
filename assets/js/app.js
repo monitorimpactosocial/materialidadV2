@@ -408,14 +408,14 @@ function sanitizeLegacyYesNo(value) {
 
 function normalizeLegacyMatrixRow(row) {
   return {
-    p: sanitizeScaleValue(row && row.p, 1, 5),
-    s: sanitizeScaleValue(row && row.s, 1, 5),
-    b: sanitizeScaleValue(row && row.b, 1, 5),
+    p: sanitizeBoundedNumber(row && row.p, 1, 5),
+    s: sanitizeBoundedNumber(row && row.s, 1, 5),
+    b: sanitizeBoundedNumber(row && row.b, 1, 5),
     legislacion: sanitizeLegacyYesNo(row && row.legislacion),
     grupos_relacionados: sanitizeText(row && row.grupos_relacionados, 800),
-    e: sanitizeScaleValue(row && row.e, 1, 4),
-    c: sanitizeScaleValue(row && row.c, 1, 4),
-    f: sanitizeScaleValue(row && row.f, 1, 4),
+    e: sanitizeBoundedNumber(row && row.e, 1, 4),
+    c: sanitizeBoundedNumber(row && row.c, 1, 4),
+    f: sanitizeBoundedNumber(row && row.f, 1, 4),
   };
 }
 
@@ -986,6 +986,7 @@ function computeScores(db) {
 
     const rows = DATA.topics.map((topic) => {
       const tid = topic.tema_id;
+      const manual = getLegacyMatrixRow(db, tid);
       const ext = stake[tid] || { by_group: {} };
       const int = internal[tid] || { dims: {}, subdims: {} };
       const stakeholderMean = params.stakeWeightByN ? ext.mean_pool : ext.mean_equal_groups;
@@ -1001,21 +1002,25 @@ function computeScores(db) {
       const irremediabilidad = int.subdims && int.subdims.irremediabilidad && int.subdims.irremediabilidad.mean !== null ? int.subdims.irremediabilidad.mean : impactMean;
       const impactoFinanciero = int.subdims && int.subdims.impacto_financiero && int.subdims.impacto_financiero.mean !== null ? int.subdims.impacto_financiero.mean : finMean;
 
-      const p = weightedAverage([
+      const pSuggested = weightedAverage([
         { value: probSocial, weight: legacyPWeights.probabilidad },
         { value: probFinanciera, weight: legacyPWeights.probabilidad_financiera },
       ]);
 
-      const s = weightedAverage([
+      const sSuggested = weightedAverage([
         { value: severidad, weight: legacySWeights.severidad },
         { value: alcance, weight: legacySWeights.alcance },
         { value: irremediabilidad, weight: legacySWeights.irremediabilidad },
       ]);
 
-      const b = weightedAverage([
+      const bSuggested = weightedAverage([
         { value: impactoFinanciero, weight: legacyBWeights.financiero },
         { value: stakeholderMean, weight: legacyBWeights.relevancia_externa },
       ]);
+
+      const p = manual.p !== null ? manual.p : pSuggested;
+      const s = manual.s !== null ? manual.s : sSuggested;
+      const b = manual.b !== null ? manual.b : bSuggested;
 
       const e = scaleRating5ToLegacy4(stakeholderMean);
       const c = scaleShareToLegacy4(top2Box);
@@ -1040,6 +1045,16 @@ function computeScores(db) {
         impacto_financiero: impactoFinanciero,
         score_impacto: impactMean,
         score_financiero: finMean,
+        p_sugerido: pSuggested,
+        s_sugerido: sSuggested,
+        b_sugerido: bSuggested,
+        p_manual: manual.p,
+        s_manual: manual.s,
+        b_manual: manual.b,
+        p_origen: manual.p !== null ? "manual" : "sugerido",
+        s_origen: manual.s !== null ? "manual" : "sugerido",
+        b_origen: manual.b !== null ? "manual" : "sugerido",
+        ajustes_manuales: [manual.p, manual.s, manual.b].filter((value) => value !== null).length,
         p,
         s,
         b,
@@ -1112,14 +1127,26 @@ function computeScores(db) {
         <td class="right legacy-computed">${row.stakeholder_mean === null ? "" : fmt(row.stakeholder_mean, 2)}</td>
         <td class="right legacy-computed">${row.top2box === null ? "" : `${fmt(row.top2box * 100, 1)}%`}</td>
         <td class="right legacy-computed">${row.active_groups_share === null ? "" : `${fmt(row.active_groups_share * 100, 1)}%`}</td>
-        <td class="right legacy-computed">${row.p === null ? "" : fmt(row.p, 2)}</td>
-        <td class="right legacy-computed">${row.s === null ? "" : fmt(row.s, 2)}</td>
-        <td class="right legacy-computed">${row.b === null ? "" : fmt(row.b, 2)}</td>
+        <td class="legacy-input-cell">
+          <input class="legacy-number ${row.p_manual !== null ? "is-manual" : ""}" data-field="p" type="number" min="1" max="5" step="0.01" value="${row.p === null ? "" : fmt(row.p, 2)}" data-suggested="${row.p_sugerido === null ? "" : fmt(row.p_sugerido, 2)}" />
+          <div class="legacy-suggestion">Sug. ${row.p_sugerido === null ? "N/D" : fmt(row.p_sugerido, 2)}</div>
+        </td>
+        <td class="legacy-input-cell">
+          <input class="legacy-number ${row.s_manual !== null ? "is-manual" : ""}" data-field="s" type="number" min="1" max="5" step="0.01" value="${row.s === null ? "" : fmt(row.s, 2)}" data-suggested="${row.s_sugerido === null ? "" : fmt(row.s_sugerido, 2)}" />
+          <div class="legacy-suggestion">Sug. ${row.s_sugerido === null ? "N/D" : fmt(row.s_sugerido, 2)}</div>
+        </td>
+        <td class="legacy-input-cell">
+          <input class="legacy-number ${row.b_manual !== null ? "is-manual" : ""}" data-field="b" type="number" min="1" max="5" step="0.01" value="${row.b === null ? "" : fmt(row.b, 2)}" data-suggested="${row.b_sugerido === null ? "" : fmt(row.b_sugerido, 2)}" />
+          <div class="legacy-suggestion">Sug. ${row.b_sugerido === null ? "N/D" : fmt(row.b_sugerido, 2)}</div>
+        </td>
         <td class="right legacy-computed">${row.e === null ? "" : fmt(row.e, 2)}</td>
         <td class="right legacy-computed">${row.c === null ? "" : fmt(row.c, 2)}</td>
         <td class="right legacy-computed">${row.f === null ? "" : fmt(row.f, 2)}</td>
         <td class="right legacy-computed"><strong>${row.significancia === null ? "" : fmt(row.significancia, 2)}</strong></td>
         <td class="right legacy-computed">${row.expectativas_total === null ? "" : fmt(row.expectativas_total, 2)}</td>
+        <td class="legacy-row-actions">
+          <button class="btn btn-ghost btn-small" type="button" data-reset-legacy-topic="${escapeHTML(row.tema_id)}">Auto</button>
+        </td>
       </tr>
     `).join("");
 
@@ -2483,6 +2510,48 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   }
 
   function hookLegacyView() {
+    const driversBody = document.querySelector("#tableLegacyDrivers tbody");
+    if (driversBody) {
+      const saveLegacyOverrides = (tr) => {
+        if (!tr) return;
+        const temaId = tr.getAttribute("data-tid");
+        if (!temaId) return;
+        const db = ensureDB();
+        const current = getLegacyMatrixRow(db, temaId);
+        const next = { ...current };
+        ["p", "s", "b"].forEach((field) => {
+          const input = tr.querySelector(`[data-field="${field}"]`);
+          if (!input) return;
+          const value = sanitizeBoundedNumber(input.value, 1, 5);
+          const suggested = sanitizeBoundedNumber(input.dataset.suggested, 1, 5);
+          if (value === null || (suggested !== null && Math.abs(value - suggested) < 0.005)) next[field] = null;
+          else next[field] = value;
+        });
+        setLegacyMatrixRow(db, temaId, next);
+        saveDB(db);
+        renderLegacyView(db);
+        if (document.getElementById("view-report").classList.contains("active")) renderReport(db);
+      };
+
+      driversBody.addEventListener("change", (ev) => {
+        const input = ev.target.closest("input[data-field]");
+        if (!input) return;
+        saveLegacyOverrides(input.closest("tr[data-tid]"));
+      });
+
+      driversBody.addEventListener("click", (ev) => {
+        const btn = ev.target.closest("button[data-reset-legacy-topic]");
+        if (!btn) return;
+        const temaId = btn.getAttribute("data-reset-legacy-topic");
+        const db = ensureDB();
+        const current = getLegacyMatrixRow(db, temaId);
+        setLegacyMatrixRow(db, temaId, { ...current, p: null, s: null, b: null });
+        saveDB(db);
+        renderLegacyView(db);
+        if (document.getElementById("view-report").classList.contains("active")) renderReport(db);
+      });
+    }
+
     const clearBtn = document.getElementById("btnLegacyClear");
     if (clearBtn) {
       clearBtn.addEventListener("click", () => {
@@ -2497,6 +2566,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
           legacySWeights: cloneDeep(DEFAULT_PARAMS.legacySWeights),
           legacyBWeights: cloneDeep(DEFAULT_PARAMS.legacyBWeights),
         };
+        db.legacyMatrix = { rowsByTheme: {} };
         saveDB(db);
         syncParamsToUI(db);
         renderAll(db);
