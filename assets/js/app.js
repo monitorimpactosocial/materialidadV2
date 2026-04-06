@@ -4102,29 +4102,45 @@ Equipo PARACEL`;
 
 
 // ----------------------------------------------------
-// Carga y conciliación de datos (local, inicial y nube)
-// PRIORITY: initialDB (local file) > localDB (localStorage) > cloudDB (GAS)
-// NOTE: Cloud fetch is disabled to prioritize local data updates
-// TODO: Update Google Apps Script endpoint before re-enabling cloud sync
+// Carga y conciliación de datos - SOLO DESDE GOOGLE SHEETS (Excel en línea)
+// IMPORTANTE: No se mezcla con localStorage ni con initialDB para evitar duplicados
+// Se limpia localStorage al iniciar para asegurar estado limpio
 // ----------------------------------------------------
-const initialDB = await loadOptionalJSON("data/initial_db.json");
-const localDB = loadLocalDB();
 
-// Start with initialDB as base (prioritize local file data over cloud)
-let mergedDB = mergeDBs(initialDB, localDB);
+// Limpiar localStorage al iniciar - comienza con estado limpio
+try {
+  localStorage.removeItem(APP_KEY);
+  console.log("localStorage limpiado - comenzando desde cero");
+} catch(err) {
+  console.warn("No se pudo limpiar localStorage:", err);
+}
 
-// Skip cloud fetch temporarily - local data takes priority
-// This prevents outdated GAS data from overriding fresh evaluations
-// try {
-//   const cloudDB = await fetchCloudDB();
-//   if (cloudDB) mergedDB = mergeDBs(mergedDB, cloudDB);
-// } catch(err) {
-//   console.error("Fallo crítico: No se pudo leer Google Sheets.", err);
-//   alert("Atención: No se pudieron cargar los datos de la nube. La aplicación continuará en modo local.");
-// }
+const initialDB = null; // No usar initialDB
+let mergedDB = null;
+
+// Cargar SOLO desde Google Sheets (Excel en línea)
+try {
+  const cloudDB = await fetchCloudDB();
+  if (cloudDB) {
+    mergedDB = cloudDB;
+    console.log("✓ Datos cargados desde Google Sheets - respuestas externas:", (cloudDB.externalResponses || []).length, "evaluaciones internas:", (cloudDB.internalAssessments || []).length);
+  }
+} catch(err) {
+  console.error("Fallo al leer Google Sheets:", err);
+  alert("Atención: No se pudieron cargar los datos del Excel en línea. Verifique su conexión.");
+}
 
 if (!mergedDB) {
-  mergedDB = mergeDBs(initialDB, localDB);
+  // Si no hay datos en la nube, crear estructura vacía
+  mergedDB = {
+    version: CURRENT_SCHEMA_VERSION,
+    editions: [{ id: "edicion-historica", name: "Edición Histórica (2025)", startDate: new Date().toISOString(), status: "open" }],
+    currentEditionId: "edicion-historica",
+    externalResponses: [],
+    internalAssessments: [],
+    params: {},
+    lastScenarioId: "base_moderado"
+  };
 }
 
 if (mergedDB) {
