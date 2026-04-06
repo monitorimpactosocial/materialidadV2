@@ -4104,6 +4104,8 @@ Equipo PARACEL`;
 // ----------------------------------------------------
 // Carga y conciliación de datos (local, inicial y nube)
 // PRIORITY: initialDB (local file) > localDB (localStorage) > cloudDB (GAS)
+// NOTE: Cloud fetch is disabled to prioritize local data updates
+// TODO: Update Google Apps Script endpoint before re-enabling cloud sync
 // ----------------------------------------------------
 const initialDB = await loadOptionalJSON("data/initial_db.json");
 const localDB = loadLocalDB();
@@ -4111,13 +4113,15 @@ const localDB = loadLocalDB();
 // Start with initialDB as base (prioritize local file data over cloud)
 let mergedDB = mergeDBs(initialDB, localDB);
 
-try {
-  const cloudDB = await fetchCloudDB();
-  if (cloudDB) mergedDB = mergeDBs(mergedDB, cloudDB);
-} catch(err) {
-  console.error("Fallo crítico: No se pudo leer Google Sheets.", err);
-  alert("Atención: No se pudieron cargar los datos de la nube. La aplicación continuará en modo local.");
-}
+// Skip cloud fetch temporarily - local data takes priority
+// This prevents outdated GAS data from overriding fresh evaluations
+// try {
+//   const cloudDB = await fetchCloudDB();
+//   if (cloudDB) mergedDB = mergeDBs(mergedDB, cloudDB);
+// } catch(err) {
+//   console.error("Fallo crítico: No se pudo leer Google Sheets.", err);
+//   alert("Atención: No se pudieron cargar los datos de la nube. La aplicación continuará en modo local.");
+// }
 
 if (!mergedDB) {
   mergedDB = mergeDBs(initialDB, localDB);
