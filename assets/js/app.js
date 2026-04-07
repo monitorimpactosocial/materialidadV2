@@ -3098,6 +3098,131 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     Plotly.newPlot("plotDobleMatScatter", traces, layout, { displayModeBar: false, responsive: true });
   }
 
+  function renderDobleMatThermometer(db) {
+    const target = document.getElementById("plotDobleMatThermometer");
+    if (!target) return;
+
+    const params = getParams(db);
+    const { rows } = computeScores(db);
+    const valid = rows.filter((r) => r.impact_score !== null || r.fin_score !== null);
+    if (!valid.length) {
+      target.innerHTML = `<div class="muted">Sin datos suficientes.</div>`;
+      return;
+    }
+
+    const tauImp = params.tauImpact;
+    const tauFin = params.tauFin;
+
+    // Barras de fondo: zonas verde (0-umbral×0.6), amarillo (umbral×0.6-umbral), rojo (umbral-5)
+    const zoneShapes = [];
+    const addZones = (xCenter, halfW) => {
+      const lowEnd = tauImp * 0.6;
+      zoneShapes.push(
+        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: 0, y1: lowEnd, fillcolor: "rgba(34,197,94,0.25)", line: { width: 0 }, layer: "below" },
+        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: lowEnd, y1: tauImp, fillcolor: "rgba(234,179,8,0.25)", line: { width: 0 }, layer: "below" },
+        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: tauImp, y1: 5, fillcolor: "rgba(239,68,68,0.18)", line: { width: 0 }, layer: "below" },
+      );
+    };
+    const addZonesFin = (xCenter, halfW) => {
+      const lowEnd = tauFin * 0.6;
+      zoneShapes.push(
+        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: 0, y1: lowEnd, fillcolor: "rgba(34,197,94,0.25)", line: { width: 0 }, layer: "below" },
+        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: lowEnd, y1: tauFin, fillcolor: "rgba(234,179,8,0.25)", line: { width: 0 }, layer: "below" },
+        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: tauFin, y1: 5, fillcolor: "rgba(239,68,68,0.18)", line: { width: 0 }, layer: "below" },
+      );
+    };
+
+    // Columna izquierda: x=1, columna derecha: x=3
+    const hw = 0.6;
+    addZones(1, hw);
+    addZonesFin(3, hw);
+
+    // Líneas de umbral
+    zoneShapes.push(
+      { type: "line", x0: 1 - hw, x1: 1 + hw, y0: tauImp, y1: tauImp, line: { color: "#111", width: 2 }, layer: "above" },
+      { type: "line", x0: 3 - hw, x1: 3 + hw, y0: tauFin, y1: tauFin, line: { color: "#111", width: 2 }, layer: "above" },
+    );
+
+    // Puntos: cada tema como marcador en la columna correspondiente
+    // Impacto (x=1) con jitter
+    const impRows = valid.filter((r) => r.impact_score !== null);
+    const finRows = valid.filter((r) => r.fin_score !== null);
+
+    const jitter = (arr, base) => arr.map((_, i) => base + (Math.random() - 0.5) * 0.35);
+
+    const traces = [];
+    if (impRows.length) {
+      traces.push({
+        x: jitter(impRows, 1),
+        y: impRows.map((r) => r.impact_score),
+        text: impRows.map((r) => r.tema_id),
+        customdata: impRows.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
+        mode: "markers+text",
+        type: "scatter",
+        name: "Impacto ASG",
+        textposition: "middle right",
+        textfont: { size: 9, color: "#374151" },
+        marker: {
+          size: impRows.map((r) => r.impact_score >= tauImp ? 16 : 10),
+          color: impRows.map((r) => r.impact_score >= tauImp ? "#dc2626" : r.impact_score >= tauImp * 0.6 ? "#eab308" : "#22c55e"),
+          opacity: 0.9,
+          line: { width: 1.5, color: "#fff" },
+          symbol: impRows.map((r) => r.impact_score >= tauImp ? "triangle-up" : "circle"),
+        },
+        hovertemplate: "<b>%{customdata}</b><br>Impacto ASG: %{y:.2f}<extra></extra>",
+      });
+    }
+    if (finRows.length) {
+      traces.push({
+        x: jitter(finRows, 3),
+        y: finRows.map((r) => r.fin_score),
+        text: finRows.map((r) => r.tema_id),
+        customdata: finRows.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
+        mode: "markers+text",
+        type: "scatter",
+        name: "Financiero",
+        textposition: "middle right",
+        textfont: { size: 9, color: "#374151" },
+        marker: {
+          size: finRows.map((r) => r.fin_score >= tauFin ? 16 : 10),
+          color: finRows.map((r) => r.fin_score >= tauFin ? "#dc2626" : r.fin_score >= tauFin * 0.6 ? "#eab308" : "#22c55e"),
+          opacity: 0.9,
+          line: { width: 1.5, color: "#fff" },
+          symbol: finRows.map((r) => r.fin_score >= tauFin ? "triangle-up" : "circle"),
+        },
+        hovertemplate: "<b>%{customdata}</b><br>Financiero: %{y:.2f}<extra></extra>",
+      });
+    }
+
+    const annotations = [
+      { x: 1, y: 5.3, text: "<b>Materialidad de Impacto</b>", showarrow: false, font: { size: 13, color: "#064e3b" }, xanchor: "center" },
+      { x: 1, y: 5.05, text: "Impacto de Paracel al desarrollo<br>sostenible (económico, social, ambiental)", showarrow: false, font: { size: 9, color: "#6b7280" }, xanchor: "center" },
+      { x: 3, y: 5.3, text: "<b>Materialidad Financiera</b>", showarrow: false, font: { size: 13, color: "#1e3a8a" }, xanchor: "center" },
+      { x: 3, y: 5.05, text: "Riesgos y Oportunidades ASG que<br>representen afectaciones financieras", showarrow: false, font: { size: 9, color: "#6b7280" }, xanchor: "center" },
+      // Escala labels
+      { x: 1 - hw - 0.08, y: 5, text: "<b>5</b>", showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
+      { x: 1 - hw - 0.08, y: tauImp, text: `<b>${fmt(tauImp, 0)}</b>`, showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
+      { x: 1 - hw - 0.08, y: 0, text: "<b>0</b>", showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
+      { x: 3 - hw - 0.08, y: 5, text: "<b>5</b>", showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
+      { x: 3 - hw - 0.08, y: tauFin, text: `<b>${fmt(tauFin, 0)}</b>`, showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
+      { x: 3 - hw - 0.08, y: 0, text: "<b>0</b>", showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
+    ];
+
+    const layout = {
+      height: 520,
+      margin: { l: 20, r: 20, t: 80, b: 30 },
+      xaxis: { range: [-0.2, 4.5], showgrid: false, zeroline: false, showticklabels: false, fixedrange: true },
+      yaxis: { range: [-0.3, 5.6], showgrid: false, zeroline: false, showticklabels: false, fixedrange: true },
+      shapes: zoneShapes,
+      annotations,
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#ffffff",
+      showlegend: false,
+    };
+
+    Plotly.newPlot("plotDobleMatThermometer", traces, layout, { displayModeBar: false, responsive: true });
+  }
+
   function renderDobleMatTable(db) {
     const tbody = document.querySelector("#tableDobleMatAll tbody");
     if (!tbody) return;
@@ -3160,6 +3285,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   function renderDobleMatView(db) {
     renderDobleMatKPIs(db);
     renderDobleMatPlot(db);
+    renderDobleMatThermometer(db);
     renderDobleMatTable(db);
     renderDobleMatPortfolio(db);
     renderRadarPlot(db, "plotDobleMatRadar");
