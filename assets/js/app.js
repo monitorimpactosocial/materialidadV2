@@ -1279,6 +1279,20 @@ function computeScores(db) {
     const maxY = legacy.axisMaxExpect;
     const isPrint = target.classList.contains("plot-print");
 
+    // Calcular rango dinámico basado en datos reales + padding
+    const xMin = Math.min(...x);
+    const xMax = Math.max(...x);
+    const yMin = Math.min(...y);
+    const yMax = Math.max(...y);
+    const xSpread = Math.max(xMax - xMin, 2);
+    const ySpread = Math.max(yMax - yMin, 2);
+    const xPad = xSpread * 0.25;
+    const yPad = ySpread * 0.25;
+    const axisX0 = Math.max(0, xMin - xPad);
+    const axisX1 = Math.min(maxX, xMax + xPad);
+    const axisY0 = Math.max(0, yMin - yPad);
+    const axisY1 = Math.min(maxY, yMax + yPad);
+
     const data = [{
       x,
       y,
@@ -1290,20 +1304,23 @@ function computeScores(db) {
       customdata: legacy.displayRows.map((row) => row.cuadrante || "")
     }];
 
-    const shapes = [
-      { type: "line", x0: xLower, x1: xLower, y0: 0, y1: maxY, line: { color: "#111111", width: 2, dash: "dash" } },
-      { type: "line", x0: xUpper, x1: xUpper, y0: 0, y1: maxY, line: { color: "#111111", width: 2, dash: "dash" } },
-      { type: "line", x0: 0, x1: maxX, y0: yLower, y1: yLower, line: { color: "#111111", width: 2, dash: "dash" } },
-      { type: "line", x0: 0, x1: maxX, y0: yUpper, y1: yUpper, line: { color: "#111111", width: 2, dash: "dash" } },
-    ];
+    // Líneas de banda (solo las visibles dentro del rango dinámico)
+    const shapes = [];
+    if (xLower >= axisX0 && xLower <= axisX1)
+      shapes.push({ type: "line", x0: xLower, x1: xLower, y0: axisY0, y1: axisY1, line: { color: "#111111", width: 2, dash: "dash" } });
+    if (xUpper >= axisX0 && xUpper <= axisX1)
+      shapes.push({ type: "line", x0: xUpper, x1: xUpper, y0: axisY0, y1: axisY1, line: { color: "#111111", width: 2, dash: "dash" } });
+    if (yLower >= axisY0 && yLower <= axisY1)
+      shapes.push({ type: "line", x0: axisX0, x1: axisX1, y0: yLower, y1: yLower, line: { color: "#111111", width: 2, dash: "dash" } });
+    if (yUpper >= axisY0 && yUpper <= axisY1)
+      shapes.push({ type: "line", x0: axisX0, x1: axisX1, y0: yUpper, y1: yUpper, line: { color: "#111111", width: 2, dash: "dash" } });
 
+    // Anotaciones de cuadrante basadas en el rango visible
+    const xMid = (axisX0 + axisX1) / 2;
+    const yMid = (axisY0 + axisY1) / 2;
     const annotations = [
-      { x: maxX / 6, y: 0.4, text: "<b>IMPORTANCIA BAJA</b>", xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 12, color: "#0070c9" } },
-      { x: maxX / 2, y: 0.4, text: "<b>IMPORTANCIA MEDIA</b>", xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 12, color: "#0070c9" } },
-      { x: (maxX * 5) / 6, y: 0.4, text: "<b>IMPORTANCIA ALTA</b>", xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 12, color: "#0070c9" } },
-      { x: 1, y: maxY / 6, text: "<b>IMPORTANCIA BAJA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 12, color: "#0070c9" } },
-      { x: 1, y: maxY / 2, text: "<b>IMPORTANCIA MEDIA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 12, color: "#0070c9" } },
-      { x: 1, y: (maxY * 5) / 6, text: "<b>IMPORTANCIA ALTA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 12, color: "#0070c9" } },
+      { x: xMid, y: axisY0 + 0.1, text: `<b>Ref. Impacto: ${xLower.toFixed(1)} | ${xUpper.toFixed(1)}</b>`, xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
+      { x: axisX0 + 0.1, y: yMid, text: `<b>Ref. Expect: ${yLower.toFixed(1)} | ${yUpper.toFixed(1)}</b>`, textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 11, color: "#0070c9" } },
     ];
 
     const layout = {
@@ -1312,9 +1329,7 @@ function computeScores(db) {
       margin: { l: 88, r: 24, t: 66, b: 82 },
       xaxis: {
         title: { text: "<b>IMPACTO EN LA ESTRATEGIA</b>", standoff: 18, font: { size: 14, color: "#111111" } },
-        range: [0, maxX],
-        tick0: 0,
-        dtick: 2,
+        range: [axisX0, axisX1],
         tickfont: { size: 11, color: "#111111" },
         gridcolor: "#c9cdd3",
         gridwidth: 1,
@@ -1325,9 +1340,7 @@ function computeScores(db) {
       },
       yaxis: {
         title: { text: "<b>EXPECTATIVAS GRUPOS DE INTERÉS</b>", standoff: 12, font: { size: 14, color: "#111111" } },
-        range: [0, maxY],
-        tick0: 0,
-        dtick: 2,
+        range: [axisY0, axisY1],
         tickfont: { size: 11, color: "#111111" },
         gridcolor: "#c9cdd3",
         gridwidth: 1,
