@@ -65,6 +65,9 @@
       <button class="nav-item active" data-view="report" type="button">
         <span class="nav-icon">🧾</span><span>Reporte</span>
       </button>
+      <button class="nav-item" data-view="doblemat" type="button">
+        <span class="nav-icon">⚖</span><span>Doble Materialidad</span>
+      </button>
       <button class="nav-item" data-view="legacy" type="button">
         <span class="nav-icon">🧮</span><span>Matriz Clásica</span>
       </button>
@@ -281,6 +284,130 @@
       <!-- Dashboard integrado en Reporte -->
 
       <!-- MATRIZ CLASICA -->
+      <!-- DOBLE MATERIALIDAD -->
+      <section class="view" id="view-doblemat">
+        <div class="card">
+          <div class="card-header" style="border-bottom: 3px solid var(--primary); padding-bottom: 16px;">
+            <h1 style="margin:0; font-size:24px; color:var(--primary);">Doble Materialidad</h1>
+            <p class="muted" style="margin:6px 0 0 0;">Cruce entre materialidad de impacto ASG (<em>outside-in</em>) y materialidad financiera (<em>inside-out</em>) según GRI 2021 y CSRD/ESRS.</p>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="grid-2 mt-16" style="grid-template-columns: repeat(4, 1fr); gap:12px;">
+          <div class="card" style="text-align:center; padding:16px;">
+            <div class="muted small" style="text-transform:uppercase; letter-spacing:0.05em;">Mat. Impacto</div>
+            <div style="font-size:28px; font-weight:800; color:#059669;" id="dmKpiImpact">0</div>
+            <div class="muted small">Impacto ASG ≥ umbral</div>
+          </div>
+          <div class="card" style="text-align:center; padding:16px;">
+            <div class="muted small" style="text-transform:uppercase; letter-spacing:0.05em;">Mat. Financiera</div>
+            <div style="font-size:28px; font-weight:800; color:#2563eb;" id="dmKpiFin">0</div>
+            <div class="muted small">Riesgo/oportunidad ≥ umbral</div>
+          </div>
+          <div class="card" style="text-align:center; padding:16px;">
+            <div class="muted small" style="text-transform:uppercase; letter-spacing:0.05em;">Doble Materialidad</div>
+            <div style="font-size:28px; font-weight:800; color:#b91c1c;" id="dmKpiDouble">0</div>
+            <div class="muted small">Ambas dimensiones</div>
+          </div>
+          <div class="card" style="text-align:center; padding:16px;">
+            <div class="muted small" style="text-transform:uppercase; letter-spacing:0.05em;">Sin Materialidad</div>
+            <div style="font-size:28px; font-weight:800; color:#6b7280;" id="dmKpiNone">0</div>
+            <div class="muted small">Debajo de ambos umbrales</div>
+          </div>
+        </div>
+
+        <!-- Figura principal: scatter doble materialidad -->
+        <div class="card mt-16">
+          <div class="card-header">
+            <h2>Matriz de Doble Materialidad</h2>
+            <p class="muted">Eje X = Impacto ASG (evaluación interna, outside-in). Eje Y = Impacto Financiero (riesgos y oportunidades, inside-out). Tamaño del punto = importancia percibida por stakeholders. Líneas punteadas = umbrales configurados.</p>
+          </div>
+          <div class="card-body">
+            <div id="plotDobleMatScatter" class="plot" style="min-height:550px;"></div>
+          </div>
+        </div>
+
+        <!-- Tabla de clasificación -->
+        <div class="card mt-16">
+          <div class="card-header">
+            <h2>Clasificación de temas (27)</h2>
+            <p class="muted">Todos los temas con su puntaje en ambas dimensiones y clasificación según la regla de doble materialidad configurada.</p>
+          </div>
+          <div class="card-body">
+            <div class="table-wrap">
+              <table class="table" id="tableDobleMatAll">
+                <thead>
+                  <tr>
+                    <th>Tema</th>
+                    <th class="right">Stakeholders</th>
+                    <th class="right">Impacto ASG</th>
+                    <th class="right">Financiero</th>
+                    <th>Clasificación</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Portafolio estratégico 2×2 -->
+        <div class="card mt-16">
+          <div class="card-header">
+            <h2>Portafolio estratégico</h2>
+            <p class="muted">Clasificación de temas en los 4 cuadrantes de la doble materialidad con recomendaciones de gestión (GRI 3: Material Topics 2021; CSRD, Art. 19bis).</p>
+          </div>
+          <div class="card-body">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;" id="dmPortfolio">
+              <div style="background:#d1fae5; border:2px solid #059669; border-radius:8px; padding:14px;">
+                <div style="font-weight:800; color:#065f46; font-size:14px;">DOBLE MATERIALIDAD</div>
+                <div class="muted small" style="margin:4px 0 8px 0;">Impacto ASG alto + Riesgo financiero alto</div>
+                <div style="font-size:12px; color:#334155; margin-bottom:8px;"><strong>Acción:</strong> Gestión proactiva. Integrar en estrategia de negocio, definir KPIs, asignar responsables, reportar según GRI 3-3.</div>
+                <div id="dmQ1List" style="font-size:12px;"></div>
+              </div>
+              <div style="background:#dbeafe; border:2px solid #2563eb; border-radius:8px; padding:14px;">
+                <div style="font-weight:800; color:#1e3a8a; font-size:14px;">SOLO FINANCIERA</div>
+                <div class="muted small" style="margin:4px 0 8px 0;">Impacto ASG bajo + Riesgo financiero alto</div>
+                <div style="font-size:12px; color:#334155; margin-bottom:8px;"><strong>Acción:</strong> Integrar en gestión de riesgos empresariales. Monitorear evolución del riesgo y definir contingencias.</div>
+                <div id="dmQ2List" style="font-size:12px;"></div>
+              </div>
+              <div style="background:#fef9c3; border:2px solid #ca8a04; border-radius:8px; padding:14px;">
+                <div style="font-weight:800; color:#713f12; font-size:14px;">SOLO IMPACTO</div>
+                <div class="muted small" style="margin:4px 0 8px 0;">Impacto ASG alto + Riesgo financiero bajo</div>
+                <div style="font-size:12px; color:#334155; margin-bottom:8px;"><strong>Acción:</strong> Gestión de puntos críticos en cadena de valor. Debida diligencia ASG según GRI/UNGP.</div>
+                <div id="dmQ3List" style="font-size:12px;"></div>
+              </div>
+              <div style="background:#f3f4f6; border:2px solid #9ca3af; border-radius:8px; padding:14px;">
+                <div style="font-weight:800; color:#374151; font-size:14px;">SIN PRIORIDAD</div>
+                <div class="muted small" style="margin:4px 0 8px 0;">Impacto ASG bajo + Riesgo financiero bajo</div>
+                <div style="font-size:12px; color:#334155; margin-bottom:8px;"><strong>Acción:</strong> Gestión estándar. Revisión periódica en el próximo ciclo de materialidad.</div>
+                <div id="dmQ4List" style="font-size:12px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Radar comparativo -->
+        <div class="card mt-16">
+          <div class="card-header">
+            <h2>Radar comparativo: Impacto ASG vs. Financiero</h2>
+            <p class="muted">Top 10 temas por prioridad integrada. Permite visualizar el balance entre la dimensión de impacto y la financiera para cada tema.</p>
+          </div>
+          <div class="card-body">
+            <div id="plotDobleMatRadar" class="plot" style="min-height:480px;"></div>
+          </div>
+        </div>
+
+        <!-- Nota metodológica -->
+        <div class="card mt-16">
+          <div class="card-body" style="font-size:13px; color:#475569; line-height:1.6;">
+            <strong>Nota metodológica:</strong> La doble materialidad evalúa cada tema desde dos perspectivas independientes: el impacto de la organización sobre la sociedad y el ambiente (materialidad de impacto, <em>outside-in</em>) y los riesgos y oportunidades ASG que afectan el desempeño financiero de la empresa (materialidad financiera, <em>inside-out</em>). Los umbrales de corte y la regla de combinación (AND/OR) se configuran en la pestaña Matriz Clásica. Para detalles completos sobre el proceso, las fórmulas y las fuentes normativas, consulte la pestaña <strong>Metodología</strong>.
+            <div class="muted small" style="margin-top:8px;">Referencias: GRI 1: Foundation 2021, sección 2.1; GRI 3: Material Topics 2021, pasos 3-5; ESRS 1 (EFRAG 2023), sección 3.4; CSRD, Directiva 2022/2464, Art. 19bis; IFRS S1 (ISSB 2023), párrafo 56.</div>
+          </div>
+        </div>
+      </section>
+
       <section class="view" id="view-legacy">
         <div class="grid-2">
           <div class="card">
@@ -1145,6 +1272,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=37"></script>
+  <script src="assets/js/app.js?v=38"></script>
 </body>
 </html>

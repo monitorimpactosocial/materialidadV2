@@ -2035,6 +2035,7 @@ function computeScores(db) {
     const db = ensureDB();
     if (viewName === "legacy") renderLegacyView(db);
     if (viewName === "compiled") renderCompiledDataView(db);
+    if (viewName === "doblemat") renderDobleMatView(db);
     if (viewName === "report") { renderDashboard(db); renderReport(db); }
   }
 
@@ -3004,6 +3005,164 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       `;
       tbody.appendChild(tr);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Doble Materialidad (pestaña dedicada)
+  // ---------------------------------------------------------------------------
+  function renderDobleMatPlot(db) {
+    const target = document.getElementById("plotDobleMatScatter");
+    if (!target) return;
+
+    const params = getParams(db);
+    const { rows } = computeScores(db);
+    const valid = rows.filter((r) => r.impact_score !== null && r.fin_score !== null);
+    if (!valid.length) {
+      try { Plotly.purge(target); } catch {}
+      target.innerHTML = `<div class="muted">Se requieren evaluaciones internas con datos de impacto y financiero.</div>`;
+      return;
+    }
+
+    const tauImp = params.tauImpact;
+    const tauFin = params.tauFin;
+
+    // 4 categorías
+    const double = valid.filter((r) => r.double_mat);
+    const impOnly = valid.filter((r) => r.impact_mat && !r.fin_mat);
+    const finOnly = valid.filter((r) => !r.impact_mat && r.fin_mat);
+    const none = valid.filter((r) => !r.impact_mat && !r.fin_mat);
+
+    const mkTrace = (data, name, color, baseSize) => ({
+      x: data.map((r) => r.impact_score),
+      y: data.map((r) => r.fin_score),
+      text: data.map((r) => r.tema_id),
+      customdata: data.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
+      mode: "markers+text",
+      type: "scatter",
+      name,
+      textposition: "top center",
+      textfont: { size: 8, color: "#374151" },
+      marker: {
+        size: data.map((r) => Math.max(baseSize, (r.stakeholder_mean || 1) * baseSize / 3)),
+        color,
+        opacity: 0.88,
+        line: { width: 1.5, color: "#ffffff" },
+      },
+      hovertemplate: "<b>%{customdata}</b><br>Impacto ASG: %{x:.2f}<br>Financiero: %{y:.2f}<br>Stakeholders: %{marker.size:.0f}<extra></extra>",
+    });
+
+    const traces = [];
+    if (none.length) traces.push(mkTrace(none, "Sin prioridad", "#d1d5db", 8));
+    if (impOnly.length) traces.push(mkTrace(impOnly, "Solo Impacto", "#eab308", 14));
+    if (finOnly.length) traces.push(mkTrace(finOnly, "Solo Financiera", "#3b82f6", 14));
+    if (double.length) traces.push(mkTrace(double, "Doble Materialidad", "#059669", 18));
+
+    const pad = 0.3;
+    const axMin = 1 - pad;
+    const axMax = 5 + pad;
+
+    // 4 cuadrantes coloreados
+    const shapes = [
+      { type: "rect", x0: axMin, x1: tauImp, y0: axMin, y1: tauFin, fillcolor: "rgba(156,163,175,0.06)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: tauImp, x1: axMax, y0: axMin, y1: tauFin, fillcolor: "rgba(234,179,8,0.08)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: axMin, x1: tauImp, y0: tauFin, y1: axMax, fillcolor: "rgba(59,130,246,0.08)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: tauImp, x1: axMax, y0: tauFin, y1: axMax, fillcolor: "rgba(5,150,105,0.10)", line: { width: 0 }, layer: "below" },
+      // Líneas de umbral
+      { type: "line", x0: tauImp, x1: tauImp, y0: axMin, y1: axMax, line: { color: "#b91c1c", width: 2, dash: "dash" }, layer: "above" },
+      { type: "line", x0: axMin, x1: axMax, y0: tauFin, y1: tauFin, line: { color: "#b91c1c", width: 2, dash: "dash" }, layer: "above" },
+    ];
+
+    const annotations = [
+      { x: (axMin + tauImp) / 2, y: axMax - 0.1, text: "<b>Solo Financiera</b>", showarrow: false, font: { size: 10, color: "#1e40af" }, xanchor: "center", yanchor: "top" },
+      { x: (tauImp + axMax) / 2, y: axMax - 0.1, text: "<b>DOBLE MATERIALIDAD</b>", showarrow: false, font: { size: 11, color: "#065f46" }, xanchor: "center", yanchor: "top" },
+      { x: (axMin + tauImp) / 2, y: axMin + 0.1, text: "<b>Sin prioridad</b>", showarrow: false, font: { size: 10, color: "#6b7280" }, xanchor: "center", yanchor: "bottom" },
+      { x: (tauImp + axMax) / 2, y: axMin + 0.1, text: "<b>Solo Impacto</b>", showarrow: false, font: { size: 10, color: "#92400e" }, xanchor: "center", yanchor: "bottom" },
+      { x: tauImp, y: axMax, text: `τ Imp: ${fmt(tauImp, 1)}`, showarrow: false, font: { size: 8, color: "#b91c1c" }, xanchor: "left", yanchor: "top" },
+      { x: axMax, y: tauFin, text: `τ Fin: ${fmt(tauFin, 1)}`, showarrow: false, font: { size: 8, color: "#b91c1c" }, xanchor: "right", yanchor: "bottom" },
+    ];
+
+    const layout = {
+      title: { text: "<b>MATRIZ DE DOBLE MATERIALIDAD</b>", x: 0.5, xanchor: "center", font: { size: 20, color: "#111" } },
+      height: 580,
+      margin: { l: 70, r: 30, t: 60, b: 70 },
+      xaxis: { title: { text: "<b>Materialidad de Impacto ASG (outside-in)</b>", font: { size: 13 } }, range: [axMin, axMax], dtick: 0.5, gridcolor: "#e5e7eb", linecolor: "#9ca3af", mirror: true, zeroline: false },
+      yaxis: { title: { text: "<b>Materialidad Financiera (inside-out)</b>", font: { size: 13 } }, range: [axMin, axMax], dtick: 0.5, gridcolor: "#e5e7eb", linecolor: "#9ca3af", mirror: true, zeroline: false },
+      shapes,
+      annotations,
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#ffffff",
+      showlegend: true,
+      legend: { orientation: "h", y: -0.18, x: 0.5, xanchor: "center" },
+    };
+
+    Plotly.newPlot("plotDobleMatScatter", traces, layout, { displayModeBar: false, responsive: true });
+  }
+
+  function renderDobleMatTable(db) {
+    const tbody = document.querySelector("#tableDobleMatAll tbody");
+    if (!tbody) return;
+    const { rows } = computeScores(db);
+    tbody.innerHTML = "";
+
+    for (const r of rows) {
+      const cls = r.double_mat ? "Doble" : r.impact_mat ? "Impacto" : r.fin_mat ? "Financiera" : "—";
+      const bg = r.double_mat ? "#d1fae5" : r.impact_mat ? "#fef9c3" : r.fin_mat ? "#dbeafe" : "";
+      const border = r.double_mat ? "4px solid #059669" : r.impact_mat ? "4px solid #ca8a04" : r.fin_mat ? "4px solid #2563eb" : "";
+      const tr = document.createElement("tr");
+      if (bg) tr.style.background = bg;
+      if (border) tr.style.borderLeft = border;
+      tr.innerHTML = `
+        <td><strong>${escapeHTML(r.tema_id)}</strong> · ${escapeHTML(r.tema_nombre)}</td>
+        <td class="right">${r.stakeholder_mean === null ? "" : fmt(r.stakeholder_mean, 2)}</td>
+        <td class="right">${r.impact_score === null ? "" : fmt(r.impact_score, 2)}</td>
+        <td class="right">${r.fin_score === null ? "" : fmt(r.fin_score, 2)}</td>
+        <td style="font-weight:bold; color:${r.double_mat ? "#059669" : r.impact_mat ? "#ca8a04" : r.fin_mat ? "#2563eb" : "#6b7280"};">${cls}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderDobleMatPortfolio(db) {
+    const { rows } = computeScores(db);
+    const q1 = rows.filter((r) => r.double_mat);
+    const q2 = rows.filter((r) => !r.impact_mat && r.fin_mat);
+    const q3 = rows.filter((r) => r.impact_mat && !r.fin_mat);
+    const q4 = rows.filter((r) => !r.impact_mat && !r.fin_mat);
+
+    const renderList = (items) => items.length
+      ? items.map((r) => `<div style="margin:2px 0;"><strong>${escapeHTML(r.tema_id)}</strong> ${escapeHTML(r.tema_nombre)}</div>`).join("")
+      : `<div class="muted">Ningún tema en este cuadrante.</div>`;
+
+    const el1 = document.getElementById("dmQ1List");
+    const el2 = document.getElementById("dmQ2List");
+    const el3 = document.getElementById("dmQ3List");
+    const el4 = document.getElementById("dmQ4List");
+    if (el1) el1.innerHTML = renderList(q1);
+    if (el2) el2.innerHTML = renderList(q2);
+    if (el3) el3.innerHTML = renderList(q3);
+    if (el4) el4.innerHTML = renderList(q4);
+  }
+
+  function renderDobleMatKPIs(db) {
+    const { rows } = computeScores(db);
+    const nImp = rows.filter((r) => r.impact_mat).length;
+    const nFin = rows.filter((r) => r.fin_mat).length;
+    const nDouble = rows.filter((r) => r.double_mat).length;
+    const nNone = rows.filter((r) => !r.impact_mat && !r.fin_mat).length;
+
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = String(v); };
+    set("dmKpiImpact", nImp);
+    set("dmKpiFin", nFin);
+    set("dmKpiDouble", nDouble);
+    set("dmKpiNone", nNone);
+  }
+
+  function renderDobleMatView(db) {
+    renderDobleMatKPIs(db);
+    renderDobleMatPlot(db);
+    renderDobleMatTable(db);
+    renderDobleMatPortfolio(db);
+    renderRadarPlot(db, "plotDobleMatRadar");
   }
 
   function renderDashboard(db) {
