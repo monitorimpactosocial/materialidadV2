@@ -311,7 +311,7 @@
                   <div class="kpi-value" id="legacyAvgExpect">N/D</div>
                 </div>
                 <div class="kpi">
-                  <div class="kpi-label">Mediana (Imp / Exp)</div>
+                  <div class="kpi-label">Umbral (Ext / Int)</div>
                   <div class="kpi-value legacy-ref-box"><span id="legacyRefImpact">N/D</span> / <span id="legacyRefExpect">N/D</span></div>
                 </div>
               </div>
@@ -356,12 +356,25 @@
                   </select>
                 </div>
               </div>
+              <div class="form-grid" style="display:none;">
+                <div class="field">
+                  <label for="tauMaterial">Umbral doble mat. (escala 1–5)</label>
+                  <input id="tauMaterial" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
+                </div>
+              </div>
               <div class="form-grid">
                 <div class="field">
-                  <label for="tauMaterial">Umbral temas materiales (escala 1–5)</label>
-                  <input id="tauMaterial" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
-                  <div class="muted small">Umbral aplicado al promedio externo y al promedio interno de impacto.</div>
+                  <label for="tauLegacyExternal">Umbral dimensión externa (1–5)</label>
+                  <input id="tauLegacyExternal" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
+                  <div class="muted small">Promedio stakeholders ≥ este valor.</div>
                 </div>
+                <div class="field">
+                  <label for="tauLegacyInternal">Umbral dimensión interna (1–5)</label>
+                  <input id="tauLegacyInternal" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
+                  <div class="muted small">Promedio impacto interno ≥ este valor.</div>
+                </div>
+              </div>
+              <div class="form-grid">
                 <div class="field">
                   <label for="groupFilter">Filtro grupo de interés</label>
                   <select id="groupFilter"></select>
@@ -400,8 +413,32 @@
 
         <div class="card mt-16">
           <div class="card-header">
-            <h2>Calibración por tema (todos)</h2>
-            <p class="muted">Ajuste P, S y B por pregunta. Estos ponderadores determinan la significancia y expectativas de cada tema. Los temas materiales se definen más abajo.</p>
+            <h2>Selección de temas materiales</h2>
+            <p class="muted">Todos los temas con promedios. Las celdas verdes superan el umbral configurado. Los temas que superan ambos umbrales se marcan automáticamente. Use los checkboxes para agregar temas manualmente.</p>
+          </div>
+          <div class="card-body">
+            <div class="table-wrap">
+              <table class="table" id="tableLegacyResults">
+                <thead>
+                  <tr>
+                    <th>Tema</th>
+                    <th class="right">Prom. Externa</th>
+                    <th class="right">Prom. Impacto</th>
+                    <th class="right">Significancia</th>
+                    <th class="right">Expectativas</th>
+                    <th>Cuadrante</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="card-header">
+            <h2>Calibración por tema (materiales)</h2>
+            <p class="muted">Solo los temas seleccionados arriba. Ajuste P, S y B manualmente; E, C y F vienen del diagnóstico histórico o de la encuesta externa.</p>
           </div>
           <div class="card-body">
             <div class="table-wrap">
@@ -421,30 +458,6 @@
                     <th class="right">Signific.</th>
                     <th class="right">Expect.</th>
                     <th>Acción</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="card mt-16">
-          <div class="card-header">
-            <h2>Selección de temas materiales</h2>
-            <p class="muted">Los temas que superan la mediana en ambas dimensiones se marcan automáticamente. Use los checkboxes para agregar temas manualmente.</p>
-          </div>
-          <div class="card-body">
-            <div class="table-wrap">
-              <table class="table" id="tableLegacyResults">
-                <thead>
-                  <tr>
-                    <th>Tema</th>
-                    <th class="right">Relev. Externa</th>
-                    <th class="right">Impacto Interno</th>
-                    <th class="right">Significancia</th>
-                    <th class="right">Expectativas</th>
-                    <th>Cuadrante</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -947,6 +960,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=27"></script>
+  <script src="assets/js/app.js?v=28"></script>
 </body>
 </html>

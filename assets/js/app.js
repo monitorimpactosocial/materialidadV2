@@ -38,16 +38,35 @@
     tauImpact: 3.5,
     tauFin: 3.5,
     tauMaterial: 3.5,
+    tauLegacyExternal: 3.5,
+    tauLegacyInternal: 3.5,
     ruleDouble: "AND",
     wImpact: { severidad: 0.30, alcance: 0.25, irremediabilidad: 0.25, probabilidad: 0.20 },
     wFin: { impacto_financiero: 0.60, probabilidad_financiera: 0.40 },
     stakeWeightByN: true,
     groupFilter: "TODOS",
     legacyExpectationFactor: 25 / 12,
-    legacyTopN: 27, // deprecated — kept for migration compat
+    legacyTopN: 27,
     legacyPWeights: { probabilidad: 0.65, probabilidad_financiera: 0.35 },
     legacySWeights: { severidad: 0.40, alcance: 0.30, irremediabilidad: 0.30 },
     legacyBWeights: { financiero: 0.70, relevancia_externa: 0.30 },
+  };
+
+  // Defaults E, C, F por tema (del diagnóstico histórico 2025)
+  const DEFAULT_ECF = {
+    P01: { e: 4, c: 4, f: 3 }, // Transparencia en información sobre impactos
+    P05: { e: 4, c: 4, f: 4 }, // Respeto de las leyes ambientales
+    P07: { e: 4, c: 4, f: 4 }, // Vinculación con Comunidades Indígenas
+    P09: { e: 4, c: 4, f: 4 }, // Condiciones laborales dignas
+    P10: { e: 4, c: 4, f: 4 }, // Cuidado y protección de la salud
+    P12: { e: 4, c: 4, f: 4 }, // Cuidado y protección del Medio Ambiente
+    P16: { e: 3, c: 2, f: 2 }, // Vinculación con productores/proveedores
+    P17: { e: 3, c: 2, f: 2 }, // Asistencia técnica a productores
+    P19: { e: 3, c: 4, f: 3 }, // Desarrollo de programas sociales
+    P20: { e: 3, c: 2, f: 2 }, // Apoyar otras iniciativas productivas
+    P21: { e: 4, c: 4, f: 3 }, // Contratación Mano de Obra Local
+    P24: { e: 3, c: 4, f: 2 }, // Comunicación y vínculo con comunidades
+    P25: { e: 3, c: 4, f: 3 }, // Desarrollo local
   };
   const COMPILED_MEASURE_ORDER = {
     relevancia: 1,
@@ -649,6 +668,8 @@ function migrateDB(raw) {
   params.tauImpact = Number(raw.params && raw.params.tauImpact !== undefined ? raw.params.tauImpact : DEFAULT_PARAMS.tauImpact);
   params.tauFin = Number(raw.params && raw.params.tauFin !== undefined ? raw.params.tauFin : DEFAULT_PARAMS.tauFin);
   params.tauMaterial = Number(raw.params && raw.params.tauMaterial !== undefined ? raw.params.tauMaterial : DEFAULT_PARAMS.tauMaterial);
+  params.tauLegacyExternal = Number(raw.params && raw.params.tauLegacyExternal !== undefined ? raw.params.tauLegacyExternal : DEFAULT_PARAMS.tauLegacyExternal);
+  params.tauLegacyInternal = Number(raw.params && raw.params.tauLegacyInternal !== undefined ? raw.params.tauLegacyInternal : DEFAULT_PARAMS.tauLegacyInternal);
   params.ruleDouble = (raw.params && raw.params.ruleDouble === "OR") ? "OR" : "AND";
   params.groupFilter = sanitizeText(raw.params && raw.params.groupFilter ? raw.params.groupFilter : DEFAULT_PARAMS.groupFilter, 120) || "TODOS";
   params.stakeWeightByN = raw.params && raw.params.stakeWeightByN !== undefined ? !!raw.params.stakeWeightByN : DEFAULT_PARAMS.stakeWeightByN;
@@ -1085,9 +1106,13 @@ function computeScores(db) {
       const s = manual.s !== null ? manual.s : sSuggested;
       const b = manual.b !== null ? manual.b : bSuggested;
 
-      const e = scaleRating5ToLegacy4(stakeholderMean);
-      const c = scaleShareToLegacy4(top2Box);
-      const f = scaleShareToLegacy4(groupCoverage);
+      const ecfDef = DEFAULT_ECF[tid] || { e: 1, c: 1, f: 1 };
+      const eComputed = scaleRating5ToLegacy4(stakeholderMean);
+      const cComputed = scaleShareToLegacy4(top2Box);
+      const fComputed = scaleShareToLegacy4(groupCoverage);
+      const e = eComputed !== null ? eComputed : ecfDef.e;
+      const c = cComputed !== null ? cComputed : ecfDef.c;
+      const f = fComputed !== null ? fComputed : ecfDef.f;
 
       const calc = computeLegacyMatrixRow({ p, s, b, e, c, f, grupos_relacionados: activeGroups.join(", ") }, safeFactor);
 
@@ -1142,33 +1167,34 @@ function computeScores(db) {
     const axisMaxImpact = 52;
     const axisMaxExpect = 30;
 
-    // Medianas de significancia y expectativas (misma lógica que la figura)
-    const validImpact = sortedValidRows.map((r) => r.significancia).filter((v) => v !== null).sort((a, b) => a - b);
-    const validExpect = sortedValidRows.map((r) => r.expectativas_total).filter((v) => v !== null).sort((a, b) => a - b);
-    const median = (arr) => {
-      if (!arr.length) return 0;
-      const mid = Math.floor(arr.length / 2);
-      return arr.length % 2 === 0 ? (arr[mid - 1] + arr[mid]) / 2 : arr[mid];
-    };
-    const medImpact = median(validImpact);
-    const medExpect = median(validExpect);
+    // Umbrales configurables para selección de temas materiales (escala 1-5, sobre promedios)
+    const tauExt = Number(params.tauLegacyExternal !== undefined ? params.tauLegacyExternal : DEFAULT_PARAMS.tauLegacyExternal);
+    const tauInt = Number(params.tauLegacyInternal !== undefined ? params.tauLegacyInternal : DEFAULT_PARAMS.tauLegacyInternal);
+
+    // Cuadrantes del scatter: 3 zonas X (BAJO/MEDIO/ALTO) × 2 zonas Y (BAJA/ALTA)
+    const impactThirdLow = axisMaxImpact / 3;
+    const impactThirdHigh = (axisMaxImpact / 3) * 2;
+    const expectMid = axisMaxExpect / 2;
 
     rows.forEach((row) => {
+      // Marcar si supera umbrales en promedios (escala 1-5)
+      row.above_tau_ext = row.stakeholder_mean !== null && row.stakeholder_mean >= tauExt;
+      row.above_tau_int = row.score_impacto !== null && row.score_impacto >= tauInt;
+
       if (row.significancia === null || row.expectativas_total === null) {
         row.cuadrante = "";
         return;
       }
-      const impactLevel = row.significancia >= medImpact ? "ALTO" : "BAJO";
-      const expectLevel = row.expectativas_total >= medExpect ? "ALTA" : "BAJA";
+      const impactLevel = row.significancia >= impactThirdHigh ? "ALTO" : row.significancia >= impactThirdLow ? "MEDIO" : "BAJO";
+      const expectLevel = row.expectativas_total >= expectMid ? "ALTA" : "BAJA";
       row.cuadrante = `Imp.${impactLevel} / Exp.${expectLevel}`;
     });
 
-    // Temas materiales: superan mediana en AMBAS dimensiones, o selección manual
+    // Temas materiales: superan umbral en AMBAS dimensiones (ext + int), o selección manual
     const manualSet = new Set(Array.isArray(db.manualMaterialTopics) ? db.manualMaterialTopics : []);
     sortedValidRows.forEach((row) => {
-      const aboveImpact = row.significancia !== null && row.significancia >= medImpact;
-      const aboveExpect = row.expectativas_total !== null && row.expectativas_total >= medExpect;
-      row.is_legacy_material = (aboveImpact && aboveExpect) || manualSet.has(row.tema_id);
+      const autoMaterial = row.above_tau_ext && row.above_tau_int;
+      row.is_legacy_material = autoMaterial || manualSet.has(row.tema_id);
       row.is_manual_material = manualSet.has(row.tema_id);
     });
 
@@ -1182,8 +1208,11 @@ function computeScores(db) {
       factor: safeFactor,
       axisMaxImpact,
       axisMaxExpect,
-      medImpact,
-      medExpect,
+      tauExt,
+      tauInt,
+      impactThirdLow,
+      impactThirdHigh,
+      expectMid,
       configuredThemes: rows.filter((row) => row.tiene_alguna_carga).length,
       completeThemes: valid.length,
       highHighCount: displayRows.length,
@@ -1195,9 +1224,9 @@ function computeScores(db) {
     if (!tbody) return;
 
     const legacy = computeLegacyMatrix(db);
-    const allRows = legacy.rows;
+    const calibRows = legacy.displayRows;
 
-    tbody.innerHTML = allRows.map((row) => `
+    tbody.innerHTML = calibRows.map((row) => `
       <tr class="topic-block" data-tid="${escapeHTML(row.tema_id)}">
         <td class="legacy-topic-cell"><strong>${escapeHTML(row.tema_id)}</strong> · ${escapeHTML(row.tema_nombre)}</td>
         <td class="right legacy-computed">${row.stakeholder_mean === null ? "" : fmt(row.stakeholder_mean, 2)}</td>
@@ -1267,11 +1296,13 @@ function computeScores(db) {
       if (showCheckbox) {
         checkboxCell = `<td class="center"><input type="checkbox" class="chk-legacy-material" data-tema="${escapeHTML(row.tema_id)}" ${isMat ? "checked" : ""} title="${isManual ? "Selección manual" : "Supera umbral en ambas dimensiones"}" /></td>`;
       }
+      const extStyle = row.above_tau_ext ? "background:#bbf7d0; font-weight:bold;" : "";
+      const intStyle = row.above_tau_int ? "background:#bbf7d0; font-weight:bold;" : "";
       tr.innerHTML = `
         ${checkboxCell}
         <td class="legacy-topic-cell">${escapeHTML(row.tema_id)} · ${escapeHTML(row.tema_nombre)}</td>
-        <td class="right">${row.stakeholder_mean === null ? "" : fmt(row.stakeholder_mean, 2)}</td>
-        <td class="right">${row.score_impacto === null ? "" : fmt(row.score_impacto, 2)}</td>
+        <td class="right" style="${extStyle}">${row.stakeholder_mean === null ? "" : fmt(row.stakeholder_mean, 2)}</td>
+        <td class="right" style="${intStyle}">${row.score_impacto === null ? "" : fmt(row.score_impacto, 2)}</td>
         <td class="right">${row.significancia === null ? "" : fmt(row.significancia, 2)}</td>
         <td class="right">${row.expectativas_total === null ? "" : fmt(row.expectativas_total, 2)}</td>
         <td>${escapeHTML(row.cuadrante || "")}</td>
@@ -1295,8 +1326,8 @@ function computeScores(db) {
     setText("legacyAvgImpact", avgImpact === null ? "N/D" : fmt(avgImpact, 2));
     setText("legacyAvgExpect", avgExpect === null ? "N/D" : fmt(avgExpect, 2));
     setText("legacyHighHigh", String(legacy.displayRows.length));
-    setText("legacyRefImpact", fmt(legacy.medImpact, 1));
-    setText("legacyRefExpect", fmt(legacy.medExpect, 1));
+    setText("legacyRefImpact", fmt(legacy.tauExt, 2));
+    setText("legacyRefExpect", fmt(legacy.tauInt, 2));
 
     renderLegacyResultsTable("tableLegacyResults", legacy.sortedValidRows, { showCheckbox: true });
   }
@@ -1314,8 +1345,10 @@ function computeScores(db) {
     }
 
     const isPrint = target.classList.contains("plot-print");
-    const medX = legacy.medImpact;
-    const medY = legacy.medExpect;
+    // Divisores de cuadrante: 3 zonas X (tercios) × 2 zonas Y (mitad)
+    const divX1 = legacy.impactThirdLow;
+    const divX2 = legacy.impactThirdHigh;
+    const divY = legacy.expectMid;
     const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd"];
 
     // Traza 1: temas NO materiales (gris, chico)
@@ -1355,34 +1388,33 @@ function computeScores(db) {
       });
     }
 
-    // Ejes fijos: desde el mínimo de los datos con margen hasta el máximo, siempre incluir la mediana con espacio
+    // Ejes fijos que siempre incluyen los divisores de cuadrante
     const allX = allValid.map((r) => r.significancia);
     const allY = allValid.map((r) => r.expectativas_total);
-    const xDataMin = Math.min(...allX);
-    const xDataMax = Math.max(...allX);
-    const yDataMin = Math.min(...allY);
-    const yDataMax = Math.max(...allY);
-    const xSpread = Math.max(xDataMax - xDataMin, 4);
-    const ySpread = Math.max(yDataMax - yDataMin, 2);
-    const axisX0 = Math.max(0, Math.min(xDataMin, medX) - xSpread * 0.15);
-    const axisX1 = Math.max(xDataMax, medX) + xSpread * 0.15;
-    const axisY0 = Math.max(0, Math.min(yDataMin, medY) - ySpread * 0.15);
-    const axisY1 = Math.max(yDataMax, medY) + ySpread * 0.15;
+    const axisX0 = 0;
+    const axisX1 = Math.max(legacy.axisMaxImpact, ...allX) * 1.02;
+    const axisY0 = 0;
+    const axisY1 = Math.max(legacy.axisMaxExpect, ...allY) * 1.02;
 
+    // 3 líneas divisoras → 6 zonas (3 columnas × 2 filas)
     const shapes = [
-      { type: "line", x0: medX, x1: medX, y0: axisY0, y1: axisY1, line: { color: "#b91c1c", width: 2, dash: "dash" } },
-      { type: "line", x0: axisX0, x1: axisX1, y0: medY, y1: medY, line: { color: "#b91c1c", width: 2, dash: "dash" } },
+      { type: "line", x0: divX1, x1: divX1, y0: axisY0, y1: axisY1, line: { color: "#9ca3af", width: 1, dash: "dot" } },
+      { type: "line", x0: divX2, x1: divX2, y0: axisY0, y1: axisY1, line: { color: "#b91c1c", width: 2, dash: "dash" } },
+      { type: "line", x0: axisX0, x1: axisX1, y0: divY, y1: divY, line: { color: "#b91c1c", width: 2, dash: "dash" } },
     ];
 
-    const xLow = (axisX0 + medX) / 2;
-    const xHigh = (medX + axisX1) / 2;
-    const yLow  = (axisY0 + medY) / 2;
-    const yHigh = (medY  + axisY1) / 2;
+    // Etiquetas en las 6 zonas
+    const xZ1 = divX1 / 2;
+    const xZ2 = (divX1 + divX2) / 2;
+    const xZ3 = (divX2 + axisX1) / 2;
+    const yZ1 = divY / 2;
+    const yZ2 = (divY + axisY1) / 2;
     const annotations = [
-      { x: xLow,  y: axisY1, text: "<b>Imp. BAJO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#6b7280" } },
-      { x: xHigh, y: axisY1, text: "<b>Imp. ALTO</b>",   xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#059669" } },
-      { x: axisX0, y: yLow,  text: "<b>Exp. BAJA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#6b7280" } },
-      { x: axisX0, y: yHigh, text: "<b>Exp. ALTA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#059669" } },
+      { x: xZ1, y: axisY1, text: "<b>IMP. BAJO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 9, color: "#9ca3af" } },
+      { x: xZ2, y: axisY1, text: "<b>IMP. MEDIO</b>", xanchor: "center", yanchor: "top", showarrow: false, font: { size: 9, color: "#d97706" } },
+      { x: xZ3, y: axisY1, text: "<b>IMP. ALTO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 9, color: "#059669" } },
+      { x: axisX0 + 0.5, y: yZ1, text: "<b>EXP. BAJA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#9ca3af" } },
+      { x: axisX0 + 0.5, y: yZ2, text: "<b>EXP. ALTA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#059669" } },
     ];
 
     const layout = {
@@ -2209,6 +2241,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     document.getElementById("tauImpact").value = fmt(p.tauImpact, 2);
     document.getElementById("tauFin").value = fmt(p.tauFin, 2);
     document.getElementById("tauMaterial").value = fmt(p.tauMaterial !== undefined ? p.tauMaterial : DEFAULT_PARAMS.tauMaterial, 2);
+    document.getElementById("tauLegacyExternal").value = fmt(p.tauLegacyExternal !== undefined ? p.tauLegacyExternal : DEFAULT_PARAMS.tauLegacyExternal, 2);
+    document.getElementById("tauLegacyInternal").value = fmt(p.tauLegacyInternal !== undefined ? p.tauLegacyInternal : DEFAULT_PARAMS.tauLegacyInternal, 2);
     document.getElementById("ruleSelect").value = p.ruleDouble;
     document.getElementById("wSev").value = String(p.wImpact.severidad);
     document.getElementById("wAlc").value = String(p.wImpact.alcance);
@@ -2232,6 +2266,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     p.tauImpact = Number(document.getElementById("tauImpact").value);
     p.tauFin = Number(document.getElementById("tauFin").value);
     p.tauMaterial = Number(document.getElementById("tauMaterial").value);
+    p.tauLegacyExternal = Number(document.getElementById("tauLegacyExternal").value);
+    p.tauLegacyInternal = Number(document.getElementById("tauLegacyInternal").value);
     p.ruleDouble = document.getElementById("ruleSelect").value;
 
     p.wImpact = {
@@ -2277,7 +2313,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       renderAll(db);
     };
 
-    ["tauImpact", "tauFin", "tauMaterial", "ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyExpectationFactor", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
+    ["tauImpact", "tauFin", "tauMaterial", "tauLegacyExternal", "tauLegacyInternal", "ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyExpectationFactor", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("change", syncAndRender);
@@ -2667,11 +2703,10 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         const temaId = chk.dataset.tema;
         const db = ensureDB();
         if (!Array.isArray(db.manualMaterialTopics)) db.manualMaterialTopics = [];
-        // Recompute to check if this topic would be material by median threshold
+        // Recompute to check if this topic would be material by threshold
         const legacy = computeLegacyMatrix(db);
         const row = legacy.sortedValidRows.find((r) => r.tema_id === temaId);
-        const autoMaterial = row && row.significancia !== null && row.expectativas_total !== null
-          && row.significancia >= legacy.medImpact && row.expectativas_total >= legacy.medExpect;
+        const autoMaterial = row && row.above_tau_ext && row.above_tau_int;
 
         if (chk.checked && !autoMaterial) {
           // Add to manual list
