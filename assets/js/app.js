@@ -44,7 +44,7 @@
     stakeWeightByN: true,
     groupFilter: "TODOS",
     legacyExpectationFactor: 25 / 12,
-    legacyTopN: 27,
+    legacyTopN: 27, // deprecated — kept for migration compat
     legacyPWeights: { probabilidad: 0.65, probabilidad_financiera: 0.35 },
     legacySWeights: { severidad: 0.40, alcance: 0.30, irremediabilidad: 0.30 },
     legacyBWeights: { financiero: 0.70, relevancia_externa: 0.30 },
@@ -720,6 +720,8 @@ function migrateDB(raw) {
   console.log("[migrateDB]   - currentEditionId:", currentEditionId);
   console.log("[migrateDB]   - OBSOLETE_INTERNAL_SEED_IDS count:", OBSOLETE_INTERNAL_SEED_IDS.size);
   
+  const manualMaterialTopics = Array.isArray(raw.manualMaterialTopics) ? raw.manualMaterialTopics.filter((id) => typeof id === "string") : [];
+
   const finalDB = pruneObsoleteSeedData({
     version: CURRENT_SCHEMA_VERSION,
     updatedAt: raw.updatedAt || nowISO(),
@@ -731,6 +733,7 @@ function migrateDB(raw) {
     lastScenarioId: sanitizeText(raw.lastScenarioId || "base_moderado", 120) || "base_moderado",
     emails,
     legacyMatrix,
+    manualMaterialTopics,
   });
   
   console.log("[migrateDB] DESPUÉS de pruneObsoleteSeedData:");
@@ -1131,9 +1134,7 @@ function computeScores(db) {
       if (bp !== ap) return bp - ap;
       return (b.significancia ?? -1) - (a.significancia ?? -1);
     });
-    const requestedTopN = Math.max(1, Math.round(Number(params.legacyTopN || DEFAULT_PARAMS.legacyTopN)));
-    const topN = Math.min(DATA.topics.length || requestedTopN, requestedTopN);
-    const displayRows = sortedValidRows.slice(0, topN);
+
     const axisMaxImpact = 52;
     const axisMaxExpect = 30;
     const impactBands = [axisMaxImpact / 3, (axisMaxImpact / 3) * 2];
@@ -1151,12 +1152,22 @@ function computeScores(db) {
       row.cuadrante = `${impactLevel}-${expectLevel}`;
     });
 
+    // Temas materiales: superan umbral en AMBAS dimensiones (impacto Y expectativas)
+    const manualSet = new Set(Array.isArray(db.manualMaterialTopics) ? db.manualMaterialTopics : []);
+    sortedValidRows.forEach((row) => {
+      const aboveImpact = row.significancia !== null && row.significancia >= refImpact;
+      const aboveExpect = row.expectativas_total !== null && row.expectativas_total >= refExpect;
+      row.is_legacy_material = (aboveImpact && aboveExpect) || manualSet.has(row.tema_id);
+      row.is_manual_material = manualSet.has(row.tema_id);
+    });
+
+    const displayRows = sortedValidRows.filter((row) => row.is_legacy_material);
+
     return {
       rows,
       validRows: valid,
       sortedValidRows,
       displayRows,
-      topN,
       factor: safeFactor,
       axisMaxImpact,
       axisMaxExpect,
@@ -1212,16 +1223,43 @@ function computeScores(db) {
     if (progressBar) progressBar.value = legacy.completeThemes;
   }
 
-  function renderLegacyResultsTable(tableId, rows) {
+  function renderLegacyResultsTable(tableId, rows, options) {
     const tbody = document.querySelector(`#${tableId} tbody`);
     if (!tbody) return;
+    const showCheckbox = options && options.showCheckbox;
+
+    // Add "Material" column header if checkbox mode and not already present
+    const thead = document.querySelector(`#${tableId} thead tr`);
+    if (thead) {
+      const existingMaterialTh = thead.querySelector(".th-material");
+      if (showCheckbox && !existingMaterialTh) {
+        const th = document.createElement("th");
+        th.className = "th-material";
+        th.textContent = "Material";
+        th.style.textAlign = "center";
+        thead.insertBefore(th, thead.firstChild);
+      } else if (!showCheckbox && existingMaterialTh) {
+        existingMaterialTh.remove();
+      }
+    }
 
     tbody.innerHTML = "";
     for (const row of rows) {
+      const isMat = !!row.is_legacy_material;
+      const isManual = !!row.is_manual_material;
       const tr = document.createElement("tr");
       tr.className = "topic-block";
       tr.setAttribute("data-tid", row.tema_id);
+      if (isMat) {
+        tr.style.background = "#d1fae5";
+        tr.style.borderLeft = "4px solid #059669";
+      }
+      let checkboxCell = "";
+      if (showCheckbox) {
+        checkboxCell = `<td class="center"><input type="checkbox" class="chk-legacy-material" data-tema="${escapeHTML(row.tema_id)}" ${isMat ? "checked" : ""} title="${isManual ? "Selección manual" : "Supera umbral en ambas dimensiones"}" /></td>`;
+      }
       tr.innerHTML = `
+        ${checkboxCell}
         <td class="legacy-topic-cell">${escapeHTML(row.tema_id)} · ${escapeHTML(row.tema_nombre)}</td>
         <td class="right">${row.significancia === null ? "" : fmt(row.significancia, 2)}</td>
         <td class="right">${row.expectativas_total === null ? "" : fmt(row.expectativas_total, 2)}</td>
@@ -1248,11 +1286,11 @@ function computeScores(db) {
     setText("legacyCompleteThemes", String(legacy.completeThemes));
     setText("legacyAvgImpact", avgImpact === null ? "N/D" : fmt(avgImpact, 2));
     setText("legacyAvgExpect", avgExpect === null ? "N/D" : fmt(avgExpect, 2));
-    setText("legacyHighHigh", String(legacy.highHighCount));
+    setText("legacyHighHigh", String(legacy.displayRows.length));
     setText("legacyRefImpact", legacy.impactBands ? legacy.impactBands.map((value) => fmt(value, 1)).join(" | ") : "N/D");
     setText("legacyRefExpect", legacy.expectBands ? legacy.expectBands.map((value) => fmt(value, 1)).join(" | ") : "N/D");
 
-    renderLegacyResultsTable("tableLegacyResults", legacy.displayRows);
+    renderLegacyResultsTable("tableLegacyResults", legacy.sortedValidRows, { showCheckbox: true });
   }
 
   function renderLegacyMatrixPlot(db, targetId) {
@@ -1382,29 +1420,37 @@ function computeScores(db) {
       return;
     }
 
+    // Normalizar ambas dimensiones a porcentaje (0-100%) de su máximo teórico
+    // significancia max = 5*5 + 5*5 = 50;  expectativas_total max = 12 * factor
+    const factor = legacy.factor || DEFAULT_PARAMS.legacyExpectationFactor;
+    const maxImpact = 50;
+    const maxExpect = 12 * factor;
+
     const labels = rows.map((row) => `${row.tema_id} · ${row.tema_nombre}`);
-    const impactos = rows.map((row) => row.significancia);
-    const expectativas = rows.map((row) => row.expectativas_total);
+    const impactosPct = rows.map((row) => row.significancia !== null ? (row.significancia / maxImpact) * 100 : 0);
+    const expectativasPct = rows.map((row) => row.expectativas_total !== null ? (row.expectativas_total / maxExpect) * 100 : 0);
     const height = Math.max(460, rows.length * 28);
 
     const data = [
       {
-        x: impactos,
+        x: impactosPct,
         y: labels,
         type: "bar",
         orientation: "h",
         name: "Impactos",
         marker: { color: "#14532d" },
-        hovertemplate: "<b>%{y}</b><br>Impactos: %{x:.2f}<extra></extra>",
+        customdata: rows.map((row) => row.significancia),
+        hovertemplate: "<b>%{y}</b><br>Impactos: %{x:.1f}% (valor: %{customdata:.2f})<extra></extra>",
       },
       {
-        x: expectativas,
+        x: expectativasPct,
         y: labels,
         type: "bar",
         orientation: "h",
         name: "Expectativas",
         marker: { color: "#0f766e" },
-        hovertemplate: "<b>%{y}</b><br>Expectativas: %{x:.2f}<extra></extra>",
+        customdata: rows.map((row) => row.expectativas_total),
+        hovertemplate: "<b>%{y}</b><br>Expectativas: %{x:.1f}% (valor: %{customdata:.2f})<extra></extra>",
       },
     ];
 
@@ -1412,7 +1458,7 @@ function computeScores(db) {
       margin: { l: 210, r: 20, t: 10, b: 50 },
       height,
       barmode: "group",
-      xaxis: { title: "Puntaje", gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
+      xaxis: { title: "% del máximo teórico", range: [0, 105], gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
       yaxis: { automargin: true, autorange: "reversed" },
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(255,255,255,0.75)",
@@ -2159,12 +2205,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     document.getElementById("tauFin").value = fmt(p.tauFin, 2);
     document.getElementById("tauMaterial").value = fmt(p.tauMaterial !== undefined ? p.tauMaterial : DEFAULT_PARAMS.tauMaterial, 2);
     document.getElementById("ruleSelect").value = p.ruleDouble;
-    const legacyTopNInput = document.getElementById("legacyTopN");
-    if (legacyTopNInput) {
-      legacyTopNInput.max = String(DATA.topics.length || 27);
-      legacyTopNInput.value = String(Math.min(DATA.topics.length || 27, Math.max(1, Math.round(Number(p.legacyTopN || DEFAULT_PARAMS.legacyTopN)))));
-    }
-
     document.getElementById("wSev").value = String(p.wImpact.severidad);
     document.getElementById("wAlc").value = String(p.wImpact.alcance);
     document.getElementById("wIrr").value = String(p.wImpact.irremediabilidad);
@@ -2199,7 +2239,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       impacto_financiero: Number(document.getElementById("wFinImp").value),
       probabilidad_financiera: Number(document.getElementById("wFinProb").value),
     };
-    p.legacyTopN = Number(document.getElementById("legacyTopN").value);
     p.legacyExpectationFactor = Number(document.getElementById("legacyExpectationFactor").value);
 
     p.stakeWeightByN = document.getElementById("chkStakeWeightByN").checked;
@@ -2216,10 +2255,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       impacto_financiero: clamp01(p.wFin.impacto_financiero),
       probabilidad_financiera: clamp01(p.wFin.probabilidad_financiera),
     });
-    if (!isFinite(p.legacyTopN) || p.legacyTopN <= 0) {
-      p.legacyTopN = DEFAULT_PARAMS.legacyTopN;
-    }
-    p.legacyTopN = Math.min(DATA.topics.length || p.legacyTopN, Math.max(1, Math.round(p.legacyTopN)));
     if (!isFinite(p.legacyExpectationFactor) || p.legacyExpectationFactor <= 0) {
       p.legacyExpectationFactor = DEFAULT_PARAMS.legacyExpectationFactor;
     }
@@ -2238,7 +2273,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       renderAll(db);
     };
 
-    ["tauImpact", "tauFin", "tauMaterial", "ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyTopN", "legacyExpectationFactor", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
+    ["tauImpact", "tauFin", "tauMaterial", "ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyExpectationFactor", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("change", syncAndRender);
@@ -2606,16 +2641,50 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         const db = ensureDB();
         db.params = {
           ...getParams(db),
-          legacyTopN: DEFAULT_PARAMS.legacyTopN,
           legacyExpectationFactor: DEFAULT_PARAMS.legacyExpectationFactor,
           legacyPWeights: cloneDeep(DEFAULT_PARAMS.legacyPWeights),
           legacySWeights: cloneDeep(DEFAULT_PARAMS.legacySWeights),
           legacyBWeights: cloneDeep(DEFAULT_PARAMS.legacyBWeights),
         };
         db.legacyMatrix = { rowsByTheme: {} };
+        db.manualMaterialTopics = [];
         saveDB(db);
         syncParamsToUI(db);
         renderAll(db);
+      });
+    }
+
+    // Checkbox para selección manual de temas materiales
+    const resultsTable = document.getElementById("tableLegacyResults");
+    if (resultsTable) {
+      resultsTable.addEventListener("change", (ev) => {
+        const chk = ev.target.closest(".chk-legacy-material");
+        if (!chk) return;
+        const temaId = chk.dataset.tema;
+        const db = ensureDB();
+        if (!Array.isArray(db.manualMaterialTopics)) db.manualMaterialTopics = [];
+        // Recompute to check if this topic would be material by threshold
+        const legacy = computeLegacyMatrix(db);
+        const row = legacy.sortedValidRows.find((r) => r.tema_id === temaId);
+        const refImpact = legacy.refImpact;
+        const refExpect = legacy.refExpect;
+        const autoMaterial = row && row.significancia !== null && row.expectativas_total !== null
+          && row.significancia >= refImpact && row.expectativas_total >= refExpect;
+
+        if (chk.checked && !autoMaterial) {
+          // Add to manual list
+          if (!db.manualMaterialTopics.includes(temaId)) db.manualMaterialTopics.push(temaId);
+        } else if (!chk.checked) {
+          // Remove from manual list (can't uncheck auto-material topics)
+          if (autoMaterial) {
+            chk.checked = true; // Restore — can't uncheck threshold-based material
+            return;
+          }
+          db.manualMaterialTopics = db.manualMaterialTopics.filter((id) => id !== temaId);
+        }
+        saveDB(db);
+        renderLegacyView(db);
+        if (document.getElementById("view-report").classList.contains("active")) { renderDashboard(db); renderReport(db); }
       });
     }
 
@@ -3473,7 +3542,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     const figureDefs = [
       { id: "plotExternalTop10", file: "image001.png" },
       { id: "plotDimensionReport", file: "image002.png" },
-      { id: "plotRadarReport", file: "image003.png" },
       { id: "plotMatrixReport", file: "image004.png" },
       { id: "plotLegacyMatrixReport", file: "image005.png" },
       { id: "plotLegacyRankingReport", file: "image006.png" },
@@ -3538,13 +3606,11 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     .cover-top { font-size: 9pt; letter-spacing: 0.16em; text-transform: uppercase; color: #065f46; font-weight: bold; margin-bottom: 8pt; }
     .cover-title { font-size: 22pt; font-weight: 800; color: #064e3b; margin-bottom: 8pt; }
     .cover-sub { font-size: 10pt; color: #334155; }
-    .badge-row { margin-top: 10pt; }
-    .badge { display: inline-block; padding: 4pt 8pt; margin-right: 6pt; margin-bottom: 6pt; border: 1pt solid #9bd5ba; background: #ffffff; color: #065f46; font-size: 8.5pt; font-weight: bold; }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     td, th { word-break: break-word; overflow-wrap: anywhere; }
-    .meta-table, .kpi-table, .panel-table, .action-table { margin: 0 0 10pt 0; }
-    .meta-cell, .kpi-cell, .panel-cell, .action-cell { border: 1pt solid #d7e2dd; background: #ffffff; padding: 8pt; vertical-align: top; }
-    .meta-label, .kpi-label { font-size: 8.5pt; text-transform: uppercase; color: #64748b; font-weight: bold; letter-spacing: 0.06em; }
+    .kpi-table, .panel-table, .action-table { margin: 0 0 10pt 0; }
+    .kpi-cell, .panel-cell, .action-cell { border: 1pt solid #d7e2dd; background: #ffffff; padding: 8pt; vertical-align: top; }
+    .kpi-label { font-size: 8.5pt; text-transform: uppercase; color: #64748b; font-weight: bold; letter-spacing: 0.06em; }
     .kpi-value { font-size: 18pt; font-weight: 800; color: #064e3b; margin-top: 4pt; }
     .mini-note { font-size: 8.5pt; color: #64748b; margin-top: 4pt; }
     .word-list { margin: 0 0 0 16pt; padding: 0; }
@@ -3566,35 +3632,9 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   <div class="cover">
     <div class="cover-top">PARACEL · Materialidad 360</div>
     <div class="cover-title">Diagnóstico de Doble Materialidad</div>
-    <p class="cover-sub">Documento ejecutivo para revisión gerencial, impresión en PDF y uso en Word.</p>
-    <div class="badge-row">
-      <span class="badge">Edición ${textValue("repEdition")}</span>
-      <span class="badge">Fecha ${textValue("repDate")}</span>
-      <span class="badge">Regla ${textValue("repRule")}</span>
-      <span class="badge">Doble materialidad ${textValue("repNDouble")}</span>
-    </div>
+    <p class="cover-sub">Edición ${textValue("repEdition")} · ${textValue("repDate")} · Regla ${textValue("repRule")}</p>
+    <p class="cover-sub">Encuestas externas: ${textValue("repNExternal")} · Evaluaciones internas: ${textValue("repNInternal")} · Temas con doble materialidad: ${textValue("repNDouble")}</p>
   </div>
-
-  <table class="meta-table">
-    <tr>
-      <td class="meta-cell">
-        <div class="meta-label">Edición analizada</div>
-        <div>${textValue("repEdition")}</div>
-        <div class="meta-label" style="margin-top:8pt;">Fecha de generación</div>
-        <div>${textValue("repDate")}</div>
-        <div class="meta-label" style="margin-top:8pt;">Regla condicional</div>
-        <div>${textValue("repRule")}</div>
-      </td>
-      <td class="meta-cell">
-        <div class="meta-label">Encuestas externas</div>
-        <div>${textValue("repNExternal")}</div>
-        <div class="meta-label" style="margin-top:8pt;">Evaluaciones internas</div>
-        <div>${textValue("repNInternal")}</div>
-        <div class="meta-label" style="margin-top:8pt;">Temas con doble materialidad</div>
-        <div>${textValue("repNDouble")}</div>
-      </td>
-    </tr>
-  </table>
 
   <h2>1. Resumen Ejecutivo</h2>
   <p>${textValue("repExecutive")}</p>
@@ -3633,7 +3673,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   <h2>3. Evaluación Interna</h2>
   <p class="section-intro">Síntesis del criterio del comité evaluador y de las áreas internas participantes.</p>
   ${buildWordFigure("3.1. Materialidad por Dimensión ISO 26000", imageRefs.plotDimensionReport, "Comparativo agregado por dimensión temática.")}
-  ${buildWordFigure("3.2. Perfil en Radar", imageRefs.plotRadarReport, "Visualización de la señal interna sobre temas de mayor prioridad.")}
   <table class="panel-table">
     <tr>
       <td class="panel-cell">
@@ -3646,7 +3685,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       </td>
     </tr>
   </table>
-  <h3>3.3. Cobertura de Evaluación Interna</h3>
+  <h3>3.2. Cobertura de Evaluación Interna</h3>
   ${tableWordHtml("tableReportAreas", { widths: [58, 16, 26] })}
   <p>${textValue("repInternalNarrative")}</p>
 
@@ -3654,9 +3693,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   <h2>4. Consolidación y Doble Materialidad</h2>
   <p class="section-intro">Cruce entre visión externa e interna para definir el portafolio de temas materiales.</p>
   ${buildWordFigure("4.1. Matriz de Resultados", imageRefs.plotMatrixReport, "Cruce estratégico entre impacto, señal financiera y relevancia externa.")}
-  <h3>4.2. Temas Priorizados</h3>
-  ${tableWordHtml("tableReportDouble", { widths: [46, 18, 18, 18] })}
-  <h3>4.3. Portafolio de Materialidad</h3>
+
+  <h3>4.2. Portafolio de Materialidad</h3>
   <table class="kpi-table">
     <tr>
       <td class="kpi-cell"><div class="kpi-label">Doble materialidad</div><div class="kpi-value">${textValue("repPortfolioDouble")}</div></td>
@@ -3665,20 +3703,19 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       <td class="kpi-cell"><div class="kpi-label">No materiales</div><div class="kpi-value">${textValue("repPortfolioNone")}</div></td>
     </tr>
   </table>
-  <h3>4.4. Prioridades Integradas</h3>
-  ${tableWordHtml("tableReportPriority", { widths: [38, 14, 14, 14, 20], fontSize: "7.8pt" })}
-  <h3>4.5. Matriz Clásica de Impacto y Expectativas</h3>
-  ${buildWordFigure("4.5. Matriz Clásica", imageRefs.plotLegacyMatrixReport, "Cruce reconstruido entre impactos y expectativas a partir de ambas encuestas.")}
-  ${buildWordFigure("4.6. Ranking Comparado", imageRefs.plotLegacyRankingReport, "Comparativo por tema entre significancia de impactos y puntaje de expectativas.")}
-  ${tableWordHtml("tableLegacyReport", { widths: [36, 12, 14, 12, 12, 8, 6], fontSize: "7.4pt" })}
+
+  <h3>4.3. Ranking Completo de Temas</h3>
+  ${tableWordHtml("tableReportAll", { widths: [34, 11, 11, 11, 11, 11, 11], fontSize: "7.4pt" })}
+
+  <h3>4.4. Matriz Clásica de Impacto y Expectativas</h3>
+  ${buildWordFigure("Matriz Clásica", imageRefs.plotLegacyMatrixReport, "Cruce reconstruido entre impactos y expectativas a partir de ambas encuestas.")}
+  ${buildWordFigure("Ranking Comparado", imageRefs.plotLegacyRankingReport, "Comparativo normalizado por tema entre significancia de impactos y puntaje de expectativas.")}
 
   <div class="page-break"></div>
-  <h2>5. Anexo y Cierre</h2>
-  <h3>5.1. Ranking Completo</h3>
-  ${tableWordHtml("tableReportAll", { widths: [34, 11, 11, 11, 11, 11, 11], fontSize: "7.4pt" })}
-  <h3>5.2. Conclusión Estratégica</h3>
+  <h2>5. Cierre</h2>
+  <h3>5.1. Conclusión Estratégica</h3>
   <p>${textValue("repClosing")}</p>
-  <h3>5.3. Plan de Acción Sugerido 2026-2028</h3>
+  <h3>5.2. Plan de Acción Sugerido 2026-2028</h3>
   <table class="action-table">
     <tr>
       <td class="action-cell"><h3>Fase 1 · Alinear y asignar dueños</h3><p>${textValue("repAction1")}</p></td>
