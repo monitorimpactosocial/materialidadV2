@@ -1876,12 +1876,11 @@ function computeScores(db) {
     const target = document.getElementById(`view-${viewName}`);
     if (target) target.classList.add("active");
 
-    // report requiere render específico
+    // render específico según vista
     const db = ensureDB();
-    if (viewName === "dashboard") renderDashboard(db);
     if (viewName === "legacy") renderLegacyView(db);
     if (viewName === "compiled") renderCompiledDataView(db);
-    if (viewName === "report") renderReport(db);
+    if (viewName === "report") { renderDashboard(db); renderReport(db); }
   }
 
   // ---------------------------------------------------------------------------
@@ -2146,7 +2145,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
   function syncParamsToUI(db) {
     const p = getParams(db);
-    mountLegacyParamBlock();
     document.getElementById("tauImpact").value = fmt(p.tauImpact, 2);
     document.getElementById("tauFin").value = fmt(p.tauFin, 2);
     document.getElementById("tauMaterial").value = fmt(p.tauMaterial !== undefined ? p.tauMaterial : DEFAULT_PARAMS.tauMaterial, 2);
@@ -2568,7 +2566,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         setLegacyMatrixRow(db, temaId, next);
         saveDB(db);
         renderLegacyView(db);
-        if (document.getElementById("view-report").classList.contains("active")) renderReport(db);
+        if (document.getElementById("view-report").classList.contains("active")) { renderDashboard(db); renderReport(db); }
       };
 
       driversBody.addEventListener("change", (ev) => {
@@ -2586,7 +2584,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         setLegacyMatrixRow(db, temaId, { ...current, p: null, s: null, b: null });
         saveDB(db);
         renderLegacyView(db);
-        if (document.getElementById("view-report").classList.contains("active")) renderReport(db);
+        if (document.getElementById("view-report").classList.contains("active")) { renderDashboard(db); renderReport(db); }
       });
     }
 
@@ -2747,7 +2745,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
     const x = materialRows.map((r) => r.stakeholder_mean);
     const y = materialRows.map((r) => r.impact_score);
-    const text = materialRows.map((r) => `${r.tema_id} · ${r.tema_nombre}`);
+    const hoverText = materialRows.map((r) => `${r.tema_id} · ${r.tema_nombre}`);
+    const labelText = materialRows.map((r) => r.tema_id);
 
     const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd",
                      "#c0392b", "#16a085", "#8e44ad", "#2980b9", "#f39c12", "#27ae60", "#e74c3c", "#1abc9c", "#d35400", "#2c3e50"];
@@ -2758,13 +2757,15 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     const axisPad = 0.1;
 
     const data = [{
-      x, y, text,
+      x, y,
+      text: labelText,
+      customdata: hoverText,
       mode: "markers+text",
       type: "scatter",
       textposition: "top center",
-      textfont: { size: 10 },
-      marker: { size: 16, color, opacity: 0.9, line: { width: 2, color: "#ffffff" } },
-      hovertemplate: "<b>%{text}</b><br>Externos (relevancia): %{x:.2f}<br>Internos (impacto): %{y:.2f}<extra></extra>"
+      textfont: { size: 10, color: "#374151" },
+      marker: { size: 18, color, opacity: 0.9, line: { width: 2, color: "#ffffff" } },
+      hovertemplate: "<b>%{customdata}</b><br>Externos (relevancia): %{x:.2f}<br>Internos (impacto): %{y:.2f}<extra></extra>"
     }];
 
     const layout = {
@@ -3166,13 +3167,9 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     renderQuickTable(db);
     renderExternalLog(db);
     renderInternalLog(db);
-    renderLegacyView(db);
-    renderCompiledDataView(db);
-    // si vista actual es dashboard/reporte, actualizar
-    if (document.getElementById("view-dashboard").classList.contains("active")) renderDashboard(db);
     if (document.getElementById("view-legacy").classList.contains("active")) renderLegacyView(db);
     if (document.getElementById("view-compiled").classList.contains("active")) renderCompiledDataView(db);
-    if (document.getElementById("view-report").classList.contains("active")) renderReport(db);
+    if (document.getElementById("view-report").classList.contains("active")) { renderDashboard(db); renderReport(db); }
   }
 
   // ---------------------------------------------------------------------------

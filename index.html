@@ -53,26 +53,20 @@
     </header>
 
     <aside class="app-nav" aria-label="Navegación">
-      <button class="nav-item active" data-view="home" type="button">
-        <span class="nav-icon">⌂</span><span>Inicio</span>
-      </button>
       <button class="nav-item" data-view="external" type="button">
         <span class="nav-icon">👥</span><span>Encuesta Externa</span>
       </button>
       <button class="nav-item" data-view="internal" type="button">
         <span class="nav-icon">🏢</span><span>Evaluación Interna</span>
       </button>
-      <button class="nav-item" data-view="dashboard" type="button">
-        <span class="nav-icon">📊</span><span>Tablero</span>
-      </button>
-      <button class="nav-item" data-view="legacy" type="button">
-        <span class="nav-icon">🧮</span><span>Matriz Clásica</span>
-      </button>
       <button class="nav-item" data-view="compiled" type="button">
         <span class="nav-icon">🗂</span><span>Base Analítica</span>
       </button>
-      <button class="nav-item" data-view="report" type="button">
+      <button class="nav-item active" data-view="report" type="button">
         <span class="nav-icon">🧾</span><span>Reporte</span>
+      </button>
+      <button class="nav-item" data-view="legacy" type="button">
+        <span class="nav-icon">🧮</span><span>Matriz Clásica</span>
       </button>
 
       <div class="nav-divider"></div>
@@ -89,215 +83,14 @@
     </aside>
 
     <main class="app-main">
-      <!-- INICIO -->
-      <section class="view active" id="view-home">
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-header">
-              <h2>Estado de la edición</h2>
-              <p class="muted">Este instrumento gestiona ediciones bianuales. Cada respuesta queda asociada a una edición.</p>
-            </div>
-            <div class="card-body">
-              <div class="kpi-row">
-                <div class="kpi">
-                  <div class="kpi-label">Respuestas externas</div>
-                  <div class="kpi-value" id="kpiExternalN">0</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Evaluaciones internas</div>
-                  <div class="kpi-value" id="kpiInternalN">0</div>
-                </div>
-                <div class="kpi">
-                  <div class="kpi-label">Temas evaluados</div>
-                  <div class="kpi-value" id="kpiThemesN">27</div>
-                </div>
-              </div>
-
-              <div class="callout">
-                <div class="callout-title">Flujo recomendado</div>
-                <ol class="callout-list">
-                  <li>Levantar encuesta externa por grupos de interés.</li>
-                  <li>Completar evaluación interna por el comité o responsables.</li>
-                  <li>Revisar tablero, ajustar umbrales y pesos, ensayar escenarios.</li>
-                  <li>Generar e imprimir el reporte para documentación.</li>
-                </ol>
-              </div>
-
-              <div class="btn-row">
-                <button class="btn btn-primary" id="btnGoExternal" type="button">Ir a Encuesta Externa</button>
-                <button class="btn btn-primary" id="btnGoInternal" type="button">Ir a Evaluación Interna</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <h2>Configuración analítica</h2>
-              <p class="muted">Los indicadores se recalculan de manera inmediata al cambiar umbrales, pesos o escenarios.</p>
-            </div>
-            <div class="card-body">
-              <div class="form-grid">
-                <div class="field">
-                  <label for="scenarioSelect">Escenario (gerencial)</label>
-                  <select id="scenarioSelect"></select>
-                </div>
-                <div class="field">
-                  <label for="ruleSelect">Regla doble materialidad</label>
-                  <select id="ruleSelect">
-                    <option value="AND">AND (impacto y financiero)</option>
-                    <option value="OR">OR (impacto o financiero)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="form-grid">
-                <div class="field">
-                  <label for="tauImpact">Umbral de impacto</label>
-                  <input id="tauImpact" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
-                </div>
-                <div class="field">
-                  <label for="tauFin">Umbral financiero</label>
-                  <input id="tauFin" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
-                </div>
-              </div>
-
-              <div class="form-grid">
-                <div class="field">
-                  <label for="tauMaterial">Umbral temas materiales coincidentes (escala 1–5)</label>
-                  <input id="tauMaterial" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
-                  <div class="muted small">Umbral aplicado simultáneamente al promedio externo (stakeholders) y al promedio interno (columna impacto). Solo los ítems que superan este valor en ambas encuestas se consideran temas materiales.</div>
-                </div>
-              </div>
-
-              <div class="weights" style="display: none;">
-                <div class="weights-title">Pesos, score de impacto</div>
-                <div class="weights-grid">
-                  <div class="wfield">
-                    <label for="wSev">Severidad</label>
-                    <input id="wSev" type="number" min="0" max="1" step="0.05" value="0.30" />
-                  </div>
-                  <div class="wfield">
-                    <label for="wAlc">Alcance</label>
-                    <input id="wAlc" type="number" min="0" max="1" step="0.05" value="0.25" />
-                  </div>
-                  <div class="wfield">
-                    <label for="wIrr">Irremediabilidad</label>
-                    <input id="wIrr" type="number" min="0" max="1" step="0.05" value="0.25" />
-                  </div>
-                  <div class="wfield">
-                    <label for="wProb">Probabilidad</label>
-                    <input id="wProb" type="number" min="0" max="1" step="0.05" value="0.20" />
-                  </div>
-                </div>
-
-                <div class="weights-title">Pesos, score financiero</div>
-                <div class="weights-grid">
-                  <div class="wfield">
-                    <label for="wFinImp">Impacto financiero</label>
-                    <input id="wFinImp" type="number" min="0" max="1" step="0.05" value="0.60" />
-                  </div>
-                  <div class="wfield">
-                    <label for="wFinProb">Probabilidad financiera</label>
-                    <input id="wFinProb" type="number" min="0" max="1" step="0.05" value="0.40" />
-                  </div>
-                </div>
-
-                <div class="note muted">
-                  Los pesos se normalizan automáticamente para que sumen 1 en cada bloque.
-                </div>
-
-                <div class="btn-row">
-                  <button class="btn btn-secondary" id="btnResetParams" type="button">Restablecer</button>
-                  <button class="btn btn-secondary" id="btnSaveParams" type="button">Guardar parámetros</button>
-                </div>
-              </div>
-
-              <div class="divider"></div>
-
-              <div class="form-grid">
-                <div class="field">
-                  <label>
-                    <input id="chkStakeWeightByN" type="checkbox" checked />
-                    Ponderar stakeholders por tamaño muestral
-                  </label>
-                  <div class="muted small">
-                    Si se desactiva, cada grupo aporta el mismo peso al promedio global de relevancia.
-                  </div>
-                </div>
-                <div class="field">
-                  <label for="groupFilter">Filtro por grupo de interés (tablero)</label>
-                  <select id="groupFilter"></select>
-                </div>
-              </div>
-
-              <div id="legacyParamBlock">
-              <div class="form-grid mt-12">
-                <div class="field">
-                  <label for="legacyExpectationFactor">Factor de expectativas, matriz clásica</label>
-                  <input id="legacyExpectationFactor" type="number" min="0.01" step="0.01" value="2.08" inputmode="decimal" />
-                  <div class="muted small">
-                    Escala el total de expectativas derivado desde la encuesta externa: `E` usa relevancia media, `C` usa Top2Box y `F` usa cobertura de grupos.
-                  </div>
-                </div>
-              </div>
-
-              <div class="note muted">
-                Los valores de P, S y B se configuran por tema en la tabla de calibración. El factor de expectativas escala el resultado global derivado desde la encuesta externa.
-              </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-        <div class="card mt-16">
-          <div class="card-header">
-            <h2>Materialidad, vista rápida</h2>
-            <p class="muted">Lista preliminar basada en datos disponibles (externos e internos) y parámetros vigentes.</p>
-          </div>
-          <div class="card-body">
-            <div class="kpi-row">
-              <div class="kpi">
-                <div class="kpi-label">Temas materialidad impacto</div>
-                <div class="kpi-value" id="kpiMatImpact">0</div>
-              </div>
-              <div class="kpi">
-                <div class="kpi-label">Temas materialidad financiera</div>
-                <div class="kpi-value" id="kpiMatFin">0</div>
-              </div>
-              <div class="kpi">
-                <div class="kpi-label">Doble materialidad</div>
-                <div class="kpi-value" id="kpiMatDouble">0</div>
-              </div>
-            </div>
-
-            <div class="table-wrap">
-              <table class="table" id="tableQuick">
-                <thead>
-                  <tr>
-                    <th>Tema</th>
-                    <th class="right">Stakeholders (prom.)</th>
-                    <th class="right">Impacto</th>
-                    <th class="right">Financiero</th>
-                    <th>Clasificación</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-
-          </div>
-          <div class="card mt-16">
-            <div class="card-header">
-              <h2>Nota Metodológica</h2>
-            </div>
-            <div class="card-body">
-              <p style="margin-top:0;"><strong>Impacto:</strong> La selección de los ítems asociados a la materialidad de impacto considera un análisis estratégico para determinar si su gestión es prioritaria para Paracel y demanda un enfoque integral en los ámbitos social, ambiental y económico.</p>
-              <p style="margin-bottom:0;">En la materialidad financiera, la selección de los temas evalúa en qué medida su adecuada gestión —o la falta de ella— puede generar riesgos u oportunidades con impacto directo en los resultados financieros, la rentabilidad o la sostenibilidad económica de Paracel.</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <!-- Elementos de Inicio ocultos (IDs requeridos por JS) -->
+      <div style="display:none">
+        <button id="btnGoExternal" type="button"></button>
+        <button id="btnGoInternal" type="button"></button>
+        <div id="kpiExternalN"></div>
+        <div id="kpiInternalN"></div>
+        <div id="kpiThemesN"></div>
+      </div>
 
       <!-- EXTERNA -->
       <section class="view" id="view-external">
@@ -485,62 +278,7 @@
         </div>
       </section>
 
-      <!-- DASHBOARD -->
-      <section class="view" id="view-dashboard">
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-header">
-              <h2>Temas materiales coincidentes</h2>
-              <p class="muted">Eje X: relevancia promedio externa (stakeholders). Eje Y: impacto promedio interno. Solo se grafican los ítems que superan el umbral de materialidad en ambas encuestas.</p>
-            </div>
-            <div class="card-body">
-              <div id="plotMatrix" class="plot"></div>
-              <div class="muted small mt-8">
-                Las líneas punteadas indican el umbral de temas materiales. Cada punto es un tema que coincide en ambas encuestas.
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <h2>Temas materiales</h2>
-              <p class="muted">Ítems que superan el umbral de materialidad en ambas encuestas (externos e internos). Ordenados por relevancia externa.</p>
-            </div>
-            <div class="card-body">
-              <div class="table-wrap">
-                <table class="table" id="tableRanking">
-                  <thead>
-                    <tr>
-                      <th>Tema</th>
-                      <th class="right">Externos (relevancia)</th>
-                      <th class="right">Internos (impacto)</th>
-                      <th class="right">Financiero</th>
-                      <th>Clasificación</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-
-              <div class="btn-row mt-12">
-                <button class="btn btn-secondary" id="btnDownloadMatrixCSV" type="button">Descargar matriz (CSV)</button>
-                <button class="btn btn-secondary" id="btnDownloadStakeCSV" type="button">Descargar resumen stakeholders (CSV)</button>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-        <div class="card mt-16">
-          <div class="card-header">
-            <h2>Perfil de Materialidad (Radar)</h2>
-            <p class="muted">Gráfico de radar comparativo detallando el Score Financiero vs Impacto.</p>
-          </div>
-          <div class="card-body">
-            <div id="plotRadar" class="plot"></div>
-          </div>
-        </div>
-      </section>
+      <!-- Dashboard integrado en Reporte -->
 
       <!-- MATRIZ CLASICA -->
       <section class="view" id="view-legacy">
@@ -608,16 +346,7 @@
               <p class="muted">Los valores sugeridos ya vienen cargados. Cualquier ajuste aquí recalcula las figuras de inmediato.</p>
             </div>
             <div class="card-body">
-              <div id="legacyParamsMount"></div>
-              <div class="form-grid">
-                <div class="field">
-                  <label for="legacyTopN">Top N para tablas y figuras</label>
-                  <input id="legacyTopN" type="number" min="1" max="27" step="1" value="27" inputmode="numeric" />
-                  <div class="muted small">
-                    Use `10`, `15`, `20` o `27` para todos los temas. El corte se aplica a las dos figuras y a las tablas de esta pestaña y del reporte.
-                  </div>
-                </div>
-              </div>
+              <p class="muted small">El umbral, top N y factor de expectativas se configuran en el panel de Reporte.</p>
             </div>
           </div>
         </div>
@@ -795,7 +524,190 @@
       </section>
 
       <!-- REPORTE -->
-      <section class="view" id="view-report">
+      <section class="view active" id="view-report">
+
+        <!-- ===== PANEL DE CONFIGURACIÓN Y ANÁLISIS (no se imprime) ===== -->
+        <div class="no-print">
+          <div class="grid-2">
+            <!-- Configuración analítica -->
+            <div class="card">
+              <div class="card-header">
+                <h2>Configuración analítica</h2>
+                <p class="muted">Los indicadores se recalculan de manera inmediata al cambiar umbrales y parámetros.</p>
+              </div>
+              <div class="card-body">
+                <div class="kpi-row" style="margin-bottom:12px;">
+                  <div class="kpi">
+                    <div class="kpi-label">Respuestas externas</div>
+                    <div class="kpi-value" id="kpiExternalN">0</div>
+                  </div>
+                  <div class="kpi">
+                    <div class="kpi-label">Evaluaciones internas</div>
+                    <div class="kpi-value" id="kpiInternalN">0</div>
+                  </div>
+                  <div class="kpi">
+                    <div class="kpi-label">Temas evaluados</div>
+                    <div class="kpi-value" id="kpiThemesN">27</div>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="scenarioSelect">Escenario</label>
+                    <select id="scenarioSelect"></select>
+                  </div>
+                  <div class="field">
+                    <label for="ruleSelect">Regla doble materialidad</label>
+                    <select id="ruleSelect">
+                      <option value="AND">AND (impacto y financiero)</option>
+                      <option value="OR">OR (impacto o financiero)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="tauMaterial">Umbral temas materiales (escala 1–5)</label>
+                    <input id="tauMaterial" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
+                    <div class="muted small">Umbral aplicado al promedio externo y al promedio interno de impacto simultáneamente.</div>
+                  </div>
+                  <div class="field">
+                    <label for="groupFilter">Filtro grupo de interés</label>
+                    <select id="groupFilter"></select>
+                  </div>
+                </div>
+
+                <div class="form-grid" style="display:none;">
+                  <div class="field"><input id="tauImpact" type="number" min="1" max="5" step="0.01" value="3.50" /></div>
+                  <div class="field"><input id="tauFin" type="number" min="1" max="5" step="0.01" value="3.50" /></div>
+                  <div class="field"><input id="wSev" type="number" min="0" max="1" step="0.05" value="0.30" /></div>
+                  <div class="field"><input id="wAlc" type="number" min="0" max="1" step="0.05" value="0.25" /></div>
+                  <div class="field"><input id="wIrr" type="number" min="0" max="1" step="0.05" value="0.25" /></div>
+                  <div class="field"><input id="wProb" type="number" min="0" max="1" step="0.05" value="0.20" /></div>
+                  <div class="field"><input id="wFinImp" type="number" min="0" max="1" step="0.05" value="0.60" /></div>
+                  <div class="field"><input id="wFinProb" type="number" min="0" max="1" step="0.05" value="0.40" /></div>
+                  <div class="field"><input id="chkStakeWeightByN" type="checkbox" checked /></div>
+                  <button id="btnResetParams" type="button"></button>
+                  <button id="btnSaveParams" type="button"></button>
+                </div>
+
+                <div id="legacyParamBlock">
+                  <div class="form-grid mt-12">
+                    <div class="field">
+                      <label for="legacyExpectationFactor">Factor de expectativas (matriz clásica)</label>
+                      <input id="legacyExpectationFactor" type="number" min="0.01" step="0.01" value="2.08" inputmode="decimal" />
+                      <div class="muted small">Escala las expectativas derivadas desde la encuesta externa.</div>
+                    </div>
+                    <div class="field">
+                      <label for="legacyTopN">Top N temas (matriz clásica)</label>
+                      <input id="legacyTopN" type="number" min="1" max="27" step="1" value="27" inputmode="numeric" />
+                    </div>
+                  </div>
+                  <div class="note muted">P, S y B se configuran por tema en la tabla de calibración.</div>
+                </div>
+
+                <div class="btn-row mt-12">
+                  <button class="btn btn-secondary" id="btnSaveParams2" type="button" onclick="document.getElementById('btnSaveParams').click()">Guardar parámetros</button>
+                  <button class="btn btn-secondary" id="btnResetParams2" type="button" onclick="document.getElementById('btnResetParams').click()">Restablecer</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Temas materiales: tabla -->
+            <div class="card">
+              <div class="card-header">
+                <h2>Temas materiales coincidentes</h2>
+                <p class="muted">Ítems que superan el umbral en ambas encuestas. Ordenados por relevancia externa.</p>
+              </div>
+              <div class="card-body">
+                <div class="kpi-row" style="margin-bottom:12px;">
+                  <div class="kpi">
+                    <div class="kpi-label">Mat. impacto</div>
+                    <div class="kpi-value" id="kpiMatImpact">0</div>
+                  </div>
+                  <div class="kpi">
+                    <div class="kpi-label">Mat. financiero</div>
+                    <div class="kpi-value" id="kpiMatFin">0</div>
+                  </div>
+                  <div class="kpi">
+                    <div class="kpi-label">Doble materialidad</div>
+                    <div class="kpi-value" id="kpiMatDouble">0</div>
+                  </div>
+                </div>
+                <div class="table-wrap">
+                  <table class="table" id="tableRanking">
+                    <thead>
+                      <tr>
+                        <th>Tema</th>
+                        <th class="right">Externos</th>
+                        <th class="right">Internos (impacto)</th>
+                        <th class="right">Financiero</th>
+                        <th>Clasificación</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <div class="btn-row mt-12">
+                  <button class="btn btn-secondary" id="btnDownloadMatrixCSV" type="button">Descargar CSV</button>
+                  <button class="btn btn-secondary" id="btnDownloadStakeCSV" type="button">Descargar stakeholders CSV</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Figura de temas materiales + Radar -->
+          <div class="grid-2 mt-16">
+            <div class="card">
+              <div class="card-header">
+                <h2>Figura de temas materiales</h2>
+                <p class="muted">Eje X: relevancia externa · Eje Y: impacto interno · Solo ítems que superan el umbral en ambas encuestas.</p>
+              </div>
+              <div class="card-body">
+                <div id="plotMatrix" class="plot"></div>
+                <div class="muted small mt-8">Líneas punteadas = umbral. Cada punto = tema coincidente en ambas encuestas.</div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2>Perfil de Materialidad (Radar)</h2>
+                <p class="muted">Score Financiero vs Impacto, top temas internos.</p>
+              </div>
+              <div class="card-body">
+                <div id="plotRadar" class="plot"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vista rápida completa -->
+          <div class="card mt-16">
+            <div class="card-header">
+              <h2>Vista rápida — todos los temas</h2>
+              <p class="muted">Lista completa con scores. Los temas materiales están resaltados.</p>
+            </div>
+            <div class="card-body">
+              <div class="table-wrap">
+                <table class="table" id="tableQuick">
+                  <thead>
+                    <tr>
+                      <th>Tema</th>
+                      <th class="right">Stakeholders</th>
+                      <th class="right">Impacto</th>
+                      <th class="right">Financiero</th>
+                      <th>Clasificación</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider mt-16" style="border-top: 2px solid var(--primary); margin-bottom:24px;"></div>
+        </div>
+        <!-- ===== FIN PANEL NO-PRINT ===== -->
+
         <div class="card print-area" id="reportArea" style="border: none; box-shadow: none; background: #fff;">
           <div class="card-header" style="border-bottom: 3px solid var(--primary); padding-bottom: 24px;">
             <div style="display:flex; justify-content:space-between; align-items:flex-end;">
