@@ -1171,13 +1171,13 @@ function computeScores(db) {
     const tauExt = Number(params.tauLegacyExternal !== undefined ? params.tauLegacyExternal : DEFAULT_PARAMS.tauLegacyExternal);
     const tauInt = Number(params.tauLegacyInternal !== undefined ? params.tauLegacyInternal : DEFAULT_PARAMS.tauLegacyInternal);
 
-    // Cuadrantes del scatter: 2 zonas X (BAJO/ALTO) × 3 zonas Y (BAJA/MEDIA/ALTA) = 6
-    const impactMid = axisMaxImpact / 2;
+    // Cuadrantes del scatter: 3 zonas X × 3 zonas Y (tercios del máximo teórico)
+    const impactThirdLow = axisMaxImpact / 3;
+    const impactThirdHigh = (axisMaxImpact / 3) * 2;
     const expectThirdLow = axisMaxExpect / 3;
     const expectThirdHigh = (axisMaxExpect / 3) * 2;
 
     rows.forEach((row) => {
-      // Marcar si supera umbrales en promedios (escala 1-5)
       row.above_tau_ext = row.stakeholder_mean !== null && row.stakeholder_mean >= tauExt;
       row.above_tau_int = row.score_impacto !== null && row.score_impacto >= tauInt;
 
@@ -1185,7 +1185,7 @@ function computeScores(db) {
         row.cuadrante = "";
         return;
       }
-      const impactLevel = row.significancia >= impactMid ? "ALTO" : "BAJO";
+      const impactLevel = row.significancia >= impactThirdHigh ? "ALTO" : row.significancia >= impactThirdLow ? "MEDIO" : "BAJO";
       const expectLevel = row.expectativas_total >= expectThirdHigh ? "ALTA" : row.expectativas_total >= expectThirdLow ? "MEDIA" : "BAJA";
       row.cuadrante = `Imp.${impactLevel} / Exp.${expectLevel}`;
     });
@@ -1210,7 +1210,8 @@ function computeScores(db) {
       axisMaxExpect,
       tauExt,
       tauInt,
-      impactMid,
+      impactThirdLow,
+      impactThirdHigh,
       expectThirdLow,
       expectThirdHigh,
       configuredThemes: rows.filter((row) => row.tiene_alguna_carga).length,
@@ -1345,8 +1346,9 @@ function computeScores(db) {
     }
 
     const isPrint = target.classList.contains("plot-print");
-    // Divisores: 2 zonas X (mitad) × 3 zonas Y (tercios) = 6
-    const divX = legacy.impactMid;
+    // Divisores: 3 zonas X (tercios) × 3 zonas Y (tercios) = 9 cuadrantes
+    const divX1 = legacy.impactThirdLow;
+    const divX2 = legacy.impactThirdHigh;
     const divY1 = legacy.expectThirdLow;
     const divY2 = legacy.expectThirdHigh;
     const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd"];
@@ -1388,51 +1390,65 @@ function computeScores(db) {
       });
     }
 
-    // Ejes fijos que siempre incluyen los divisores de cuadrante
+    // Ejes ajustados al rango de datos con margen, siempre incluyen divisores
     const allX = allValid.map((r) => r.significancia);
     const allY = allValid.map((r) => r.expectativas_total);
-    const axisX0 = 0;
-    const axisX1 = Math.max(legacy.axisMaxImpact, ...allX) * 1.02;
-    const axisY0 = 0;
-    const axisY1 = Math.max(legacy.axisMaxExpect, ...allY) * 1.02;
+    const dataXMin = Math.min(...allX);
+    const dataXMax = Math.max(...allX);
+    const dataYMin = Math.min(...allY);
+    const dataYMax = Math.max(...allY);
+    // Incluir divisores y datos en el rango, con margen del 8%
+    const rangeXMin = Math.min(dataXMin, divX1);
+    const rangeXMax = Math.max(dataXMax, divX2);
+    const rangeYMin = Math.min(dataYMin, divY1);
+    const rangeYMax = Math.max(dataYMax, divY2);
+    const xSpan = rangeXMax - rangeXMin || 10;
+    const ySpan = rangeYMax - rangeYMin || 5;
+    const axisX0 = Math.max(0, rangeXMin - xSpan * 0.08);
+    const axisX1 = rangeXMax + xSpan * 0.08;
+    const axisY0 = Math.max(0, rangeYMin - ySpan * 0.08);
+    const axisY1 = rangeYMax + ySpan * 0.08;
 
-    // Rectángulos de fondo coloreados para las 6 zonas
-    // Filas: BAJA (abajo) → MEDIA → ALTA (arriba). Columnas: BAJO (izq) → ALTO (der)
+    // Rectángulos de fondo coloreados: 3×3 = 9 zonas
+    // Gradiente de rojo (bajo-bajo) a verde (alto-alto) en diagonal
     const zoneRects = [
-      // Imp.BAJO / Exp.BAJA → rojo suave
-      { type: "rect", x0: axisX0, x1: divX, y0: axisY0, y1: divY1, fillcolor: "rgba(239,68,68,0.07)", line: { width: 0 }, layer: "below" },
-      // Imp.BAJO / Exp.MEDIA → naranja suave
-      { type: "rect", x0: axisX0, x1: divX, y0: divY1, y1: divY2, fillcolor: "rgba(245,158,11,0.07)", line: { width: 0 }, layer: "below" },
-      // Imp.BAJO / Exp.ALTA → amarillo suave
-      { type: "rect", x0: axisX0, x1: divX, y0: divY2, y1: axisY1, fillcolor: "rgba(234,179,8,0.07)", line: { width: 0 }, layer: "below" },
-      // Imp.ALTO / Exp.BAJA → amarillo suave
-      { type: "rect", x0: divX, x1: axisX1, y0: axisY0, y1: divY1, fillcolor: "rgba(234,179,8,0.07)", line: { width: 0 }, layer: "below" },
-      // Imp.ALTO / Exp.MEDIA → verde claro
-      { type: "rect", x0: divX, x1: axisX1, y0: divY1, y1: divY2, fillcolor: "rgba(34,197,94,0.07)", line: { width: 0 }, layer: "below" },
-      // Imp.ALTO / Exp.ALTA → verde intenso
-      { type: "rect", x0: divX, x1: axisX1, y0: divY2, y1: axisY1, fillcolor: "rgba(5,150,105,0.12)", line: { width: 0 }, layer: "below" },
+      // Fila BAJA
+      { type: "rect", x0: axisX0, x1: divX1, y0: axisY0, y1: divY1, fillcolor: "rgba(239,68,68,0.10)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: divX1, x1: divX2, y0: axisY0, y1: divY1, fillcolor: "rgba(245,158,11,0.08)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: divX2, x1: axisX1, y0: axisY0, y1: divY1, fillcolor: "rgba(234,179,8,0.07)", line: { width: 0 }, layer: "below" },
+      // Fila MEDIA
+      { type: "rect", x0: axisX0, x1: divX1, y0: divY1, y1: divY2, fillcolor: "rgba(245,158,11,0.08)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: divX1, x1: divX2, y0: divY1, y1: divY2, fillcolor: "rgba(234,179,8,0.07)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: divX2, x1: axisX1, y0: divY1, y1: divY2, fillcolor: "rgba(34,197,94,0.07)", line: { width: 0 }, layer: "below" },
+      // Fila ALTA
+      { type: "rect", x0: axisX0, x1: divX1, y0: divY2, y1: axisY1, fillcolor: "rgba(234,179,8,0.07)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: divX1, x1: divX2, y0: divY2, y1: axisY1, fillcolor: "rgba(34,197,94,0.07)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: divX2, x1: axisX1, y0: divY2, y1: axisY1, fillcolor: "rgba(5,150,105,0.12)", line: { width: 0 }, layer: "below" },
     ];
 
-    // 3 líneas divisoras → 6 zonas (2 columnas × 3 filas)
+    // 4 líneas divisoras → 9 zonas (3 columnas × 3 filas)
     const shapes = [
       ...zoneRects,
-      { type: "line", x0: divX, x1: divX, y0: axisY0, y1: axisY1, line: { color: "#374151", width: 2, dash: "dash" }, layer: "above" },
+      { type: "line", x0: divX1, x1: divX1, y0: axisY0, y1: axisY1, line: { color: "#9ca3af", width: 1, dash: "dot" }, layer: "above" },
+      { type: "line", x0: divX2, x1: divX2, y0: axisY0, y1: axisY1, line: { color: "#374151", width: 2, dash: "dash" }, layer: "above" },
       { type: "line", x0: axisX0, x1: axisX1, y0: divY1, y1: divY1, line: { color: "#9ca3af", width: 1, dash: "dot" }, layer: "above" },
       { type: "line", x0: axisX0, x1: axisX1, y0: divY2, y1: divY2, line: { color: "#374151", width: 2, dash: "dash" }, layer: "above" },
     ];
 
-    // Etiquetas en las 6 zonas
-    const xZ1 = divX / 2;
-    const xZ2 = (divX + axisX1) / 2;
-    const yZ1 = divY1 / 2;
+    // Etiquetas en las 9 zonas
+    const xZ1 = (axisX0 + divX1) / 2;
+    const xZ2 = (divX1 + divX2) / 2;
+    const xZ3 = (divX2 + axisX1) / 2;
+    const yZ1 = (axisY0 + divY1) / 2;
     const yZ2 = (divY1 + divY2) / 2;
     const yZ3 = (divY2 + axisY1) / 2;
     const annotations = [
-      { x: xZ1, y: axisY1, text: "<b>IMP. BAJO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#9ca3af" } },
-      { x: xZ2, y: axisY1, text: "<b>IMP. ALTO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#059669" } },
-      { x: axisX0 + 0.5, y: yZ1, text: "<b>EXP. BAJA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#9ca3af" } },
-      { x: axisX0 + 0.5, y: yZ2, text: "<b>EXP. MEDIA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#d97706" } },
-      { x: axisX0 + 0.5, y: yZ3, text: "<b>EXP. ALTA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#059669" } },
+      { x: xZ1, y: axisY1, text: "<b>IMP. BAJO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#b91c1c" } },
+      { x: xZ2, y: axisY1, text: "<b>IMP. MEDIO</b>", xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#d97706" } },
+      { x: xZ3, y: axisY1, text: "<b>IMP. ALTO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#059669" } },
+      { x: axisX0 + xSpan * 0.01, y: yZ1, text: "<b>EXP. BAJA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#b91c1c" } },
+      { x: axisX0 + xSpan * 0.01, y: yZ2, text: "<b>EXP. MEDIA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#d97706" } },
+      { x: axisX0 + xSpan * 0.01, y: yZ3, text: "<b>EXP. ALTA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#059669" } },
     ];
 
     const layout = {
