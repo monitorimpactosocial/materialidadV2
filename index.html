@@ -161,6 +161,14 @@
                 </div>
               </div>
 
+              <div class="form-grid">
+                <div class="field">
+                  <label for="tauMaterial">Umbral temas materiales coincidentes (escala 1–5)</label>
+                  <input id="tauMaterial" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
+                  <div class="muted small">Umbral aplicado simultáneamente al promedio externo (stakeholders) y al promedio interno (columna impacto). Solo los ítems que superan este valor en ambas encuestas se consideran temas materiales.</div>
+                </div>
+              </div>
+
               <div class="weights" style="display: none;">
                 <div class="weights-title">Pesos, score de impacto</div>
                 <div class="weights-grid">
@@ -522,21 +530,21 @@
         <div class="grid-2">
           <div class="card">
             <div class="card-header">
-              <h2>Matriz de doble materialidad</h2>
-              <p class="muted">Eje Y: score de impacto, Eje X: score financiero. Líneas: umbrales actuales.</p>
+              <h2>Temas materiales coincidentes</h2>
+              <p class="muted">Eje X: relevancia promedio externa (stakeholders). Eje Y: impacto promedio interno. Solo se grafican los ítems que superan el umbral de materialidad en ambas encuestas.</p>
             </div>
             <div class="card-body">
               <div id="plotMatrix" class="plot"></div>
               <div class="muted small mt-8">
-                El tamaño del punto representa la relevancia promedio de stakeholders (si existe base externa).
+                Las líneas punteadas indican el umbral de temas materiales. Cada punto es un tema que coincide en ambas encuestas.
               </div>
             </div>
           </div>
 
           <div class="card">
             <div class="card-header">
-              <h2>Ranking y clasificación</h2>
-              <p class="muted">Ordenado por score de stakeholders, con scores internos y flags de materialidad.</p>
+              <h2>Temas materiales</h2>
+              <p class="muted">Ítems que superan el umbral de materialidad en ambas encuestas (externos e internos). Ordenados por relevancia externa.</p>
             </div>
             <div class="card-body">
               <div class="table-wrap">
@@ -544,12 +552,10 @@
                   <thead>
                     <tr>
                       <th>Tema</th>
-                      <th class="right">Stakeholders</th>
-                      <th class="right">Impacto</th>
+                      <th class="right">Externos (relevancia)</th>
+                      <th class="right">Internos (impacto)</th>
                       <th class="right">Financiero</th>
-                      <th>Impacto ≥ τ</th>
-                      <th>Fin ≥ τ</th>
-                      <th>Doble</th>
+                      <th>Clasificación</th>
                     </tr>
                   </thead>
                   <tbody></tbody>

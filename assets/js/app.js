@@ -37,6 +37,7 @@
   const DEFAULT_PARAMS = {
     tauImpact: 3.5,
     tauFin: 3.5,
+    tauMaterial: 3.5,
     ruleDouble: "AND",
     wImpact: { severidad: 0.30, alcance: 0.25, irremediabilidad: 0.25, probabilidad: 0.20 },
     wFin: { impacto_financiero: 0.60, probabilidad_financiera: 0.40 },
@@ -643,6 +644,7 @@ function migrateDB(raw) {
   params.legacyBWeights = normalizeWeights({ ...(DEFAULT_PARAMS.legacyBWeights || {}), ...((raw.params && raw.params.legacyBWeights) || {}) });
   params.tauImpact = Number(raw.params && raw.params.tauImpact !== undefined ? raw.params.tauImpact : DEFAULT_PARAMS.tauImpact);
   params.tauFin = Number(raw.params && raw.params.tauFin !== undefined ? raw.params.tauFin : DEFAULT_PARAMS.tauFin);
+  params.tauMaterial = Number(raw.params && raw.params.tauMaterial !== undefined ? raw.params.tauMaterial : DEFAULT_PARAMS.tauMaterial);
   params.ruleDouble = (raw.params && raw.params.ruleDouble === "OR") ? "OR" : "AND";
   params.groupFilter = sanitizeText(raw.params && raw.params.groupFilter ? raw.params.groupFilter : DEFAULT_PARAMS.groupFilter, 120) || "TODOS";
   params.stakeWeightByN = raw.params && raw.params.stakeWeightByN !== undefined ? !!raw.params.stakeWeightByN : DEFAULT_PARAMS.stakeWeightByN;
@@ -978,6 +980,10 @@ function computeScores(db) {
       const isImpactMat = impactScore !== null ? impactScore >= params.tauImpact : false;
       const isFinMat = finScore !== null ? finScore >= params.tauFin : false;
       const isDouble = params.ruleDouble === "AND" ? isImpactMat && isFinMat : isImpactMat || isFinMat;
+      const tau = params.tauMaterial !== undefined ? params.tauMaterial : DEFAULT_PARAMS.tauMaterial;
+      const isMaterial = stakeMean !== null && impactScore !== null
+        ? (stakeMean >= tau && impactScore >= tau)
+        : false;
 
       rows.push({
         tema_id: tid,
@@ -991,6 +997,7 @@ function computeScores(db) {
         impact_mat: isImpactMat,
         fin_mat: isFinMat,
         double_mat: isDouble,
+        is_material: isMaterial,
       });
     }
 
@@ -2129,6 +2136,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     mountLegacyParamBlock();
     document.getElementById("tauImpact").value = fmt(p.tauImpact, 2);
     document.getElementById("tauFin").value = fmt(p.tauFin, 2);
+    document.getElementById("tauMaterial").value = fmt(p.tauMaterial !== undefined ? p.tauMaterial : DEFAULT_PARAMS.tauMaterial, 2);
     document.getElementById("ruleSelect").value = p.ruleDouble;
     const legacyTopNInput = document.getElementById("legacyTopN");
     if (legacyTopNInput) {
@@ -2164,6 +2172,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
     p.tauImpact = Number(document.getElementById("tauImpact").value);
     p.tauFin = Number(document.getElementById("tauFin").value);
+    p.tauMaterial = Number(document.getElementById("tauMaterial").value);
     p.ruleDouble = document.getElementById("ruleSelect").value;
 
     p.wImpact = {
@@ -2241,7 +2250,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       renderAll(db);
     };
 
-    ["tauImpact", "tauFin", "ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyTopN", "legacyExpectationFactor", "legacyPProb", "legacyPFinProb", "legacySSev", "legacySAlc", "legacySIrr", "legacyBFin", "legacyBStake", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
+    ["tauImpact", "tauFin", "tauMaterial", "ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyTopN", "legacyExpectationFactor", "legacyPProb", "legacyPFinProb", "legacySSev", "legacySAlc", "legacySIrr", "legacyBFin", "legacyBStake", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("change", syncAndRender);
@@ -2752,44 +2761,68 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   function renderMatrixPlot(db, targetId) {
     const params = getParams(db);
     const { rows } = computeScores(db);
+    const tau = params.tauMaterial !== undefined ? params.tauMaterial : DEFAULT_PARAMS.tauMaterial;
 
-    const x = [];
-    const y = [];
-    const text = [];
-    const size = [];
-    const color = [];
+    const materialRows = rows.filter((r) => r.is_material && r.stakeholder_mean !== null && r.impact_score !== null);
 
-    for (const r of rows) {
-      if (r.impact_score === null || r.fin_score === null) continue;
-      x.push(r.fin_score);
-      y.push(r.impact_score);
-      text.push(`${r.tema_id} · ${r.tema_nombre}`);
-      const sm = r.stakeholder_mean;
-      const s = sm === null ? 10 : 10 + ((sm - 1) / 4) * 18;
-      size.push(s);
-      color.push(r.double_mat ? "#064e3b" : (r.impact_mat ? "#059669" : (r.fin_mat ? "#16a34a" : "#94a3b8")));
-    }
+    const x = materialRows.map((r) => r.stakeholder_mean);
+    const y = materialRows.map((r) => r.impact_score);
+    const text = materialRows.map((r) => `${r.tema_id} · ${r.tema_nombre}`);
+
+    const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd",
+                     "#c0392b", "#16a085", "#8e44ad", "#2980b9", "#f39c12", "#27ae60", "#e74c3c", "#1abc9c", "#d35400", "#2c3e50"];
+    const color = materialRows.map((_, i) => palette[i % palette.length]);
+
+    const axisMin = 1;
+    const axisMax = 5;
+    const axisPad = 0.1;
 
     const data = [{
       x, y, text,
-      mode: "markers",
+      mode: "markers+text",
       type: "scatter",
-      marker: { size, color, opacity: 0.85, line: { width: 1, color: "rgba(2,44,34,0.25)" } },
-      hovertemplate: "<b>%{text}</b><br>Financiero: %{x:.2f}<br>Impacto: %{y:.2f}<extra></extra>"
+      textposition: "top center",
+      textfont: { size: 10 },
+      marker: { size: 16, color, opacity: 0.9, line: { width: 2, color: "#ffffff" } },
+      hovertemplate: "<b>%{text}</b><br>Externos (relevancia): %{x:.2f}<br>Internos (impacto): %{y:.2f}<extra></extra>"
     }];
 
     const layout = {
-      margin: { l: 55, r: 20, t: 10, b: 50 },
-      xaxis: { title: "Score financiero", range: [1, 5], gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
-      yaxis: { title: "Score impacto", range: [1, 5], gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
+      margin: { l: 60, r: 20, t: 30, b: 60 },
+      xaxis: {
+        title: { text: "Relevancia promedio (externos)", font: { size: 13 } },
+        range: [axisMin - axisPad, axisMax + axisPad],
+        gridcolor: "rgba(2,44,34,0.10)",
+        zeroline: false,
+        dtick: 0.5,
+      },
+      yaxis: {
+        title: { text: "Impacto promedio (internos)", font: { size: 13 } },
+        range: [axisMin - axisPad, axisMax + axisPad],
+        gridcolor: "rgba(2,44,34,0.10)",
+        zeroline: false,
+        dtick: 0.5,
+      },
       shapes: [
-        { type: "line", x0: params.tauFin, x1: params.tauFin, y0: 1, y1: 5, line: { color: "rgba(185,28,28,0.55)", width: 2, dash: "dot" } },
-        { type: "line", x0: 1, x1: 5, y0: params.tauImpact, y1: params.tauImpact, line: { color: "rgba(185,28,28,0.55)", width: 2, dash: "dot" } },
+        { type: "line", x0: tau, x1: tau, y0: axisMin - axisPad, y1: axisMax + axisPad, line: { color: "rgba(185,28,28,0.6)", width: 2, dash: "dot" } },
+        { type: "line", x0: axisMin - axisPad, x1: axisMax + axisPad, y0: tau, y1: tau, line: { color: "rgba(185,28,28,0.6)", width: 2, dash: "dot" } },
+      ],
+      annotations: [
+        { x: (axisMax + axisPad + tau) / 2, y: axisMin - axisPad + 0.05, text: `<b>Umbral: ${fmt(tau,2)}</b>`, showarrow: false, font: { size: 11, color: "rgba(185,28,28,0.8)" }, xanchor: "center", yanchor: "bottom" },
       ],
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(255,255,255,0.75)",
-      showlegend: false
+      showlegend: false,
     };
+
+    if (!materialRows.length) {
+      const target = document.getElementById(targetId);
+      if (target) {
+        try { Plotly.purge(target); } catch {}
+        target.innerHTML = `<div class="muted" style="padding:24px;">No hay temas materiales coincidentes con el umbral actual (${fmt(tau,2)}).</div>`;
+      }
+      return;
+    }
 
     Plotly.newPlot(targetId, data, layout, { displayModeBar: false, responsive: true });
   }
@@ -2799,16 +2832,24 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     const tbody = document.querySelector("#tableRanking tbody");
     tbody.innerHTML = "";
 
-    for (const r of rows) {
+    const materialRows = rows.filter((r) => r.is_material);
+    if (!materialRows.length) {
       const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="5" class="muted center">No hay temas que superen el umbral de materialidad en ambas encuestas.</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    for (const r of materialRows) {
+      const tr = document.createElement("tr");
+      tr.style.background = "#d1fae5";
+      tr.style.borderLeft = "4px solid #059669";
       tr.innerHTML = `
-        <td>${escapeHTML(r.tema_id)} · ${escapeHTML(r.tema_nombre)}</td>
+        <td><strong>${escapeHTML(r.tema_id)}</strong> · ${escapeHTML(r.tema_nombre)}</td>
         <td class="right">${r.stakeholder_mean === null ? "" : fmt(r.stakeholder_mean, 2)}</td>
         <td class="right">${r.impact_score === null ? "" : fmt(r.impact_score, 2)}</td>
         <td class="right">${r.fin_score === null ? "" : fmt(r.fin_score, 2)}</td>
-        <td>${r.impact_mat ? "Sí" : "No"}</td>
-        <td>${r.fin_mat ? "Sí" : "No"}</td>
-        <td>${r.double_mat ? "Sí" : "No"}</td>
+        <td style="color:#059669; font-weight:bold;">&#10003; Material</td>
       `;
       tbody.appendChild(tr);
     }
