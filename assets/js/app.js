@@ -1457,7 +1457,7 @@ function computeScores(db) {
     ];
 
     const layout = {
-      title: { text: "<b>GRÁFICO DE MATERIALIDAD</b>", x: 0.5, xanchor: "center", font: { size: isPrint ? 18 : 22, color: "#111111" } },
+      title: { text: "<b>MATRIZ CLÁSICA (METODOLOGÍA HISTÓRICA)</b>", x: 0.5, xanchor: "center", font: { size: isPrint ? 16 : 19, color: "#111111" } },
       height: isPrint ? 520 : 620,
       margin: { l: 80, r: 24, t: 60, b: 70 },
       xaxis: {
@@ -2920,20 +2920,20 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       textposition: "top center",
       textfont: { size: 10, color: "#374151" },
       marker: { size: 18, color, opacity: 0.9, line: { width: 2, color: "#ffffff" } },
-      hovertemplate: "<b>%{customdata}</b><br>Externos (relevancia): %{x:.2f}<br>Internos (impacto): %{y:.2f}<extra></extra>"
+      hovertemplate: "<b>%{customdata}</b><br>Stakeholders (importancia): %{x:.2f}<br>Impacto ASG (interno): %{y:.2f}<extra></extra>"
     }];
 
     const layout = {
       margin: { l: 60, r: 20, t: 30, b: 60 },
       xaxis: {
-        title: { text: "Relevancia promedio (externos)", font: { size: 13 } },
+        title: { text: "Importancia percibida (stakeholders)", font: { size: 13 } },
         range: [axisMin - axisPad, axisMax + axisPad],
         gridcolor: "rgba(2,44,34,0.10)",
         zeroline: false,
         dtick: 0.5,
       },
       yaxis: {
-        title: { text: "Impacto promedio (internos)", font: { size: 13 } },
+        title: { text: "Impacto ASG (evaluación interna)", font: { size: 13 } },
         range: [axisMin - axisPad, axisMax + axisPad],
         gridcolor: "rgba(2,44,34,0.10)",
         zeroline: false,
@@ -3068,11 +3068,11 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     
     const data = [{
       x, y, type: 'bar', marker: { color: '#059669' },
-      hovertemplate: "Promedio Doble Mat.: %{y:.2f}<extra></extra>"
+      hovertemplate: "Puntaje Materialidad: %{y:.2f}<extra></extra>"
     }];
     const layout = {
       margin: { l: 30, r: 20, t: 30, b: 120 },
-      yaxis: { range: [1, 5], title: "Media Doble Mat.", gridcolor: "rgba(2,44,34,0.10)" },
+      yaxis: { range: [1, 5], title: "Puntaje Materialidad", gridcolor: "rgba(2,44,34,0.10)" },
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(255,255,255,0.75)",
     };
@@ -3682,9 +3682,9 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
   <table class="kpi-table">
     <tr>
-      <td class="kpi-cell"><div class="kpi-label">Promedio externo</div><div class="kpi-value">${textValue("repAvgStake")}</div><div class="mini-note">Importancia media de stakeholders</div></td>
-      <td class="kpi-cell"><div class="kpi-label">Promedio impacto</div><div class="kpi-value">${textValue("repAvgImpact")}</div><div class="mini-note">Evaluación ASG agregada</div></td>
-      <td class="kpi-cell"><div class="kpi-label">Promedio financiero</div><div class="kpi-value">${textValue("repAvgFin")}</div><div class="mini-note">Evaluación financiera agregada</div></td>
+      <td class="kpi-cell"><div class="kpi-label">Promedio Stakeholders</div><div class="kpi-value">${textValue("repAvgStake")}</div><div class="mini-note">Importancia percibida (perspectiva externa)</div></td>
+      <td class="kpi-cell"><div class="kpi-label">Impacto ASG</div><div class="kpi-value">${textValue("repAvgImpact")}</div><div class="mini-note">Materialidad de impacto (outside-in)</div></td>
+      <td class="kpi-cell"><div class="kpi-label">Impacto Financiero</div><div class="kpi-value">${textValue("repAvgFin")}</div><div class="mini-note">Materialidad financiera (inside-out)</div></td>
       <td class="kpi-cell"><div class="kpi-label">Cobertura temática</div><div class="kpi-value">${textValue("repCoverage")}</div><div class="mini-note">Temas con evaluación disponible</div></td>
     </tr>
   </table>
@@ -3703,16 +3703,16 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   </table>
 
   <div class="page-break"></div>
-  <h2>2. Evaluación Externa</h2>
-  <p class="section-intro">Resultados de la encuesta a grupos de interés y lectura de relevancia externa.</p>
+  <h2>2. Materialidad de Impacto (Perspectiva Externa)</h2>
+  <p class="section-intro">Resultados de la encuesta a grupos de interés sobre la importancia percibida de cada tema ASG (materialidad de impacto, perspectiva outside-in).</p>
   ${buildWordFigure("2.1. Top 10 Temas Más Relevantes", imageRefs.plotExternalTop10, "Visión externa de stakeholders sobre temas prioritarios.")}
   <h3>2.2. Cobertura por Grupo de Interés</h3>
   ${tableWordHtml("tableReportGroups", { widths: [44, 14, 14, 28] })}
   <p>${textValue("repExternalNarrative")}</p>
 
   <div class="page-break"></div>
-  <h2>3. Evaluación Interna</h2>
-  <p class="section-intro">Síntesis del criterio del comité evaluador y de las áreas internas participantes.</p>
+  <h2>3. Evaluación Interna (Impacto ASG y Financiero)</h2>
+  <p class="section-intro">Síntesis del criterio del comité evaluador: materialidad de impacto ASG (severidad, alcance, irremediabilidad, probabilidad) y materialidad financiera (impacto y probabilidad de negocio, perspectiva inside-out).</p>
   ${buildWordFigure("3.1. Materialidad por Dimensión ISO 26000", imageRefs.plotDimensionReport, "Comparativo agregado por dimensión temática.")}
   <table class="panel-table">
     <tr>
@@ -3747,7 +3747,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   <h3>4.2. Ranking Completo de Temas</h3>
   ${tableWordHtml("tableReportAll", { widths: [34, 11, 11, 11, 11, 11, 11], fontSize: "7.4pt" })}
 
-  <h3>4.3. Matriz Clásica de Impacto y Expectativas</h3>
+  <h3>4.3. Matriz Clásica de Impacto y Expectativas (metodología histórica)</h3>
   ${buildWordFigure("Matriz Clásica", imageRefs.plotLegacyMatrixReport, "Cruce reconstruido entre impactos y expectativas a partir de ambas encuestas.")}
   ${buildWordFigure("Ranking Comparado", imageRefs.plotLegacyRankingReport, "Comparativo normalizado por tema entre significancia de impactos y puntaje de expectativas.")}
 
