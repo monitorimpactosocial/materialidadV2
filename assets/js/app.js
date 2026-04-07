@@ -1191,9 +1191,9 @@ function computeScores(db) {
     if (!tbody) return;
 
     const legacy = computeLegacyMatrix(db);
-    const sorted = legacy.displayRows;
+    const allRows = legacy.rows;
 
-    tbody.innerHTML = sorted.map((row) => `
+    tbody.innerHTML = allRows.map((row) => `
       <tr class="topic-block" data-tid="${escapeHTML(row.tema_id)}">
         <td class="legacy-topic-cell"><strong>${escapeHTML(row.tema_id)}</strong> · ${escapeHTML(row.tema_nombre)}</td>
         <td class="right legacy-computed">${row.stakeholder_mean === null ? "" : fmt(row.stakeholder_mean, 2)}</td>
@@ -1308,14 +1308,14 @@ function computeScores(db) {
       return;
     }
 
-    // Usar todos los temas completos para el scatter (no solo materiales)
-    const plotRows = legacy.sortedValidRows.filter((r) => r.significancia !== null && r.expectativas_total !== null);
+    // Solo temas materiales seleccionados
+    const plotRows = legacy.displayRows.filter((r) => r.significancia !== null && r.expectativas_total !== null);
     const x = plotRows.map((row) => row.significancia);
     const y = plotRows.map((row) => row.expectativas_total);
     const text = plotRows.map((row) => `${row.tema_id} · ${row.tema_nombre}`);
     const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd"];
-    const color = plotRows.map((row) => row.is_legacy_material ? "#059669" : "#94a3b8");
-    const sizes = plotRows.map((row) => row.is_legacy_material ? 20 : 12);
+    const color = plotRows.map((_, i) => palette[i % palette.length]);
+    const sizes = plotRows.map(() => 20);
     const maxX = legacy.axisMaxImpact;
     const maxY = legacy.axisMaxExpect;
     const isPrint = target.classList.contains("plot-print");
@@ -1346,7 +1346,7 @@ function computeScores(db) {
       textfont: { size: 8, color: "#374151" },
       marker: { size: sizes, color, opacity: 0.96, line: { width: 2, color: "#ffffff" } },
       hovertemplate: "<b>%{text}</b><br>Impactos: %{x:.2f}<br>Expectativas: %{y:.2f}<br>%{customdata}<extra></extra>",
-      customdata: plotRows.map((row) => row.is_legacy_material ? "MATERIAL" : row.cuadrante || "")
+      customdata: plotRows.map((row) => row.cuadrante || "")
     }];
 
     // Dos líneas divisoras (mediana de cada eje) → 4 cuadrantes siempre separados
@@ -3147,20 +3147,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       "Usar la tabla de prioridades integradas como base del plan ESG y la narrativa del reporte corporativo."
     ]);
 
-    // tabla doble
-    const tbodyD = document.querySelector("#tableReportDouble tbody");
-    tbodyD.innerHTML = "";
-    for (const r of doubleRows) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHTML(r.tema_id)} · ${escapeHTML(r.tema_nombre)}</td>
-        <td class="right">${r.stakeholder_mean === null ? "" : fmt(r.stakeholder_mean, 2)}</td>
-        <td class="right">${r.impact_score === null ? "" : fmt(r.impact_score, 2)}</td>
-        <td class="right">${r.fin_score === null ? "" : fmt(r.fin_score, 2)}</td>
-      `;
-      tbodyD.appendChild(tr);
-    }
-
     // tabla completa
     const tbodyA = document.querySelector("#tableReportAll tbody");
     tbodyA.innerHTML = "";
@@ -3209,24 +3195,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         areasBody.appendChild(tr);
       }
     }
-
-    const priorityBody = document.querySelector("#tableReportPriority tbody");
-    if (priorityBody) {
-      priorityBody.innerHTML = "";
-      for (const r of priorityRows) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${escapeHTML(r.tema_id)} Â· ${escapeHTML(r.tema_nombre)}</td>
-          <td class="right">${r.stakeholder_mean === null ? "" : fmt(r.stakeholder_mean, 2)}</td>
-          <td class="right">${r.impact_score === null ? "" : fmt(r.impact_score, 2)}</td>
-          <td class="right">${r.fin_score === null ? "" : fmt(r.fin_score, 2)}</td>
-          <td class="right">${fmt(r.integrated_priority, 2)}</td>
-        `;
-        priorityBody.appendChild(tr);
-      }
-    }
-
-    renderLegacyResultsTable("tableLegacyReport", legacy.displayRows);
 
     // plot en reporte
     renderExternalTop10(db, "plotExternalTop10");
