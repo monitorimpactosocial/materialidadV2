@@ -83,13 +83,10 @@
     </aside>
 
     <main class="app-main">
-      <!-- Elementos de Inicio ocultos (IDs requeridos por JS) -->
+      <!-- Elementos ocultos requeridos por JS -->
       <div style="display:none">
         <button id="btnGoExternal" type="button"></button>
         <button id="btnGoInternal" type="button"></button>
-        <div id="kpiExternalN"></div>
-        <div id="kpiInternalN"></div>
-        <div id="kpiThemesN"></div>
       </div>
 
       <!-- EXTERNA -->
@@ -656,29 +653,19 @@
             </div>
           </div>
 
-          <!-- Figura de temas materiales + Radar -->
-          <div class="grid-2 mt-16">
-            <div class="card">
-              <div class="card-header">
-                <h2>Figura de temas materiales</h2>
-                <p class="muted">Eje X: relevancia externa · Eje Y: impacto interno · Solo ítems que superan el umbral en ambas encuestas.</p>
-              </div>
-              <div class="card-body">
-                <div id="plotMatrix" class="plot"></div>
-                <div class="muted small mt-8">Líneas punteadas = umbral. Cada punto = tema coincidente en ambas encuestas.</div>
-              </div>
+          <!-- Figura de temas materiales coincidentes -->
+          <div class="card mt-16">
+            <div class="card-header">
+              <h2>Figura de temas materiales</h2>
+              <p class="muted">Eje X: relevancia externa (stakeholders) · Eje Y: impacto promedio interno · Solo ítems que superan el umbral en ambas encuestas.</p>
             </div>
-
-            <div class="card">
-              <div class="card-header">
-                <h2>Perfil de Materialidad (Radar)</h2>
-                <p class="muted">Score Financiero vs Impacto, top temas internos.</p>
-              </div>
-              <div class="card-body">
-                <div id="plotRadar" class="plot"></div>
-              </div>
+            <div class="card-body">
+              <div id="plotMatrix" class="plot"></div>
+              <div class="muted small mt-8">Líneas punteadas = umbral de materialidad. Cada punto = código del tema (hover para ver nombre completo).</div>
             </div>
           </div>
+          <!-- plotRadar se usa solo en la sección imprimible del reporte -->
+          <div style="display:none"><div id="plotRadar"></div></div>
 
           <!-- Vista rápida completa -->
           <div class="card mt-16">

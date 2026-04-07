@@ -1279,19 +1279,20 @@ function computeScores(db) {
     const maxY = legacy.axisMaxExpect;
     const isPrint = target.classList.contains("plot-print");
 
-    // Calcular rango dinámico basado en datos reales + padding
+    // Rango dinámico que siempre incluye las líneas de cuadrante
     const xMin = Math.min(...x);
     const xMax = Math.max(...x);
     const yMin = Math.min(...y);
     const yMax = Math.max(...y);
     const xSpread = Math.max(xMax - xMin, 2);
     const ySpread = Math.max(yMax - yMin, 2);
-    const xPad = xSpread * 0.25;
-    const yPad = ySpread * 0.25;
-    const axisX0 = Math.max(0, xMin - xPad);
-    const axisX1 = Math.min(maxX, xMax + xPad);
-    const axisY0 = Math.max(0, yMin - yPad);
-    const axisY1 = Math.min(maxY, yMax + yPad);
+    const xPad = xSpread * 0.20;
+    const yPad = ySpread * 0.20;
+    // Extender el rango para asegurar que las líneas de cuadrante (xLower, xUpper) sean siempre visibles
+    const axisX0 = Math.max(0, Math.min(xMin - xPad, xLower - xPad));
+    const axisX1 = Math.min(maxX, Math.max(xMax + xPad, xUpper + xPad));
+    const axisY0 = Math.max(0, Math.min(yMin - yPad, yLower - yPad));
+    const axisY1 = Math.min(maxY, Math.max(yMax + yPad, yUpper + yPad));
 
     const data = [{
       x,
@@ -1304,23 +1305,28 @@ function computeScores(db) {
       customdata: legacy.displayRows.map((row) => row.cuadrante || "")
     }];
 
-    // Líneas de banda (solo las visibles dentro del rango dinámico)
-    const shapes = [];
-    if (xLower >= axisX0 && xLower <= axisX1)
-      shapes.push({ type: "line", x0: xLower, x1: xLower, y0: axisY0, y1: axisY1, line: { color: "#111111", width: 2, dash: "dash" } });
-    if (xUpper >= axisX0 && xUpper <= axisX1)
-      shapes.push({ type: "line", x0: xUpper, x1: xUpper, y0: axisY0, y1: axisY1, line: { color: "#111111", width: 2, dash: "dash" } });
-    if (yLower >= axisY0 && yLower <= axisY1)
-      shapes.push({ type: "line", x0: axisX0, x1: axisX1, y0: yLower, y1: yLower, line: { color: "#111111", width: 2, dash: "dash" } });
-    if (yUpper >= axisY0 && yUpper <= axisY1)
-      shapes.push({ type: "line", x0: axisX0, x1: axisX1, y0: yUpper, y1: yUpper, line: { color: "#111111", width: 2, dash: "dash" } });
+    // Las cuatro líneas de cuadrante siempre visibles
+    const shapes = [
+      { type: "line", x0: xLower, x1: xLower, y0: axisY0, y1: axisY1, line: { color: "#111111", width: 2, dash: "dash" } },
+      { type: "line", x0: xUpper, x1: xUpper, y0: axisY0, y1: axisY1, line: { color: "#111111", width: 2, dash: "dash" } },
+      { type: "line", x0: axisX0, x1: axisX1, y0: yLower, y1: yLower, line: { color: "#111111", width: 2, dash: "dash" } },
+      { type: "line", x0: axisX0, x1: axisX1, y0: yUpper, y1: yUpper, line: { color: "#111111", width: 2, dash: "dash" } },
+    ];
 
-    // Anotaciones de cuadrante basadas en el rango visible
-    const xMid = (axisX0 + axisX1) / 2;
-    const yMid = (axisY0 + axisY1) / 2;
+    // Etiquetas de zona en los tres segmentos de cada eje
+    const xZ1 = (axisX0 + xLower) / 2;
+    const xZ2 = (xLower + xUpper) / 2;
+    const xZ3 = (xUpper + axisX1) / 2;
+    const yZ1 = (axisY0 + yLower) / 2;
+    const yZ2 = (yLower + yUpper) / 2;
+    const yZ3 = (yUpper + axisY1) / 2;
     const annotations = [
-      { x: xMid, y: axisY0 + 0.1, text: `<b>Ref. Impacto: ${xLower.toFixed(1)} | ${xUpper.toFixed(1)}</b>`, xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
-      { x: axisX0 + 0.1, y: yMid, text: `<b>Ref. Expect: ${yLower.toFixed(1)} | ${yUpper.toFixed(1)}</b>`, textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 11, color: "#0070c9" } },
+      { x: xZ1, y: axisY0 + 0.3, text: "<b>IMPORTANCIA BAJA</b>", xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
+      { x: xZ2, y: axisY0 + 0.3, text: "<b>IMPORTANCIA MEDIA</b>", xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
+      { x: xZ3, y: axisY0 + 0.3, text: "<b>IMPORTANCIA ALTA</b>",  xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
+      { x: axisX0 + 0.5, y: yZ1, text: "<b>BAJA</b>",   textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#0070c9" } },
+      { x: axisX0 + 0.5, y: yZ2, text: "<b>MEDIA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#0070c9" } },
+      { x: axisX0 + 0.5, y: yZ3, text: "<b>ALTA</b>",   textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#0070c9" } },
     ];
 
     const layout = {
