@@ -345,8 +345,12 @@ function cloneDeep(obj) {
   return obj === undefined ? undefined : JSON.parse(JSON.stringify(obj));
 }
 
+function fixMojibake(s) {
+  // Repair common UTF-8 double-encoding (Latin-1 interpreted as UTF-8)
+  try { return s.replace(/Ã¡/g,"á").replace(/Ã©/g,"é").replace(/Ã­/g,"í").replace(/Ã³/g,"ó").replace(/Ãº/g,"ú").replace(/Ã±/g,"ñ").replace(/Ã/g,"Á").replace(/Ã‰/g,"É").replace(/Ã/g,"Í").replace(/Ã"/g,"Ó").replace(/Ãš/g,"Ú").replace(/Ã'/g,"Ñ").replace(/Ã¼/g,"ü").replace(/Ã¤/g,"ä"); } catch { return s; }
+}
 function sanitizeText(value, maxLen = 4000) {
-  return String(value || "").trim().slice(0, maxLen);
+  return fixMojibake(String(value || "").trim()).slice(0, maxLen);
 }
 
 function sanitizeRating(value) {
@@ -3199,7 +3203,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
     // plot en reporte
     renderExternalTop10(db, "plotExternalTop10");
-    renderMatrixPlot(db, "plotMatrixReport");
     renderDimensionPlot(db, "plotDimensionReport");
     renderLegacyMatrixPlot(db, "plotLegacyMatrixReport");
     renderLegacyRankingPlot(db, "plotLegacyRankingReport");
@@ -3507,7 +3510,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     const figureDefs = [
       { id: "plotExternalTop10", file: "image001.png" },
       { id: "plotDimensionReport", file: "image002.png" },
-      { id: "plotMatrixReport", file: "image004.png" },
       { id: "plotLegacyMatrixReport", file: "image005.png" },
       { id: "plotLegacyRankingReport", file: "image006.png" },
     ];
@@ -3657,9 +3659,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   <div class="page-break"></div>
   <h2>4. Consolidación y Doble Materialidad</h2>
   <p class="section-intro">Cruce entre visión externa e interna para definir el portafolio de temas materiales.</p>
-  ${buildWordFigure("4.1. Matriz de Resultados", imageRefs.plotMatrixReport, "Cruce estratégico entre impacto, señal financiera y relevancia externa.")}
 
-  <h3>4.2. Portafolio de Materialidad</h3>
+  <h3>4.1. Portafolio de Materialidad</h3>
   <table class="kpi-table">
     <tr>
       <td class="kpi-cell"><div class="kpi-label">Doble materialidad</div><div class="kpi-value">${textValue("repPortfolioDouble")}</div></td>
@@ -3669,10 +3670,10 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     </tr>
   </table>
 
-  <h3>4.3. Ranking Completo de Temas</h3>
+  <h3>4.2. Ranking Completo de Temas</h3>
   ${tableWordHtml("tableReportAll", { widths: [34, 11, 11, 11, 11, 11, 11], fontSize: "7.4pt" })}
 
-  <h3>4.4. Matriz Clásica de Impacto y Expectativas</h3>
+  <h3>4.3. Matriz Clásica de Impacto y Expectativas</h3>
   ${buildWordFigure("Matriz Clásica", imageRefs.plotLegacyMatrixReport, "Cruce reconstruido entre impactos y expectativas a partir de ambas encuestas.")}
   ${buildWordFigure("Ranking Comparado", imageRefs.plotLegacyRankingReport, "Comparativo normalizado por tema entre significancia de impactos y puntaje de expectativas.")}
 

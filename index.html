@@ -572,117 +572,15 @@
       <!-- REPORTE -->
       <section class="view active" id="view-report">
 
-        <!-- ===== PANEL DE RESUMEN Y TEMAS MATERIALES (no se imprime) ===== -->
-        <div class="no-print">
-          <div class="grid-2">
-            <!-- Resumen rápido -->
-            <div class="card">
-              <div class="card-header">
-                <h2>Resumen de datos</h2>
-                <p class="muted">Los parámetros se configuran en la vista Matriz Clásica.</p>
-              </div>
-              <div class="card-body">
-                <div class="kpi-row">
-                  <div class="kpi">
-                    <div class="kpi-label">Respuestas externas</div>
-                    <div class="kpi-value" id="kpiExternalN">0</div>
-                  </div>
-                  <div class="kpi">
-                    <div class="kpi-label">Evaluaciones internas</div>
-                    <div class="kpi-value" id="kpiInternalN">0</div>
-                  </div>
-                  <div class="kpi">
-                    <div class="kpi-label">Temas evaluados</div>
-                    <div class="kpi-value" id="kpiThemesN">27</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Temas materiales: tabla -->
-            <div class="card">
-              <div class="card-header">
-                <h2>Temas materiales coincidentes</h2>
-                <p class="muted">Ítems que superan el umbral en ambas encuestas. Ordenados por relevancia externa.</p>
-              </div>
-              <div class="card-body">
-                <div class="kpi-row" style="margin-bottom:12px;">
-                  <div class="kpi">
-                    <div class="kpi-label">Mat. impacto</div>
-                    <div class="kpi-value" id="kpiMatImpact">0</div>
-                  </div>
-                  <div class="kpi">
-                    <div class="kpi-label">Mat. financiero</div>
-                    <div class="kpi-value" id="kpiMatFin">0</div>
-                  </div>
-                  <div class="kpi">
-                    <div class="kpi-label">Doble materialidad</div>
-                    <div class="kpi-value" id="kpiMatDouble">0</div>
-                  </div>
-                </div>
-                <div class="table-wrap">
-                  <table class="table" id="tableRanking">
-                    <thead>
-                      <tr>
-                        <th>Tema</th>
-                        <th class="right">Externos</th>
-                        <th class="right">Internos (impacto)</th>
-                        <th class="right">Financiero</th>
-                        <th>Clasificación</th>
-                      </tr>
-                    </thead>
-                    <tbody></tbody>
-                  </table>
-                </div>
-                <div class="btn-row mt-12">
-                  <button class="btn btn-secondary" id="btnDownloadMatrixCSV" type="button">Descargar CSV</button>
-                  <button class="btn btn-secondary" id="btnDownloadStakeCSV" type="button">Descargar stakeholders CSV</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Figura de temas materiales coincidentes -->
-          <div class="card mt-16">
-            <div class="card-header">
-              <h2>Figura de temas materiales</h2>
-              <p class="muted">Eje X: relevancia externa (stakeholders) · Eje Y: impacto promedio interno · Solo ítems que superan el umbral en ambas encuestas.</p>
-            </div>
-            <div class="card-body">
-              <div id="plotMatrix" class="plot"></div>
-              <div class="muted small mt-8">Líneas punteadas = umbral de materialidad. Cada punto = código del tema (hover para ver nombre completo).</div>
-            </div>
-          </div>
-          <!-- plotRadar se usa solo en la sección imprimible del reporte -->
-          <div style="display:none"><div id="plotRadar"></div></div>
-
-          <!-- Vista rápida completa -->
-          <div class="card mt-16">
-            <div class="card-header">
-              <h2>Vista rápida — todos los temas</h2>
-              <p class="muted">Lista completa con scores. Los temas materiales están resaltados.</p>
-            </div>
-            <div class="card-body">
-              <div class="table-wrap">
-                <table class="table" id="tableQuick">
-                  <thead>
-                    <tr>
-                      <th>Tema</th>
-                      <th class="right">Stakeholders</th>
-                      <th class="right">Impacto</th>
-                      <th class="right">Financiero</th>
-                      <th>Clasificación</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div class="divider mt-16" style="border-top: 2px solid var(--primary); margin-bottom:24px;"></div>
+        <!-- Elementos ocultos necesarios para cálculos internos -->
+        <div style="display:none">
+          <div id="plotMatrix"></div>
+          <div id="plotRadar"></div>
+          <span id="kpiExternalN"></span><span id="kpiInternalN"></span><span id="kpiThemesN"></span>
+          <span id="kpiMatImpact"></span><span id="kpiMatFin"></span><span id="kpiMatDouble"></span>
+          <table id="tableRanking"><tbody></tbody></table>
+          <table id="tableQuick"><tbody></tbody></table>
         </div>
-        <!-- ===== FIN PANEL NO-PRINT ===== -->
 
         <div class="card print-area" id="reportArea" style="border: none; box-shadow: none; background: #fff;">
           <div class="card-header" style="border-bottom: 3px solid var(--primary); padding-bottom: 24px;">
@@ -864,10 +762,7 @@
               <p style="margin:0;">Cruce estratégico que determina la lista final de temas de doble materialidad, integrando la visión externa (tamaño de burbuja) e interna (Ejes X e Y).</p>
             </div>
 
-            <h3 class="mt-16">3.1. Matriz de Resultados (Doble Materialidad)</h3>
-            <div id="plotMatrixReport" class="plot plot-print"></div>
-
-            <h3 class="mt-16">3.2. Portafolio de Materialidad</h3>
+            <h3 class="mt-16">3.1. Portafolio de Materialidad</h3>
             <section class="report-kpi-grid">
               <article class="report-kpi-card report-kpi-card-soft">
                 <div class="report-kpi-label">Doble materialidad</div>
@@ -891,7 +786,7 @@
               </article>
             </section>
 
-            <h3 class="mt-16">3.3. Ranking completo de temas</h3>
+            <h3 class="mt-16">3.2. Ranking completo de temas</h3>
             <div class="table-wrap">
               <table class="table table-compact" id="tableReportAll">
                 <thead>
@@ -909,7 +804,7 @@
               </table>
             </div>
 
-            <h3 class="mt-16">3.4. Matriz clásica de impacto y expectativas</h3>
+            <h3 class="mt-16">3.3. Matriz clásica de impacto y expectativas</h3>
             <div class="callout callout-info mt-8" style="background:#f8fafc; border-left-color:#334155;">
               <p style="margin:0;">Lectura complementaria que reconstruye la lógica histórica a partir de las encuestas vigentes (fórmulas P×S, P×B y M×Factor).</p>
             </div>
@@ -1052,6 +947,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=26"></script>
+  <script src="assets/js/app.js?v=27"></script>
 </body>
 </html>
