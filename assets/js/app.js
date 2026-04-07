@@ -1171,10 +1171,10 @@ function computeScores(db) {
     const tauExt = Number(params.tauLegacyExternal !== undefined ? params.tauLegacyExternal : DEFAULT_PARAMS.tauLegacyExternal);
     const tauInt = Number(params.tauLegacyInternal !== undefined ? params.tauLegacyInternal : DEFAULT_PARAMS.tauLegacyInternal);
 
-    // Cuadrantes del scatter: 3 zonas X (BAJO/MEDIO/ALTO) × 2 zonas Y (BAJA/ALTA)
-    const impactThirdLow = axisMaxImpact / 3;
-    const impactThirdHigh = (axisMaxImpact / 3) * 2;
-    const expectMid = axisMaxExpect / 2;
+    // Cuadrantes del scatter: 2 zonas X (BAJO/ALTO) × 3 zonas Y (BAJA/MEDIA/ALTA) = 6
+    const impactMid = axisMaxImpact / 2;
+    const expectThirdLow = axisMaxExpect / 3;
+    const expectThirdHigh = (axisMaxExpect / 3) * 2;
 
     rows.forEach((row) => {
       // Marcar si supera umbrales en promedios (escala 1-5)
@@ -1185,8 +1185,8 @@ function computeScores(db) {
         row.cuadrante = "";
         return;
       }
-      const impactLevel = row.significancia >= impactThirdHigh ? "ALTO" : row.significancia >= impactThirdLow ? "MEDIO" : "BAJO";
-      const expectLevel = row.expectativas_total >= expectMid ? "ALTA" : "BAJA";
+      const impactLevel = row.significancia >= impactMid ? "ALTO" : "BAJO";
+      const expectLevel = row.expectativas_total >= expectThirdHigh ? "ALTA" : row.expectativas_total >= expectThirdLow ? "MEDIA" : "BAJA";
       row.cuadrante = `Imp.${impactLevel} / Exp.${expectLevel}`;
     });
 
@@ -1210,9 +1210,9 @@ function computeScores(db) {
       axisMaxExpect,
       tauExt,
       tauInt,
-      impactThirdLow,
-      impactThirdHigh,
-      expectMid,
+      impactMid,
+      expectThirdLow,
+      expectThirdHigh,
       configuredThemes: rows.filter((row) => row.tiene_alguna_carga).length,
       completeThemes: valid.length,
       highHighCount: displayRows.length,
@@ -1233,15 +1233,15 @@ function computeScores(db) {
         <td class="right legacy-computed">${row.top2box === null ? "" : `${fmt(row.top2box * 100, 1)}%`}</td>
         <td class="right legacy-computed">${row.active_groups_share === null ? "" : `${fmt(row.active_groups_share * 100, 1)}%`}</td>
         <td class="legacy-input-cell">
-          <input class="legacy-number ${row.p_manual !== null ? "is-manual" : ""}" data-field="p" type="number" min="1" max="5" step="0.01" value="${row.p === null ? "" : fmt(row.p, 2)}" data-suggested="${row.p_sugerido === null ? "" : fmt(row.p_sugerido, 2)}" />
-          <div class="legacy-suggestion">Sug. ${row.p_sugerido === null ? "N/D" : fmt(row.p_sugerido, 2)}</div>
+          <input class="legacy-number ${row.p_manual !== null ? "is-manual" : ""}" data-field="p" type="number" min="1" max="5" step="1" value="${row.p === null ? "" : Math.round(row.p)}" data-suggested="${row.p_sugerido === null ? "" : Math.round(row.p_sugerido)}" />
+          <div class="legacy-suggestion">Sug. ${row.p_sugerido === null ? "N/D" : Math.round(row.p_sugerido)}</div>
         </td>
         <td class="legacy-input-cell">
-          <input class="legacy-number ${row.s_manual !== null ? "is-manual" : ""}" data-field="s" type="number" min="1" max="5" step="0.01" value="${row.s === null ? "" : fmt(row.s, 2)}" data-suggested="${row.s_sugerido === null ? "" : fmt(row.s_sugerido, 2)}" />
-          <div class="legacy-suggestion">Sug. ${row.s_sugerido === null ? "N/D" : fmt(row.s_sugerido, 2)}</div>
+          <input class="legacy-number ${row.s_manual !== null ? "is-manual" : ""}" data-field="s" type="number" min="1" max="5" step="1" value="${row.s === null ? "" : Math.round(row.s)}" data-suggested="${row.s_sugerido === null ? "" : Math.round(row.s_sugerido)}" />
+          <div class="legacy-suggestion">Sug. ${row.s_sugerido === null ? "N/D" : Math.round(row.s_sugerido)}</div>
         </td>
         <td class="legacy-input-cell">
-          <input class="legacy-number ${row.b_manual !== null ? "is-manual" : ""}" data-field="b" type="number" min="1" max="5" step="0.01" value="${row.b === null ? "" : fmt(row.b, 2)}" data-suggested="${row.b_sugerido === null ? "" : fmt(row.b_sugerido, 2)}" />
+          <input class="legacy-number ${row.b_manual !== null ? "is-manual" : ""}" data-field="b" type="number" min="1" max="5" step="1" value="${row.b === null ? "" : Math.round(row.b)}" data-suggested="${row.b_sugerido === null ? "" : Math.round(row.b_sugerido)}" />
           <div class="legacy-suggestion">Sug. ${row.b_sugerido === null ? "N/D" : fmt(row.b_sugerido, 2)}</div>
         </td>
         <td class="right legacy-computed">${row.e === null ? "" : fmt(row.e, 2)}</td>
@@ -1345,10 +1345,10 @@ function computeScores(db) {
     }
 
     const isPrint = target.classList.contains("plot-print");
-    // Divisores de cuadrante: 3 zonas X (tercios) × 2 zonas Y (mitad)
-    const divX1 = legacy.impactThirdLow;
-    const divX2 = legacy.impactThirdHigh;
-    const divY = legacy.expectMid;
+    // Divisores: 2 zonas X (mitad) × 3 zonas Y (tercios) = 6
+    const divX = legacy.impactMid;
+    const divY1 = legacy.expectThirdLow;
+    const divY2 = legacy.expectThirdHigh;
     const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd"];
 
     // Traza 1: temas NO materiales (gris, chico)
@@ -1396,25 +1396,25 @@ function computeScores(db) {
     const axisY0 = 0;
     const axisY1 = Math.max(legacy.axisMaxExpect, ...allY) * 1.02;
 
-    // 3 líneas divisoras → 6 zonas (3 columnas × 2 filas)
+    // 3 líneas divisoras → 6 zonas (2 columnas × 3 filas)
     const shapes = [
-      { type: "line", x0: divX1, x1: divX1, y0: axisY0, y1: axisY1, line: { color: "#9ca3af", width: 1, dash: "dot" } },
-      { type: "line", x0: divX2, x1: divX2, y0: axisY0, y1: axisY1, line: { color: "#b91c1c", width: 2, dash: "dash" } },
-      { type: "line", x0: axisX0, x1: axisX1, y0: divY, y1: divY, line: { color: "#b91c1c", width: 2, dash: "dash" } },
+      { type: "line", x0: divX, x1: divX, y0: axisY0, y1: axisY1, line: { color: "#b91c1c", width: 2, dash: "dash" } },
+      { type: "line", x0: axisX0, x1: axisX1, y0: divY1, y1: divY1, line: { color: "#9ca3af", width: 1, dash: "dot" } },
+      { type: "line", x0: axisX0, x1: axisX1, y0: divY2, y1: divY2, line: { color: "#b91c1c", width: 2, dash: "dash" } },
     ];
 
     // Etiquetas en las 6 zonas
-    const xZ1 = divX1 / 2;
-    const xZ2 = (divX1 + divX2) / 2;
-    const xZ3 = (divX2 + axisX1) / 2;
-    const yZ1 = divY / 2;
-    const yZ2 = (divY + axisY1) / 2;
+    const xZ1 = divX / 2;
+    const xZ2 = (divX + axisX1) / 2;
+    const yZ1 = divY1 / 2;
+    const yZ2 = (divY1 + divY2) / 2;
+    const yZ3 = (divY2 + axisY1) / 2;
     const annotations = [
-      { x: xZ1, y: axisY1, text: "<b>IMP. BAJO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 9, color: "#9ca3af" } },
-      { x: xZ2, y: axisY1, text: "<b>IMP. MEDIO</b>", xanchor: "center", yanchor: "top", showarrow: false, font: { size: 9, color: "#d97706" } },
-      { x: xZ3, y: axisY1, text: "<b>IMP. ALTO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 9, color: "#059669" } },
+      { x: xZ1, y: axisY1, text: "<b>IMP. BAJO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#9ca3af" } },
+      { x: xZ2, y: axisY1, text: "<b>IMP. ALTO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#059669" } },
       { x: axisX0 + 0.5, y: yZ1, text: "<b>EXP. BAJA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#9ca3af" } },
-      { x: axisX0 + 0.5, y: yZ2, text: "<b>EXP. ALTA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#059669" } },
+      { x: axisX0 + 0.5, y: yZ2, text: "<b>EXP. MEDIA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#d97706" } },
+      { x: axisX0 + 0.5, y: yZ3, text: "<b>EXP. ALTA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#059669" } },
     ];
 
     const layout = {
