@@ -1171,11 +1171,21 @@ function computeScores(db) {
     const tauExt = Number(params.tauLegacyExternal !== undefined ? params.tauLegacyExternal : DEFAULT_PARAMS.tauLegacyExternal);
     const tauInt = Number(params.tauLegacyInternal !== undefined ? params.tauLegacyInternal : DEFAULT_PARAMS.tauLegacyInternal);
 
-    // Cuadrantes del scatter: 3 zonas X × 3 zonas Y (tercios del máximo teórico)
-    const impactThirdLow = axisMaxImpact / 3;
-    const impactThirdHigh = (axisMaxImpact / 3) * 2;
-    const expectThirdLow = axisMaxExpect / 3;
-    const expectThirdHigh = (axisMaxExpect / 3) * 2;
+    // Cuadrantes: terciles de los datos observados (P33 y P66)
+    const percentile = (arr, p) => {
+      if (!arr.length) return 0;
+      const s = [...arr].sort((a, b) => a - b);
+      const k = (s.length - 1) * p;
+      const lo = Math.floor(k);
+      const hi = Math.ceil(k);
+      return lo === hi ? s[lo] : s[lo] + (s[hi] - s[lo]) * (k - lo);
+    };
+    const validSig = valid.map((r) => r.significancia).filter((v) => v !== null);
+    const validExp = valid.map((r) => r.expectativas_total).filter((v) => v !== null);
+    const impactThirdLow = percentile(validSig, 0.33);
+    const impactThirdHigh = percentile(validSig, 0.66);
+    const expectThirdLow = percentile(validExp, 0.33);
+    const expectThirdHigh = percentile(validExp, 0.66);
 
     rows.forEach((row) => {
       row.above_tau_ext = row.stakeholder_mean !== null && row.stakeholder_mean >= tauExt;
@@ -1390,24 +1400,19 @@ function computeScores(db) {
       });
     }
 
-    // Ejes ajustados al rango de datos con margen, siempre incluyen divisores
+    // Ejes ajustados al rango de datos con margen del 12%
     const allX = allValid.map((r) => r.significancia);
     const allY = allValid.map((r) => r.expectativas_total);
     const dataXMin = Math.min(...allX);
     const dataXMax = Math.max(...allX);
     const dataYMin = Math.min(...allY);
     const dataYMax = Math.max(...allY);
-    // Incluir divisores y datos en el rango, con margen del 8%
-    const rangeXMin = Math.min(dataXMin, divX1);
-    const rangeXMax = Math.max(dataXMax, divX2);
-    const rangeYMin = Math.min(dataYMin, divY1);
-    const rangeYMax = Math.max(dataYMax, divY2);
-    const xSpan = rangeXMax - rangeXMin || 10;
-    const ySpan = rangeYMax - rangeYMin || 5;
-    const axisX0 = Math.max(0, rangeXMin - xSpan * 0.08);
-    const axisX1 = rangeXMax + xSpan * 0.08;
-    const axisY0 = Math.max(0, rangeYMin - ySpan * 0.08);
-    const axisY1 = rangeYMax + ySpan * 0.08;
+    const xSpan = dataXMax - dataXMin || 10;
+    const ySpan = dataYMax - dataYMin || 5;
+    const axisX0 = Math.max(0, dataXMin - xSpan * 0.12);
+    const axisX1 = dataXMax + xSpan * 0.12;
+    const axisY0 = Math.max(0, dataYMin - ySpan * 0.12);
+    const axisY1 = dataYMax + ySpan * 0.12;
 
     // Rectángulos de fondo coloreados: 3×3 = 9 zonas
     // Gradiente de rojo (bajo-bajo) a verde (alto-alto) en diagonal
