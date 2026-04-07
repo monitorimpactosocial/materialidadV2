@@ -3086,16 +3086,21 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     if (finOnly.length) traces.push(mkTrace(finOnly, "Solo Financiera", "#3b82f6", 14));
     if (double.length) traces.push(mkTrace(double, "Doble Materialidad", "#059669", 18));
 
-    const pad = 0.3;
-    const axMin = 1 - pad;
-    const axMax = 5 + pad;
+    // Ejes ajustados al rango de datos, siempre incluyendo los umbrales
+    const allImp = valid.map((r) => r.impact_score);
+    const allFin = valid.map((r) => r.fin_score);
+    const dMin = Math.min(Math.min(...allImp), Math.min(...allFin), tauImp, tauFin);
+    const dMax = Math.max(Math.max(...allImp), Math.max(...allFin), tauImp, tauFin);
+    const span = dMax - dMin || 1;
+    const axMin = Math.max(0, dMin - span * 0.15);
+    const axMax = Math.min(5.2, dMax + span * 0.15);
 
     // 4 cuadrantes coloreados
     const shapes = [
-      { type: "rect", x0: axMin, x1: tauImp, y0: axMin, y1: tauFin, fillcolor: "rgba(156,163,175,0.06)", line: { width: 0 }, layer: "below" },
-      { type: "rect", x0: tauImp, x1: axMax, y0: axMin, y1: tauFin, fillcolor: "rgba(234,179,8,0.08)", line: { width: 0 }, layer: "below" },
-      { type: "rect", x0: axMin, x1: tauImp, y0: tauFin, y1: axMax, fillcolor: "rgba(59,130,246,0.08)", line: { width: 0 }, layer: "below" },
-      { type: "rect", x0: tauImp, x1: axMax, y0: tauFin, y1: axMax, fillcolor: "rgba(5,150,105,0.10)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: axMin, x1: tauImp, y0: axMin, y1: tauFin, fillcolor: "rgba(156,163,175,0.08)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: tauImp, x1: axMax, y0: axMin, y1: tauFin, fillcolor: "rgba(234,179,8,0.10)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: axMin, x1: tauImp, y0: tauFin, y1: axMax, fillcolor: "rgba(59,130,246,0.10)", line: { width: 0 }, layer: "below" },
+      { type: "rect", x0: tauImp, x1: axMax, y0: tauFin, y1: axMax, fillcolor: "rgba(5,150,105,0.12)", line: { width: 0 }, layer: "below" },
       // Líneas de umbral
       { type: "line", x0: tauImp, x1: tauImp, y0: axMin, y1: axMax, line: { color: "#b91c1c", width: 2, dash: "dash" }, layer: "above" },
       { type: "line", x0: axMin, x1: axMax, y0: tauFin, y1: tauFin, line: { color: "#b91c1c", width: 2, dash: "dash" }, layer: "above" },
@@ -3128,112 +3133,107 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   }
 
   function renderDobleMatThermometer(db) {
-    const target = document.getElementById("plotDobleMatThermometer");
-    if (!target) return;
+    const container = document.getElementById("plotDobleMatThermometer");
+    if (!container) return;
 
     const params = getParams(db);
     const { rows } = computeScores(db);
     const valid = rows.filter((r) => r.impact_score !== null || r.fin_score !== null);
     if (!valid.length) {
-      target.innerHTML = `<div class="muted">Sin datos suficientes.</div>`;
+      container.innerHTML = `<div class="muted">Sin datos suficientes.</div>`;
       return;
     }
 
     const tauImp = params.tauImpact;
     const tauFin = params.tauFin;
-    const hw = 0.55;
-    const shapes = [];
 
-    // Zonas de fondo para cada columna (verde-amarillo-rojo)
-    const addBarZones = (cx, tau) => {
-      const midCut = tau * 0.65;
-      shapes.push(
-        { type: "rect", x0: cx - hw, x1: cx + hw, y0: 0, y1: midCut, fillcolor: "rgba(34,197,94,0.30)", line: { color: "#16a34a", width: 1 }, layer: "below" },
-        { type: "rect", x0: cx - hw, x1: cx + hw, y0: midCut, y1: tau, fillcolor: "rgba(234,179,8,0.30)", line: { color: "#ca8a04", width: 1 }, layer: "below" },
-        { type: "rect", x0: cx - hw, x1: cx + hw, y0: tau, y1: 5, fillcolor: "rgba(239,68,68,0.20)", line: { color: "#dc2626", width: 1 }, layer: "below" },
-        // Línea de umbral gruesa
-        { type: "line", x0: cx - hw - 0.15, x1: cx + hw + 0.15, y0: tau, y1: tau, line: { color: "#111", width: 2.5 }, layer: "above" },
-      );
-    };
-    addBarZones(1.2, tauImp);
-    addBarZones(3.8, tauFin);
+    // Separar por dimensión y ordenar por score desc
+    const impSorted = valid.filter((r) => r.impact_score !== null).sort((a, b) => b.impact_score - a.impact_score);
+    const finSorted = valid.filter((r) => r.fin_score !== null).sort((a, b) => b.fin_score - a.fin_score);
 
-    // Flechas para temas que superan umbral (SVG path shapes)
-    const addArrow = (cx, yBase, yTop, label, side) => {
-      const aw = 0.18; // ancho del cuerpo
-      const ah = 0.22; // ancho de la cabeza
-      const headH = 0.25; // alto de la punta
-      const bodyTop = yTop - headH;
-      // Path: cuerpo rectangular + cabeza triangular
-      shapes.push({
-        type: "path",
-        path: `M ${cx - aw} ${yBase} L ${cx - aw} ${bodyTop} L ${cx - ah} ${bodyTop} L ${cx} ${yTop} L ${cx + ah} ${bodyTop} L ${cx + aw} ${bodyTop} L ${cx + aw} ${yBase} Z`,
-        fillcolor: "#dc2626",
-        line: { color: "#991b1b", width: 1 },
-        layer: "above",
-      });
+    const buildBar = (sorted, tau, title, subtitle, colorHigh) => {
+      const labels = sorted.map((r) => `${r.tema_id} · ${r.tema_nombre.length > 40 ? r.tema_nombre.slice(0, 37) + "..." : r.tema_nombre}`);
+      const scores = sorted.map((r) => r.impact_score !== undefined ? (title.includes("Impacto") ? r.impact_score : r.fin_score) : 0);
+      const colors = scores.map((s) => s >= tau ? "#dc2626" : s >= tau * 0.65 ? "#eab308" : "#22c55e");
+      const symbols = scores.map((s) => s >= tau ? "▲ " : "");
+
+      return {
+        y: labels,
+        x: scores,
+        type: "bar",
+        orientation: "h",
+        marker: { color: colors, line: { color: "#ffffff", width: 1 } },
+        text: scores.map((s, i) => `${symbols[i]}${fmt(s, 2)}`),
+        textposition: "outside",
+        textfont: { size: 11 },
+        hovertemplate: "<b>%{y}</b><br>Score: %{x:.2f}<extra></extra>",
+      };
     };
 
-    const annotations = [];
-    // Títulos
-    annotations.push(
-      { x: 1.2, y: 5.55, text: "<b>Materialidad de Impacto</b>", showarrow: false, font: { size: 13, color: "#064e3b" }, xanchor: "center" },
-      { x: 1.2, y: 5.28, text: "Impacto de Paracel al desarrollo<br>sostenible (económico, social, ambiental)", showarrow: false, font: { size: 8.5, color: "#6b7280" }, xanchor: "center" },
-      { x: 3.8, y: 5.55, text: "<b>Materialidad Financiera</b>", showarrow: false, font: { size: 13, color: "#1e3a8a" }, xanchor: "center" },
-      { x: 3.8, y: 5.28, text: "Riesgos y Oportunidades ASG que<br>representen afectaciones financieras", showarrow: false, font: { size: 8.5, color: "#6b7280" }, xanchor: "center" },
-    );
-    // Escala
-    [0, tauImp, 5].forEach((v) => annotations.push({ x: 1.2 - hw - 0.12, y: v, text: `<b>${v}</b>`, showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" }));
-    [0, tauFin, 5].forEach((v) => annotations.push({ x: 3.8 - hw - 0.12, y: v, text: `<b>${v}</b>`, showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" }));
+    // Render como 2 subplots lado a lado usando divs separados
+    container.innerHTML = `
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div>
+          <div style="text-align:center; margin-bottom:8px;">
+            <div style="font-size:15px; font-weight:800; color:#064e3b;">Materialidad de Impacto</div>
+            <div style="font-size:11px; color:#6b7280;">Impacto de Paracel al desarrollo sostenible<br>(económico, social, ambiental)</div>
+          </div>
+          <div id="_thermImpact" style="min-height:400px;"></div>
+        </div>
+        <div>
+          <div style="text-align:center; margin-bottom:8px;">
+            <div style="font-size:15px; font-weight:800; color:#1e3a8a;">Materialidad Financiera</div>
+            <div style="font-size:11px; color:#6b7280;">Riesgos y Oportunidades ASG que<br>representen afectaciones financieras</div>
+          </div>
+          <div id="_thermFin" style="min-height:400px;"></div>
+        </div>
+      </div>
+    `;
 
-    // Dibujar temas como flechas (sobre umbral) o bloques (bajo umbral)
-    // Impacto: ordenar por score descend, agrupar sobre/bajo umbral
-    const impAbove = valid.filter((r) => r.impact_score !== null && r.impact_score >= tauImp).sort((a, b) => b.impact_score - a.impact_score);
-    const impBelow = valid.filter((r) => r.impact_score !== null && r.impact_score < tauImp).sort((a, b) => b.impact_score - a.impact_score);
-    const finAbove = valid.filter((r) => r.fin_score !== null && r.fin_score >= tauFin).sort((a, b) => b.fin_score - a.fin_score);
-    const finBelow = valid.filter((r) => r.fin_score !== null && r.fin_score < tauFin).sort((a, b) => b.fin_score - a.fin_score);
+    const renderOneBar = (divId, sorted, tau, scoreField) => {
+      const labels = sorted.map((r) => `${r.tema_id}`);
+      const scores = sorted.map((r) => r[scoreField]);
+      const colors = scores.map((s) => s >= tau ? "#dc2626" : s >= tau * 0.65 ? "#eab308" : "#22c55e");
+      const height = Math.max(350, sorted.length * 22);
 
-    // Flechas rojas para temas sobre umbral
-    impAbove.forEach((r, i) => {
-      addArrow(1.2, tauImp, Math.min(r.impact_score, 5), r.tema_id, "left");
-      annotations.push({ x: 1.2 + hw + 0.15, y: (tauImp + r.impact_score) / 2, text: escapeHTML(r.tema_nombre.length > 35 ? r.tema_nombre.slice(0, 32) + "..." : r.tema_nombre), showarrow: false, font: { size: 8.5, color: "#991b1b" }, xanchor: "left" });
-    });
-    finAbove.forEach((r, i) => {
-      addArrow(3.8, tauFin, Math.min(r.fin_score, 5), r.tema_id, "right");
-      annotations.push({ x: 3.8 + hw + 0.15, y: (tauFin + r.fin_score) / 2, text: escapeHTML(r.tema_nombre.length > 35 ? r.tema_nombre.slice(0, 32) + "..." : r.tema_nombre), showarrow: false, font: { size: 8.5, color: "#991b1b" }, xanchor: "left" });
-    });
+      const trace = {
+        y: labels,
+        x: scores,
+        type: "bar",
+        orientation: "h",
+        marker: { color: colors, line: { color: "#ffffff", width: 1 } },
+        text: sorted.map((r) => r.tema_nombre.length > 30 ? r.tema_nombre.slice(0, 28) + "..." : r.tema_nombre),
+        textposition: "outside",
+        textfont: { size: 9, color: "#374151" },
+        hovertemplate: "<b>%{y} · %{text}</b><br>Score: %{x:.2f}<extra></extra>",
+      };
 
-    // Bloques para temas bajo umbral (apilados como barras)
-    const blockH = 0.12;
-    impBelow.forEach((r, i) => {
-      const yPos = r.impact_score;
-      const color = yPos >= tauImp * 0.65 ? "#eab308" : "#22c55e";
-      shapes.push({ type: "rect", x0: 1.2 - 0.15, x1: 1.2 + 0.15, y0: yPos - blockH / 2, y1: yPos + blockH / 2, fillcolor: color, line: { color: "#fff", width: 0.5 }, layer: "above" });
-      annotations.push({ x: 1.2 + hw + 0.15, y: yPos, text: `<span style="color:${color === "#eab308" ? "#92400e" : "#166534"}">${escapeHTML(r.tema_id)}</span>`, showarrow: false, font: { size: 7.5 }, xanchor: "left" });
-    });
-    finBelow.forEach((r, i) => {
-      const yPos = r.fin_score;
-      const color = yPos >= tauFin * 0.65 ? "#eab308" : "#22c55e";
-      shapes.push({ type: "rect", x0: 3.8 - 0.15, x1: 3.8 + 0.15, y0: yPos - blockH / 2, y1: yPos + blockH / 2, fillcolor: color, line: { color: "#fff", width: 0.5 }, layer: "above" });
-      annotations.push({ x: 3.8 + hw + 0.15, y: yPos, text: `<span style="color:${color === "#eab308" ? "#92400e" : "#166534"}">${escapeHTML(r.tema_id)}</span>`, showarrow: false, font: { size: 7.5 }, xanchor: "left" });
-    });
+      const layout = {
+        height,
+        margin: { l: 40, r: 140, t: 10, b: 40 },
+        xaxis: {
+          range: [0, 5.3],
+          title: { text: "Score (1-5)", font: { size: 11 } },
+          gridcolor: "#e5e7eb",
+          dtick: 1,
+        },
+        yaxis: { automargin: true, autorange: "reversed" },
+        shapes: [
+          { type: "line", x0: tau, x1: tau, y0: -0.5, y1: sorted.length - 0.5, line: { color: "#111", width: 2.5, dash: "dash" }, layer: "above" },
+        ],
+        annotations: [
+          { x: tau, y: -0.8, text: `<b>Umbral: ${fmt(tau, 1)}</b>`, showarrow: false, font: { size: 10, color: "#111" }, xanchor: "center", yanchor: "top" },
+        ],
+        paper_bgcolor: "#ffffff",
+        plot_bgcolor: "#ffffff",
+        showlegend: false,
+      };
 
-    // Dummy trace (Plotly needs at least one)
-    const traces = [{ x: [null], y: [null], type: "scatter", mode: "markers", showlegend: false }];
-
-    const layout = {
-      height: Math.max(520, 200 + Math.max(impAbove.length, finAbove.length) * 40),
-      margin: { l: 20, r: 200, t: 90, b: 30 },
-      xaxis: { range: [-0.2, 5.5], showgrid: false, zeroline: false, showticklabels: false, fixedrange: true },
-      yaxis: { range: [-0.3, 5.8], showgrid: false, zeroline: false, showticklabels: false, fixedrange: true },
-      shapes,
-      annotations,
-      paper_bgcolor: "#ffffff",
-      plot_bgcolor: "#ffffff",
-      showlegend: false,
+      Plotly.newPlot(divId, [trace], layout, { displayModeBar: false, responsive: true });
     };
 
-    Plotly.newPlot("plotDobleMatThermometer", traces, layout, { displayModeBar: false, responsive: true });
+    renderOneBar("_thermImpact", impSorted, tauImp, "impact_score");
+    renderOneBar("_thermFin", finSorted, tauFin, "fin_score");
   }
 
   function renderDobleMatTable(db) {
