@@ -241,48 +241,8 @@
                 </div>
               </div>
 
-              <div class="weights-title mt-12">Derivación sugerida, P (probabilidad integrada)</div>
-              <div class="weights-grid">
-                <div class="wfield">
-                  <label for="legacyPProb">Probabilidad social</label>
-                  <input id="legacyPProb" type="number" min="0" max="1" step="0.01" value="0.65" inputmode="decimal" />
-                </div>
-                <div class="wfield">
-                  <label for="legacyPFinProb">Probabilidad financiera</label>
-                  <input id="legacyPFinProb" type="number" min="0" max="1" step="0.01" value="0.35" inputmode="decimal" />
-                </div>
-              </div>
-
-              <div class="weights-title">Derivación sugerida, S (severidad integrada)</div>
-              <div class="weights-grid">
-                <div class="wfield">
-                  <label for="legacySSev">Severidad</label>
-                  <input id="legacySSev" type="number" min="0" max="1" step="0.01" value="0.40" inputmode="decimal" />
-                </div>
-                <div class="wfield">
-                  <label for="legacySAlc">Alcance</label>
-                  <input id="legacySAlc" type="number" min="0" max="1" step="0.01" value="0.30" inputmode="decimal" />
-                </div>
-                <div class="wfield">
-                  <label for="legacySIrr">Irremediabilidad</label>
-                  <input id="legacySIrr" type="number" min="0" max="1" step="0.01" value="0.30" inputmode="decimal" />
-                </div>
-              </div>
-
-              <div class="weights-title">Derivación sugerida, B (beneficio / oportunidad)</div>
-              <div class="weights-grid">
-                <div class="wfield">
-                  <label for="legacyBFin">Señal financiera interna</label>
-                  <input id="legacyBFin" type="number" min="0" max="1" step="0.01" value="0.70" inputmode="decimal" />
-                </div>
-                <div class="wfield">
-                  <label for="legacyBStake">Relevancia externa</label>
-                  <input id="legacyBStake" type="number" min="0" max="1" step="0.01" value="0.30" inputmode="decimal" />
-                </div>
-              </div>
-
               <div class="note muted">
-                Estos pesos vienen sugeridos por defecto, pero pueden ajustarse. La app los normaliza automáticamente dentro de cada bloque.
+                Los valores de P, S y B se configuran por tema en la tabla de calibración. El factor de expectativas escala el resultado global derivado desde la encuesta externa.
               </div>
               </div>
 

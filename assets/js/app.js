@@ -2165,13 +2165,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     document.getElementById("wFinImp").value = String(p.wFin.impacto_financiero);
     document.getElementById("wFinProb").value = String(p.wFin.probabilidad_financiera);
     document.getElementById("legacyExpectationFactor").value = fmt(Number(p.legacyExpectationFactor || DEFAULT_PARAMS.legacyExpectationFactor), 2);
-    document.getElementById("legacyPProb").value = fmt(p.legacyPWeights.probabilidad, 2);
-    document.getElementById("legacyPFinProb").value = fmt(p.legacyPWeights.probabilidad_financiera, 2);
-    document.getElementById("legacySSev").value = fmt(p.legacySWeights.severidad, 2);
-    document.getElementById("legacySAlc").value = fmt(p.legacySWeights.alcance, 2);
-    document.getElementById("legacySIrr").value = fmt(p.legacySWeights.irremediabilidad, 2);
-    document.getElementById("legacyBFin").value = fmt(p.legacyBWeights.financiero, 2);
-    document.getElementById("legacyBStake").value = fmt(p.legacyBWeights.relevancia_externa, 2);
 
     document.getElementById("chkStakeWeightByN").checked = !!p.stakeWeightByN;
 
@@ -2200,19 +2193,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     };
     p.legacyTopN = Number(document.getElementById("legacyTopN").value);
     p.legacyExpectationFactor = Number(document.getElementById("legacyExpectationFactor").value);
-    p.legacyPWeights = {
-      probabilidad: Number(document.getElementById("legacyPProb").value),
-      probabilidad_financiera: Number(document.getElementById("legacyPFinProb").value),
-    };
-    p.legacySWeights = {
-      severidad: Number(document.getElementById("legacySSev").value),
-      alcance: Number(document.getElementById("legacySAlc").value),
-      irremediabilidad: Number(document.getElementById("legacySIrr").value),
-    };
-    p.legacyBWeights = {
-      financiero: Number(document.getElementById("legacyBFin").value),
-      relevancia_externa: Number(document.getElementById("legacyBStake").value),
-    };
 
     p.stakeWeightByN = document.getElementById("chkStakeWeightByN").checked;
     p.groupFilter = document.getElementById("groupFilter").value || "TODOS";
@@ -2227,19 +2207,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     p.wFin = normalizeWeights({
       impacto_financiero: clamp01(p.wFin.impacto_financiero),
       probabilidad_financiera: clamp01(p.wFin.probabilidad_financiera),
-    });
-    p.legacyPWeights = normalizeWeights({
-      probabilidad: clamp01(p.legacyPWeights.probabilidad),
-      probabilidad_financiera: clamp01(p.legacyPWeights.probabilidad_financiera),
-    });
-    p.legacySWeights = normalizeWeights({
-      severidad: clamp01(p.legacySWeights.severidad),
-      alcance: clamp01(p.legacySWeights.alcance),
-      irremediabilidad: clamp01(p.legacySWeights.irremediabilidad),
-    });
-    p.legacyBWeights = normalizeWeights({
-      financiero: clamp01(p.legacyBWeights.financiero),
-      relevancia_externa: clamp01(p.legacyBWeights.relevancia_externa),
     });
     if (!isFinite(p.legacyTopN) || p.legacyTopN <= 0) {
       p.legacyTopN = DEFAULT_PARAMS.legacyTopN;
@@ -2263,7 +2230,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       renderAll(db);
     };
 
-    ["tauImpact", "tauFin", "tauMaterial", "ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyTopN", "legacyExpectationFactor", "legacyPProb", "legacyPFinProb", "legacySSev", "legacySAlc", "legacySIrr", "legacyBFin", "legacyBStake", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
+    ["tauImpact", "tauFin", "tauMaterial", "ruleSelect", "wSev", "wAlc", "wIrr", "wProb", "wFinImp", "wFinProb", "legacyTopN", "legacyExpectationFactor", "chkStakeWeightByN", "groupFilter"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("change", syncAndRender);
