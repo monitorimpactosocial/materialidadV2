@@ -337,13 +337,63 @@
             </div>
           </div>
 
-          <div class="card">
+          <div class="card" id="configCardLegacy">
             <div class="card-header">
-              <h2>Parámetros de la matriz clásica</h2>
-              <p class="muted">Los valores sugeridos ya vienen cargados. Cualquier ajuste aquí recalcula las figuras de inmediato.</p>
+              <h2>Configuración analítica</h2>
+              <p class="muted">Los indicadores se recalculan al cambiar umbrales y parámetros.</p>
             </div>
             <div class="card-body">
-              <p class="muted small">El factor de expectativas se configura en el panel de Reporte.</p>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="scenarioSelect">Escenario</label>
+                  <select id="scenarioSelect"></select>
+                </div>
+                <div class="field">
+                  <label for="ruleSelect">Regla doble materialidad</label>
+                  <select id="ruleSelect">
+                    <option value="AND">AND (impacto y financiero)</option>
+                    <option value="OR">OR (impacto o financiero)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="tauMaterial">Umbral temas materiales (escala 1–5)</label>
+                  <input id="tauMaterial" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
+                  <div class="muted small">Umbral aplicado al promedio externo y al promedio interno de impacto.</div>
+                </div>
+                <div class="field">
+                  <label for="groupFilter">Filtro grupo de interés</label>
+                  <select id="groupFilter"></select>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="legacyExpectationFactor">Factor de expectativas</label>
+                  <input id="legacyExpectationFactor" type="number" min="0.01" step="0.01" value="2.08" inputmode="decimal" />
+                  <div class="muted small">Escala las expectativas derivadas desde la encuesta externa.</div>
+                </div>
+                <div class="field">
+                  <label for="chkStakeWeightByN">Ponderación stakeholders</label>
+                  <label style="font-weight:normal; font-size:13px;"><input id="chkStakeWeightByN" type="checkbox" checked /> Ponderar por N de respuestas</label>
+                </div>
+              </div>
+              <div class="form-grid" style="display:none;">
+                <div class="field"><input id="tauImpact" type="number" min="1" max="5" step="0.01" value="3.50" /></div>
+                <div class="field"><input id="tauFin" type="number" min="1" max="5" step="0.01" value="3.50" /></div>
+                <div class="field"><input id="wSev" type="number" min="0" max="1" step="0.05" value="0.30" /></div>
+                <div class="field"><input id="wAlc" type="number" min="0" max="1" step="0.05" value="0.25" /></div>
+                <div class="field"><input id="wIrr" type="number" min="0" max="1" step="0.05" value="0.25" /></div>
+                <div class="field"><input id="wProb" type="number" min="0" max="1" step="0.05" value="0.20" /></div>
+                <div class="field"><input id="wFinImp" type="number" min="0" max="1" step="0.05" value="0.60" /></div>
+                <div class="field"><input id="wFinProb" type="number" min="0" max="1" step="0.05" value="0.40" /></div>
+                <button id="btnResetParams" type="button"></button>
+                <button id="btnSaveParams" type="button"></button>
+              </div>
+              <div class="btn-row mt-12">
+                <button class="btn btn-secondary" id="btnSaveParams2" type="button" onclick="document.getElementById('btnSaveParams').click()">Guardar parámetros</button>
+                <button class="btn btn-secondary" id="btnResetParams2" type="button" onclick="document.getElementById('btnResetParams').click()">Restablecer</button>
+              </div>
             </div>
           </div>
         </div>
@@ -522,17 +572,17 @@
       <!-- REPORTE -->
       <section class="view active" id="view-report">
 
-        <!-- ===== PANEL DE CONFIGURACIÓN Y ANÁLISIS (no se imprime) ===== -->
+        <!-- ===== PANEL DE RESUMEN Y TEMAS MATERIALES (no se imprime) ===== -->
         <div class="no-print">
           <div class="grid-2">
-            <!-- Configuración analítica -->
+            <!-- Resumen rápido -->
             <div class="card">
               <div class="card-header">
-                <h2>Configuración analítica</h2>
-                <p class="muted">Los indicadores se recalculan de manera inmediata al cambiar umbrales y parámetros.</p>
+                <h2>Resumen de datos</h2>
+                <p class="muted">Los parámetros se configuran en la vista Matriz Clásica.</p>
               </div>
               <div class="card-body">
-                <div class="kpi-row" style="margin-bottom:12px;">
+                <div class="kpi-row">
                   <div class="kpi">
                     <div class="kpi-label">Respuestas externas</div>
                     <div class="kpi-value" id="kpiExternalN">0</div>
@@ -545,65 +595,6 @@
                     <div class="kpi-label">Temas evaluados</div>
                     <div class="kpi-value" id="kpiThemesN">27</div>
                   </div>
-                </div>
-
-                <div class="form-grid">
-                  <div class="field">
-                    <label for="scenarioSelect">Escenario</label>
-                    <select id="scenarioSelect"></select>
-                  </div>
-                  <div class="field">
-                    <label for="ruleSelect">Regla doble materialidad</label>
-                    <select id="ruleSelect">
-                      <option value="AND">AND (impacto y financiero)</option>
-                      <option value="OR">OR (impacto o financiero)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="form-grid">
-                  <div class="field">
-                    <label for="tauMaterial">Umbral temas materiales (escala 1–5)</label>
-                    <input id="tauMaterial" type="number" min="1" max="5" step="0.01" value="3.50" inputmode="decimal" />
-                    <div class="muted small">Umbral aplicado al promedio externo y al promedio interno de impacto simultáneamente.</div>
-                  </div>
-                  <div class="field">
-                    <label for="groupFilter">Filtro grupo de interés</label>
-                    <select id="groupFilter"></select>
-                  </div>
-                </div>
-
-                <div class="form-grid" style="display:none;">
-                  <div class="field"><input id="tauImpact" type="number" min="1" max="5" step="0.01" value="3.50" /></div>
-                  <div class="field"><input id="tauFin" type="number" min="1" max="5" step="0.01" value="3.50" /></div>
-                  <div class="field"><input id="wSev" type="number" min="0" max="1" step="0.05" value="0.30" /></div>
-                  <div class="field"><input id="wAlc" type="number" min="0" max="1" step="0.05" value="0.25" /></div>
-                  <div class="field"><input id="wIrr" type="number" min="0" max="1" step="0.05" value="0.25" /></div>
-                  <div class="field"><input id="wProb" type="number" min="0" max="1" step="0.05" value="0.20" /></div>
-                  <div class="field"><input id="wFinImp" type="number" min="0" max="1" step="0.05" value="0.60" /></div>
-                  <div class="field"><input id="wFinProb" type="number" min="0" max="1" step="0.05" value="0.40" /></div>
-                  <div class="field"><input id="chkStakeWeightByN" type="checkbox" checked /></div>
-                  <button id="btnResetParams" type="button"></button>
-                  <button id="btnSaveParams" type="button"></button>
-                </div>
-
-                <div id="legacyParamBlock">
-                  <div class="form-grid mt-12">
-                    <div class="field">
-                      <label for="legacyExpectationFactor">Factor de expectativas (matriz clásica)</label>
-                      <input id="legacyExpectationFactor" type="number" min="0.01" step="0.01" value="2.08" inputmode="decimal" />
-                      <div class="muted small">Escala las expectativas derivadas desde la encuesta externa.</div>
-                    </div>
-                    <div class="field">
-                      <p class="muted small" style="margin:0;">Los temas materiales se determinan por superar el umbral en ambas dimensiones (impacto y expectativas). Puede agregar temas manualmente con los checkboxes en la tabla de resultados.</p>
-                    </div>
-                  </div>
-                  <div class="note muted">P, S y B se configuran por tema en la tabla de calibración.</div>
-                </div>
-
-                <div class="btn-row mt-12">
-                  <button class="btn btn-secondary" id="btnSaveParams2" type="button" onclick="document.getElementById('btnSaveParams').click()">Guardar parámetros</button>
-                  <button class="btn btn-secondary" id="btnResetParams2" type="button" onclick="document.getElementById('btnResetParams').click()">Restablecer</button>
                 </div>
               </div>
             </div>
@@ -827,10 +818,7 @@
             <h3 class="mt-16">2.1. Materialidad por Dimensión ISO 26000</h3>
             <div id="plotDimensionReport" class="plot plot-print" style="min-height:300px; margin-bottom: 24px;"></div>
 
-            <h3 class="mt-16">2.2. Perfil en Radar (Top Temas Internos)</h3>
-            <div id="plotRadarReport" class="plot plot-print"></div>
-
-            <h3 class="mt-16">2.3. Top 5 Temas Críticos</h3>
+            <h3 class="mt-16">2.2. Top 5 Temas Críticos</h3>
             <div class="grid-2 mt-8 mb-16" id="repKpisTop5" style="gap:16px;">
               <div class="card card-flat" style="border: 1px solid rgba(6,78,59,0.12); margin:0;">
                 <div class="card-header" style="background: rgba(220, 38, 38, 0.05); padding: 10px 14px; border-bottom: 1px solid rgba(6,78,59,0.08);">
@@ -846,7 +834,7 @@
               </div>
             </div>
 
-            <h3 class="mt-16">2.4. Cobertura de Evaluación Interna</h3>
+            <h3 class="mt-16">2.3. Cobertura de Evaluación Interna</h3>
             <div class="report-two-col">
               <div class="report-panel">
                 <div class="table-wrap">
@@ -1064,6 +1052,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=25"></script>
+  <script src="assets/js/app.js?v=26"></script>
 </body>
 </html>

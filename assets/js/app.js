@@ -1302,95 +1302,104 @@ function computeScores(db) {
     if (!target) return;
 
     const legacy = computeLegacyMatrix(db);
-    if (!legacy.displayRows.length) {
+    const allValid = legacy.sortedValidRows.filter((r) => r.significancia !== null && r.expectativas_total !== null);
+    if (!allValid.length) {
       try { Plotly.purge(target); } catch {}
       target.innerHTML = `<div class="muted">Se requieren respuestas externas e internas suficientes para reconstruir la matriz clásica.</div>`;
       return;
     }
 
-    // Solo temas materiales seleccionados
-    const plotRows = legacy.displayRows.filter((r) => r.significancia !== null && r.expectativas_total !== null);
-    const x = plotRows.map((row) => row.significancia);
-    const y = plotRows.map((row) => row.expectativas_total);
-    const text = plotRows.map((row) => `${row.tema_id} · ${row.tema_nombre}`);
-    const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd"];
-    const color = plotRows.map((_, i) => palette[i % palette.length]);
-    const sizes = plotRows.map(() => 20);
-    const maxX = legacy.axisMaxImpact;
-    const maxY = legacy.axisMaxExpect;
     const isPrint = target.classList.contains("plot-print");
-
-    // Mediana ya calculada en computeLegacyMatrix
     const medX = legacy.medImpact;
     const medY = legacy.medExpect;
+    const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd"];
 
-    // Rango dinámico basado en los datos reales
-    const xMin = Math.min(...x);
-    const xMax = Math.max(...x);
-    const yMin = Math.min(...y);
-    const yMax = Math.max(...y);
-    const xPad = Math.max((xMax - xMin) * 0.18, 1.5);
-    const yPad = Math.max((yMax - yMin) * 0.18, 0.5);
-    const axisX0 = Math.max(0, xMin - xPad);
-    const axisX1 = Math.min(maxX, xMax + xPad);
-    const axisY0 = Math.max(0, yMin - yPad);
-    const axisY1 = Math.min(maxY, yMax + yPad);
+    // Traza 1: temas NO materiales (gris, chico)
+    const nonMat = allValid.filter((r) => !r.is_legacy_material);
+    // Traza 2: temas materiales (color, grande)
+    const mat = allValid.filter((r) => r.is_legacy_material);
 
-    const data = [{
-      x,
-      y,
-      text,
-      mode: "markers+text",
-      type: "scatter",
-      textposition: "top center",
-      textfont: { size: 8, color: "#374151" },
-      marker: { size: sizes, color, opacity: 0.96, line: { width: 2, color: "#ffffff" } },
-      hovertemplate: "<b>%{text}</b><br>Impactos: %{x:.2f}<br>Expectativas: %{y:.2f}<br>%{customdata}<extra></extra>",
-      customdata: plotRows.map((row) => row.cuadrante || "")
-    }];
+    const traces = [];
+    if (nonMat.length) {
+      traces.push({
+        x: nonMat.map((r) => r.significancia),
+        y: nonMat.map((r) => r.expectativas_total),
+        text: nonMat.map((r) => r.tema_id),
+        customdata: nonMat.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
+        mode: "markers+text",
+        type: "scatter",
+        name: "No material",
+        textposition: "top center",
+        textfont: { size: 7, color: "#9ca3af" },
+        marker: { size: 10, color: "#d1d5db", opacity: 0.7, line: { width: 1, color: "#ffffff" } },
+        hovertemplate: "<b>%{customdata}</b><br>Impactos: %{x:.2f}<br>Expectativas: %{y:.2f}<extra></extra>",
+      });
+    }
+    if (mat.length) {
+      traces.push({
+        x: mat.map((r) => r.significancia),
+        y: mat.map((r) => r.expectativas_total),
+        text: mat.map((r) => r.tema_id),
+        customdata: mat.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
+        mode: "markers+text",
+        type: "scatter",
+        name: "Material",
+        textposition: "top center",
+        textfont: { size: 9, color: "#374151" },
+        marker: { size: 20, color: mat.map((_, i) => palette[i % palette.length]), opacity: 0.96, line: { width: 2, color: "#ffffff" } },
+        hovertemplate: "<b>%{customdata}</b><br>Impactos: %{x:.2f}<br>Expectativas: %{y:.2f}<extra></extra>",
+      });
+    }
 
-    // Dos líneas divisoras (mediana de cada eje) → 4 cuadrantes siempre separados
+    // Ejes fijos: desde el mínimo de los datos con margen hasta el máximo, siempre incluir la mediana con espacio
+    const allX = allValid.map((r) => r.significancia);
+    const allY = allValid.map((r) => r.expectativas_total);
+    const xDataMin = Math.min(...allX);
+    const xDataMax = Math.max(...allX);
+    const yDataMin = Math.min(...allY);
+    const yDataMax = Math.max(...allY);
+    const xSpread = Math.max(xDataMax - xDataMin, 4);
+    const ySpread = Math.max(yDataMax - yDataMin, 2);
+    const axisX0 = Math.max(0, Math.min(xDataMin, medX) - xSpread * 0.15);
+    const axisX1 = Math.max(xDataMax, medX) + xSpread * 0.15;
+    const axisY0 = Math.max(0, Math.min(yDataMin, medY) - ySpread * 0.15);
+    const axisY1 = Math.max(yDataMax, medY) + ySpread * 0.15;
+
     const shapes = [
-      { type: "line", x0: medX, x1: medX, y0: axisY0, y1: axisY1, line: { color: "#111111", width: 2, dash: "dash" } },
-      { type: "line", x0: axisX0, x1: axisX1, y0: medY, y1: medY, line: { color: "#111111", width: 2, dash: "dash" } },
+      { type: "line", x0: medX, x1: medX, y0: axisY0, y1: axisY1, line: { color: "#b91c1c", width: 2, dash: "dash" } },
+      { type: "line", x0: axisX0, x1: axisX1, y0: medY, y1: medY, line: { color: "#b91c1c", width: 2, dash: "dash" } },
     ];
 
-    // Etiquetas de cuadrante
     const xLow = (axisX0 + medX) / 2;
     const xHigh = (medX + axisX1) / 2;
     const yLow  = (axisY0 + medY) / 2;
     const yHigh = (medY  + axisY1) / 2;
-    const yLbl  = axisY0 + (axisY1 - axisY0) * 0.03;
     const annotations = [
-      { x: xLow,  y: yLbl, text: "<b>IMPACTO MEDIO</b>",  xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
-      { x: xHigh, y: yLbl, text: "<b>IMPACTO ALTO</b>",   xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
-      { x: axisX0 + (axisX1 - axisX0) * 0.01, y: yLow,  text: "<b>EXPECT. MEDIA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#0070c9" } },
-      { x: axisX0 + (axisX1 - axisX0) * 0.01, y: yHigh, text: "<b>EXPECT. ALTA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#0070c9" } },
-      { x: medX, y: axisY1 - (axisY1 - axisY0) * 0.02, text: `Med.Impact: ${medX.toFixed(1)}`, xanchor: "center", yanchor: "top", showarrow: false, font: { size: 9, color: "#555" } },
-      { x: axisX1 - (axisX1 - axisX0) * 0.02, y: medY, text: `Med.Exp: ${medY.toFixed(1)}`, xanchor: "right", yanchor: "middle", showarrow: false, font: { size: 9, color: "#555" } },
+      { x: xLow,  y: axisY1, text: "<b>Imp. BAJO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#6b7280" } },
+      { x: xHigh, y: axisY1, text: "<b>Imp. ALTO</b>",   xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#059669" } },
+      { x: axisX0, y: yLow,  text: "<b>Exp. BAJA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#6b7280" } },
+      { x: axisX0, y: yHigh, text: "<b>Exp. ALTA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#059669" } },
     ];
 
     const layout = {
-      title: { text: "<b>GRÁFICO DE MATERIALIDAD</b>", x: 0.5, xanchor: "center", font: { size: isPrint ? 20 : 24, color: "#111111" } },
+      title: { text: "<b>GRÁFICO DE MATERIALIDAD</b>", x: 0.5, xanchor: "center", font: { size: isPrint ? 18 : 22, color: "#111111" } },
       height: isPrint ? 520 : 620,
-      margin: { l: 88, r: 24, t: 66, b: 82 },
+      margin: { l: 80, r: 24, t: 60, b: 70 },
       xaxis: {
-        title: { text: "<b>IMPACTO EN LA ESTRATEGIA</b>", standoff: 18, font: { size: 14, color: "#111111" } },
+        title: { text: "<b>SIGNIFICANCIA (IMPACTOS)</b>", standoff: 14, font: { size: 13, color: "#111111" } },
         range: [axisX0, axisX1],
         tickfont: { size: 11, color: "#111111" },
-        gridcolor: "#c9cdd3",
-        gridwidth: 1,
+        gridcolor: "#e5e7eb",
         linecolor: "#9ca3af",
         linewidth: 1,
         mirror: true,
         zeroline: false,
       },
       yaxis: {
-        title: { text: "<b>EXPECTATIVAS GRUPOS DE INTERÉS</b>", standoff: 12, font: { size: 14, color: "#111111" } },
+        title: { text: "<b>EXPECTATIVAS (GRUPOS DE INTERÉS)</b>", standoff: 10, font: { size: 13, color: "#111111" } },
         range: [axisY0, axisY1],
         tickfont: { size: 11, color: "#111111" },
-        gridcolor: "#c9cdd3",
-        gridwidth: 1,
+        gridcolor: "#e5e7eb",
         linecolor: "#9ca3af",
         linewidth: 1,
         mirror: true,
@@ -1400,10 +1409,11 @@ function computeScores(db) {
       annotations,
       paper_bgcolor: "#ffffff",
       plot_bgcolor: "#ffffff",
-      showlegend: false
+      showlegend: true,
+      legend: { orientation: "h", y: -0.15, x: 0.5, xanchor: "center" },
     };
 
-    Plotly.newPlot(targetId, data, layout, { displayModeBar: false, responsive: true });
+    Plotly.newPlot(targetId, traces, layout, { displayModeBar: false, responsive: true });
   }
 
   function renderLegacyRankingPlot(db, targetId) {
@@ -2190,14 +2200,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     return db.params || { ...DEFAULT_PARAMS };
   }
 
-  function mountLegacyParamBlock() {
-    const block = document.getElementById("legacyParamBlock");
-    const mount = document.getElementById("legacyParamsMount");
-    if (block && mount && block.parentElement !== mount) {
-      mount.appendChild(block);
-    }
-  }
-
   function syncParamsToUI(db) {
     const p = getParams(db);
     document.getElementById("tauImpact").value = fmt(p.tauImpact, 2);
@@ -2263,7 +2265,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   }
 
   function hookParamsUI() {
-    mountLegacyParamBlock();
     const syncAndRender = () => {
       const db = ensureDB();
       readParamsFromUI(db);
@@ -3199,7 +3200,6 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     // plot en reporte
     renderExternalTop10(db, "plotExternalTop10");
     renderMatrixPlot(db, "plotMatrixReport");
-    renderRadarPlot(db, "plotRadarReport");
     renderDimensionPlot(db, "plotDimensionReport");
     renderLegacyMatrixPlot(db, "plotLegacyMatrixReport");
     renderLegacyRankingPlot(db, "plotLegacyRankingReport");
