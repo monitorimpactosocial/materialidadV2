@@ -458,8 +458,8 @@
                     <th class="right">E</th>
                     <th class="right">C</th>
                     <th class="right">F</th>
-                    <th class="right">Signific.</th>
-                    <th class="right">Expect.</th>
+                    <th class="right" title="Significancia = P×S + P×B">Signific.<div class="muted small" style="font-weight:normal;">P×S + P×B</div></th>
+                    <th class="right" title="Expectativas = (E+C+F) × Factor">Expect.<div class="muted small" style="font-weight:normal;">(E+C+F)×F</div></th>
                     <th>Acción</th>
                   </tr>
                 </thead>
@@ -473,7 +473,7 @@
           <div class="card">
             <div class="card-header">
               <h2>Matriz de materialidad</h2>
-              <p class="muted">Todos los temas evaluados. Líneas punteadas = terciles (P33/P66) del conjunto. Los temas materiales se destacan en verde grande; los temas de interés (superan umbral en al menos una dimensión) en naranja mediano.</p>
+              <p class="muted">Todos los temas evaluados. Línea punteada fina = percentil 33 (P33); línea punteada gruesa = percentil 66 (P66). Definen 9 zonas (BAJO/MEDIO/ALTO en cada eje). Verde grande = material; naranja mediano = de interés (supera umbral en una dimensión); gris chico = sin prioridad.</p>
             </div>
             <div class="card-body">
               <div id="plotLegacyMatrix" class="plot"></div>
@@ -1145,6 +1145,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=36"></script>
+  <script src="assets/js/app.js?v=37"></script>
 </body>
 </html>
