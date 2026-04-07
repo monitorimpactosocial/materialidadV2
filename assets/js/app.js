@@ -1137,26 +1137,33 @@ function computeScores(db) {
 
     const axisMaxImpact = 52;
     const axisMaxExpect = 30;
-    const impactBands = [axisMaxImpact / 3, (axisMaxImpact / 3) * 2];
-    const expectBands = [axisMaxExpect / 3, (axisMaxExpect / 3) * 2];
-    const refImpact = impactBands[1];
-    const refExpect = expectBands[1];
+
+    // Medianas de significancia y expectativas (misma lógica que la figura)
+    const validImpact = sortedValidRows.map((r) => r.significancia).filter((v) => v !== null).sort((a, b) => a - b);
+    const validExpect = sortedValidRows.map((r) => r.expectativas_total).filter((v) => v !== null).sort((a, b) => a - b);
+    const median = (arr) => {
+      if (!arr.length) return 0;
+      const mid = Math.floor(arr.length / 2);
+      return arr.length % 2 === 0 ? (arr[mid - 1] + arr[mid]) / 2 : arr[mid];
+    };
+    const medImpact = median(validImpact);
+    const medExpect = median(validExpect);
 
     rows.forEach((row) => {
       if (row.significancia === null || row.expectativas_total === null) {
         row.cuadrante = "";
         return;
       }
-      const impactLevel = row.significancia >= impactBands[1] ? "ALTO" : row.significancia >= impactBands[0] ? "MEDIO" : "BAJO";
-      const expectLevel = row.expectativas_total >= expectBands[1] ? "ALTO" : row.expectativas_total >= expectBands[0] ? "MEDIO" : "BAJO";
-      row.cuadrante = `${impactLevel}-${expectLevel}`;
+      const impactLevel = row.significancia >= medImpact ? "ALTO" : "BAJO";
+      const expectLevel = row.expectativas_total >= medExpect ? "ALTA" : "BAJA";
+      row.cuadrante = `Imp.${impactLevel} / Exp.${expectLevel}`;
     });
 
-    // Temas materiales: superan umbral en AMBAS dimensiones (impacto Y expectativas)
+    // Temas materiales: superan mediana en AMBAS dimensiones, o selección manual
     const manualSet = new Set(Array.isArray(db.manualMaterialTopics) ? db.manualMaterialTopics : []);
     sortedValidRows.forEach((row) => {
-      const aboveImpact = row.significancia !== null && row.significancia >= refImpact;
-      const aboveExpect = row.expectativas_total !== null && row.expectativas_total >= refExpect;
+      const aboveImpact = row.significancia !== null && row.significancia >= medImpact;
+      const aboveExpect = row.expectativas_total !== null && row.expectativas_total >= medExpect;
       row.is_legacy_material = (aboveImpact && aboveExpect) || manualSet.has(row.tema_id);
       row.is_manual_material = manualSet.has(row.tema_id);
     });
@@ -1171,13 +1178,11 @@ function computeScores(db) {
       factor: safeFactor,
       axisMaxImpact,
       axisMaxExpect,
-      impactBands,
-      expectBands,
-      refImpact,
-      refExpect,
+      medImpact,
+      medExpect,
       configuredThemes: rows.filter((row) => row.tiene_alguna_carga).length,
       completeThemes: valid.length,
-      highHighCount: rows.filter((row) => row.cuadrante === "ALTO-ALTO").length,
+      highHighCount: displayRows.length,
     };
   }
 
@@ -1261,12 +1266,11 @@ function computeScores(db) {
       tr.innerHTML = `
         ${checkboxCell}
         <td class="legacy-topic-cell">${escapeHTML(row.tema_id)} · ${escapeHTML(row.tema_nombre)}</td>
+        <td class="right">${row.stakeholder_mean === null ? "" : fmt(row.stakeholder_mean, 2)}</td>
+        <td class="right">${row.score_impacto === null ? "" : fmt(row.score_impacto, 2)}</td>
         <td class="right">${row.significancia === null ? "" : fmt(row.significancia, 2)}</td>
         <td class="right">${row.expectativas_total === null ? "" : fmt(row.expectativas_total, 2)}</td>
-        <td class="right">${row.riesgo === null ? "" : fmt(row.riesgo, 2)}</td>
-        <td class="right">${row.oportunidad === null ? "" : fmt(row.oportunidad, 2)}</td>
         <td>${escapeHTML(row.cuadrante || "")}</td>
-        <td title="${escapeHTML(row.grupos_relacionados || "")}">${escapeHTML(row.grupos_resumen || "")}</td>
       `;
       tbody.appendChild(tr);
     }
@@ -1287,8 +1291,8 @@ function computeScores(db) {
     setText("legacyAvgImpact", avgImpact === null ? "N/D" : fmt(avgImpact, 2));
     setText("legacyAvgExpect", avgExpect === null ? "N/D" : fmt(avgExpect, 2));
     setText("legacyHighHigh", String(legacy.displayRows.length));
-    setText("legacyRefImpact", legacy.impactBands ? legacy.impactBands.map((value) => fmt(value, 1)).join(" | ") : "N/D");
-    setText("legacyRefExpect", legacy.expectBands ? legacy.expectBands.map((value) => fmt(value, 1)).join(" | ") : "N/D");
+    setText("legacyRefImpact", fmt(legacy.medImpact, 1));
+    setText("legacyRefExpect", fmt(legacy.medExpect, 1));
 
     renderLegacyResultsTable("tableLegacyResults", legacy.sortedValidRows, { showCheckbox: true });
   }
@@ -1304,18 +1308,21 @@ function computeScores(db) {
       return;
     }
 
-    const x = legacy.displayRows.map((row) => row.significancia);
-    const y = legacy.displayRows.map((row) => row.expectativas_total);
-    const text = legacy.displayRows.map((row) => `${row.tema_id} · ${row.tema_nombre}`);
+    // Usar todos los temas completos para el scatter (no solo materiales)
+    const plotRows = legacy.sortedValidRows.filter((r) => r.significancia !== null && r.expectativas_total !== null);
+    const x = plotRows.map((row) => row.significancia);
+    const y = plotRows.map((row) => row.expectativas_total);
+    const text = plotRows.map((row) => `${row.tema_id} · ${row.tema_nombre}`);
     const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd"];
-    const color = legacy.displayRows.map((_, index) => palette[index % palette.length]);
-    const xLower = legacy.impactBands[0];
-    const xUpper = legacy.impactBands[1];
-    const yLower = legacy.expectBands[0];
-    const yUpper = legacy.expectBands[1];
+    const color = plotRows.map((row) => row.is_legacy_material ? "#059669" : "#94a3b8");
+    const sizes = plotRows.map((row) => row.is_legacy_material ? 20 : 12);
     const maxX = legacy.axisMaxImpact;
     const maxY = legacy.axisMaxExpect;
     const isPrint = target.classList.contains("plot-print");
+
+    // Mediana ya calculada en computeLegacyMatrix
+    const medX = legacy.medImpact;
+    const medY = legacy.medExpect;
 
     // Rango dinámico basado en los datos reales
     const xMin = Math.min(...x);
@@ -1329,25 +1336,17 @@ function computeScores(db) {
     const axisY0 = Math.max(0, yMin - yPad);
     const axisY1 = Math.min(maxY, yMax + yPad);
 
-    // Divisores de cuadrante: mediana de los datos (siempre cae dentro del rango visible)
-    const sortedX = [...x].sort((a, b) => a - b);
-    const sortedY = [...y].sort((a, b) => a - b);
-    const medX = sortedX.length % 2 === 0
-      ? (sortedX[sortedX.length / 2 - 1] + sortedX[sortedX.length / 2]) / 2
-      : sortedX[Math.floor(sortedX.length / 2)];
-    const medY = sortedY.length % 2 === 0
-      ? (sortedY[sortedY.length / 2 - 1] + sortedY[sortedY.length / 2]) / 2
-      : sortedY[Math.floor(sortedY.length / 2)];
-
     const data = [{
       x,
       y,
       text,
-      mode: "markers",
+      mode: "markers+text",
       type: "scatter",
-      marker: { size: isPrint ? 22 : 24, color, opacity: 0.96, line: { width: 2, color: "#ffffff" } },
-      hovertemplate: "<b>%{text}</b><br>Impacto en la estrategia: %{x:.2f}<br>Expectativas grupos de interés: %{y:.2f}<br>Clasificación: %{customdata}<extra></extra>",
-      customdata: legacy.displayRows.map((row) => row.cuadrante || "")
+      textposition: "top center",
+      textfont: { size: 8, color: "#374151" },
+      marker: { size: sizes, color, opacity: 0.96, line: { width: 2, color: "#ffffff" } },
+      hovertemplate: "<b>%{text}</b><br>Impactos: %{x:.2f}<br>Expectativas: %{y:.2f}<br>%{customdata}<extra></extra>",
+      customdata: plotRows.map((row) => row.is_legacy_material ? "MATERIAL" : row.cuadrante || "")
     }];
 
     // Dos líneas divisoras (mediana de cada eje) → 4 cuadrantes siempre separados
@@ -2663,13 +2662,11 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         const temaId = chk.dataset.tema;
         const db = ensureDB();
         if (!Array.isArray(db.manualMaterialTopics)) db.manualMaterialTopics = [];
-        // Recompute to check if this topic would be material by threshold
+        // Recompute to check if this topic would be material by median threshold
         const legacy = computeLegacyMatrix(db);
         const row = legacy.sortedValidRows.find((r) => r.tema_id === temaId);
-        const refImpact = legacy.refImpact;
-        const refExpect = legacy.refExpect;
         const autoMaterial = row && row.significancia !== null && row.expectativas_total !== null
-          && row.significancia >= refImpact && row.expectativas_total >= refExpect;
+          && row.significancia >= legacy.medImpact && row.expectativas_total >= legacy.medExpect;
 
         if (chk.checked && !autoMaterial) {
           // Add to manual list
