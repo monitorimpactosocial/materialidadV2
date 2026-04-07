@@ -1279,20 +1279,27 @@ function computeScores(db) {
     const maxY = legacy.axisMaxExpect;
     const isPrint = target.classList.contains("plot-print");
 
-    // Rango dinámico que siempre incluye las líneas de cuadrante
+    // Rango dinámico basado en los datos reales
     const xMin = Math.min(...x);
     const xMax = Math.max(...x);
     const yMin = Math.min(...y);
     const yMax = Math.max(...y);
-    const xSpread = Math.max(xMax - xMin, 2);
-    const ySpread = Math.max(yMax - yMin, 2);
-    const xPad = xSpread * 0.20;
-    const yPad = ySpread * 0.20;
-    // Extender el rango para asegurar que las líneas de cuadrante (xLower, xUpper) sean siempre visibles
-    const axisX0 = Math.max(0, Math.min(xMin - xPad, xLower - xPad));
-    const axisX1 = Math.min(maxX, Math.max(xMax + xPad, xUpper + xPad));
-    const axisY0 = Math.max(0, Math.min(yMin - yPad, yLower - yPad));
-    const axisY1 = Math.min(maxY, Math.max(yMax + yPad, yUpper + yPad));
+    const xPad = Math.max((xMax - xMin) * 0.18, 1.5);
+    const yPad = Math.max((yMax - yMin) * 0.18, 0.5);
+    const axisX0 = Math.max(0, xMin - xPad);
+    const axisX1 = Math.min(maxX, xMax + xPad);
+    const axisY0 = Math.max(0, yMin - yPad);
+    const axisY1 = Math.min(maxY, yMax + yPad);
+
+    // Divisores de cuadrante: mediana de los datos (siempre cae dentro del rango visible)
+    const sortedX = [...x].sort((a, b) => a - b);
+    const sortedY = [...y].sort((a, b) => a - b);
+    const medX = sortedX.length % 2 === 0
+      ? (sortedX[sortedX.length / 2 - 1] + sortedX[sortedX.length / 2]) / 2
+      : sortedX[Math.floor(sortedX.length / 2)];
+    const medY = sortedY.length % 2 === 0
+      ? (sortedY[sortedY.length / 2 - 1] + sortedY[sortedY.length / 2]) / 2
+      : sortedY[Math.floor(sortedY.length / 2)];
 
     const data = [{
       x,
@@ -1305,28 +1312,25 @@ function computeScores(db) {
       customdata: legacy.displayRows.map((row) => row.cuadrante || "")
     }];
 
-    // Las cuatro líneas de cuadrante siempre visibles
+    // Dos líneas divisoras (mediana de cada eje) → 4 cuadrantes siempre separados
     const shapes = [
-      { type: "line", x0: xLower, x1: xLower, y0: axisY0, y1: axisY1, line: { color: "#111111", width: 2, dash: "dash" } },
-      { type: "line", x0: xUpper, x1: xUpper, y0: axisY0, y1: axisY1, line: { color: "#111111", width: 2, dash: "dash" } },
-      { type: "line", x0: axisX0, x1: axisX1, y0: yLower, y1: yLower, line: { color: "#111111", width: 2, dash: "dash" } },
-      { type: "line", x0: axisX0, x1: axisX1, y0: yUpper, y1: yUpper, line: { color: "#111111", width: 2, dash: "dash" } },
+      { type: "line", x0: medX, x1: medX, y0: axisY0, y1: axisY1, line: { color: "#111111", width: 2, dash: "dash" } },
+      { type: "line", x0: axisX0, x1: axisX1, y0: medY, y1: medY, line: { color: "#111111", width: 2, dash: "dash" } },
     ];
 
-    // Etiquetas de zona en los tres segmentos de cada eje
-    const xZ1 = (axisX0 + xLower) / 2;
-    const xZ2 = (xLower + xUpper) / 2;
-    const xZ3 = (xUpper + axisX1) / 2;
-    const yZ1 = (axisY0 + yLower) / 2;
-    const yZ2 = (yLower + yUpper) / 2;
-    const yZ3 = (yUpper + axisY1) / 2;
+    // Etiquetas de cuadrante
+    const xLow = (axisX0 + medX) / 2;
+    const xHigh = (medX + axisX1) / 2;
+    const yLow  = (axisY0 + medY) / 2;
+    const yHigh = (medY  + axisY1) / 2;
+    const yLbl  = axisY0 + (axisY1 - axisY0) * 0.03;
     const annotations = [
-      { x: xZ1, y: axisY0 + 0.3, text: "<b>IMPORTANCIA BAJA</b>", xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
-      { x: xZ2, y: axisY0 + 0.3, text: "<b>IMPORTANCIA MEDIA</b>", xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
-      { x: xZ3, y: axisY0 + 0.3, text: "<b>IMPORTANCIA ALTA</b>",  xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
-      { x: axisX0 + 0.5, y: yZ1, text: "<b>BAJA</b>",   textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#0070c9" } },
-      { x: axisX0 + 0.5, y: yZ2, text: "<b>MEDIA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#0070c9" } },
-      { x: axisX0 + 0.5, y: yZ3, text: "<b>ALTA</b>",   textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#0070c9" } },
+      { x: xLow,  y: yLbl, text: "<b>IMPACTO MEDIO</b>",  xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
+      { x: xHigh, y: yLbl, text: "<b>IMPACTO ALTO</b>",   xanchor: "center", yanchor: "bottom", showarrow: false, font: { size: 11, color: "#0070c9" } },
+      { x: axisX0 + (axisX1 - axisX0) * 0.01, y: yLow,  text: "<b>EXPECT. MEDIA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#0070c9" } },
+      { x: axisX0 + (axisX1 - axisX0) * 0.01, y: yHigh, text: "<b>EXPECT. ALTA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 10, color: "#0070c9" } },
+      { x: medX, y: axisY1 - (axisY1 - axisY0) * 0.02, text: `Med.Impact: ${medX.toFixed(1)}`, xanchor: "center", yanchor: "top", showarrow: false, font: { size: 9, color: "#555" } },
+      { x: axisX1 - (axisX1 - axisX0) * 0.02, y: medY, text: `Med.Exp: ${medY.toFixed(1)}`, xanchor: "right", yanchor: "middle", showarrow: false, font: { size: 9, color: "#555" } },
     ];
 
     const layout = {
