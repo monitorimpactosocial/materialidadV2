@@ -1396,11 +1396,29 @@ function computeScores(db) {
     const axisY0 = 0;
     const axisY1 = Math.max(legacy.axisMaxExpect, ...allY) * 1.02;
 
+    // Rectángulos de fondo coloreados para las 6 zonas
+    // Filas: BAJA (abajo) → MEDIA → ALTA (arriba). Columnas: BAJO (izq) → ALTO (der)
+    const zoneRects = [
+      // Imp.BAJO / Exp.BAJA → rojo suave
+      { type: "rect", x0: axisX0, x1: divX, y0: axisY0, y1: divY1, fillcolor: "rgba(239,68,68,0.07)", line: { width: 0 }, layer: "below" },
+      // Imp.BAJO / Exp.MEDIA → naranja suave
+      { type: "rect", x0: axisX0, x1: divX, y0: divY1, y1: divY2, fillcolor: "rgba(245,158,11,0.07)", line: { width: 0 }, layer: "below" },
+      // Imp.BAJO / Exp.ALTA → amarillo suave
+      { type: "rect", x0: axisX0, x1: divX, y0: divY2, y1: axisY1, fillcolor: "rgba(234,179,8,0.07)", line: { width: 0 }, layer: "below" },
+      // Imp.ALTO / Exp.BAJA → amarillo suave
+      { type: "rect", x0: divX, x1: axisX1, y0: axisY0, y1: divY1, fillcolor: "rgba(234,179,8,0.07)", line: { width: 0 }, layer: "below" },
+      // Imp.ALTO / Exp.MEDIA → verde claro
+      { type: "rect", x0: divX, x1: axisX1, y0: divY1, y1: divY2, fillcolor: "rgba(34,197,94,0.07)", line: { width: 0 }, layer: "below" },
+      // Imp.ALTO / Exp.ALTA → verde intenso
+      { type: "rect", x0: divX, x1: axisX1, y0: divY2, y1: axisY1, fillcolor: "rgba(5,150,105,0.12)", line: { width: 0 }, layer: "below" },
+    ];
+
     // 3 líneas divisoras → 6 zonas (2 columnas × 3 filas)
     const shapes = [
-      { type: "line", x0: divX, x1: divX, y0: axisY0, y1: axisY1, line: { color: "#b91c1c", width: 2, dash: "dash" } },
-      { type: "line", x0: axisX0, x1: axisX1, y0: divY1, y1: divY1, line: { color: "#9ca3af", width: 1, dash: "dot" } },
-      { type: "line", x0: axisX0, x1: axisX1, y0: divY2, y1: divY2, line: { color: "#b91c1c", width: 2, dash: "dash" } },
+      ...zoneRects,
+      { type: "line", x0: divX, x1: divX, y0: axisY0, y1: axisY1, line: { color: "#374151", width: 2, dash: "dash" }, layer: "above" },
+      { type: "line", x0: axisX0, x1: axisX1, y0: divY1, y1: divY1, line: { color: "#9ca3af", width: 1, dash: "dot" }, layer: "above" },
+      { type: "line", x0: axisX0, x1: axisX1, y0: divY2, y1: divY2, line: { color: "#374151", width: 2, dash: "dash" }, layer: "above" },
     ];
 
     // Etiquetas en las 6 zonas
