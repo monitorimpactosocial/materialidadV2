@@ -303,12 +303,12 @@
             <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr;">
               <div class="field">
                 <label for="dmTauImpact">Umbral Impacto ASG (1–5)</label>
-                <input id="dmTauImpact" type="number" min="0" max="5" step="any" value="3.50" />
+                <input id="dmTauImpact" type="text" inputmode="decimal" value="3.50" style="width:80px;" />
                 <div class="muted small">Impacto ASG interno ≥ este valor = material de impacto.</div>
               </div>
               <div class="field">
                 <label for="dmTauFin">Umbral Financiero (1–5)</label>
-                <input id="dmTauFin" type="number" min="0" max="5" step="any" value="3.50" />
+                <input id="dmTauFin" type="text" inputmode="decimal" value="3.50" style="width:80px;" />
                 <div class="muted small">Riesgo/oportunidad financiera ≥ este valor = material financiero.</div>
               </div>
               <div class="field">
@@ -535,12 +535,12 @@
               <div class="form-grid">
                 <div class="field">
                   <label for="tauLegacyExternal">Umbral dimensión externa (1–5)</label>
-                  <input id="tauLegacyExternal" type="number" min="0" max="5" step="any" value="3.50" />
+                  <input id="tauLegacyExternal" type="text" inputmode="decimal" value="3.50" style="width:80px;" />
                   <div class="muted small">Promedio stakeholders ≥ este valor.</div>
                 </div>
                 <div class="field">
                   <label for="tauLegacyInternal">Umbral dimensión interna (1–5)</label>
-                  <input id="tauLegacyInternal" type="number" min="0" max="5" step="any" value="3.50" />
+                  <input id="tauLegacyInternal" type="text" inputmode="decimal" value="3.50" style="width:80px;" />
                   <div class="muted small">Promedio impacto interno ≥ este valor.</div>
                 </div>
               </div>
@@ -1319,6 +1319,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=42"></script>
+  <script src="assets/js/app.js?v=43"></script>
 </body>
 </html>
