@@ -1363,25 +1363,40 @@ function computeScores(db) {
     const divY2 = legacy.expectThirdHigh;
     const palette = ["#9cc34d", "#f89a46", "#43aac8", "#ffb81c", "#7b61a6", "#ff4f12", "#38a038", "#e25be8", "#63dfe5", "#4f81bd"];
 
-    // Traza 1: temas NO materiales (gris, chico)
-    const nonMat = allValid.filter((r) => !r.is_legacy_material);
-    // Traza 2: temas materiales (color, grande)
+    // 3 categorías: material (ambos umbrales o manual), interés (al menos 1 umbral), resto
     const mat = allValid.filter((r) => r.is_legacy_material);
+    const interest = allValid.filter((r) => !r.is_legacy_material && (r.above_tau_ext || r.above_tau_int));
+    const rest = allValid.filter((r) => !r.is_legacy_material && !r.above_tau_ext && !r.above_tau_int);
 
     const traces = [];
-    if (nonMat.length) {
+    if (rest.length) {
       traces.push({
-        x: nonMat.map((r) => r.significancia),
-        y: nonMat.map((r) => r.expectativas_total),
-        text: nonMat.map((r) => r.tema_id),
-        customdata: nonMat.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
+        x: rest.map((r) => r.significancia),
+        y: rest.map((r) => r.expectativas_total),
+        text: rest.map((r) => r.tema_id),
+        customdata: rest.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
         mode: "markers+text",
         type: "scatter",
-        name: "No material",
+        name: "Sin prioridad",
         textposition: "top center",
         textfont: { size: 7, color: "#9ca3af" },
-        marker: { size: 10, color: "#d1d5db", opacity: 0.7, line: { width: 1, color: "#ffffff" } },
-        hovertemplate: "<b>%{customdata}</b><br>Impactos: %{x:.2f}<br>Expectativas: %{y:.2f}<extra></extra>",
+        marker: { size: 8, color: "#d1d5db", opacity: 0.6, line: { width: 1, color: "#ffffff" } },
+        hovertemplate: "<b>%{customdata}</b><br>Significancia: %{x:.2f}<br>Expectativas: %{y:.2f}<extra></extra>",
+      });
+    }
+    if (interest.length) {
+      traces.push({
+        x: interest.map((r) => r.significancia),
+        y: interest.map((r) => r.expectativas_total),
+        text: interest.map((r) => r.tema_id),
+        customdata: interest.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
+        mode: "markers+text",
+        type: "scatter",
+        name: "De interés",
+        textposition: "top center",
+        textfont: { size: 8, color: "#92400e" },
+        marker: { size: 14, color: "#f59e0b", opacity: 0.85, line: { width: 1.5, color: "#ffffff" } },
+        hovertemplate: "<b>%{customdata}</b><br>Significancia: %{x:.2f}<br>Expectativas: %{y:.2f}<br>(supera umbral en una dimensión)<extra></extra>",
       });
     }
     if (mat.length) {
@@ -1395,8 +1410,8 @@ function computeScores(db) {
         name: "Material",
         textposition: "top center",
         textfont: { size: 9, color: "#374151" },
-        marker: { size: 20, color: mat.map((_, i) => palette[i % palette.length]), opacity: 0.96, line: { width: 2, color: "#ffffff" } },
-        hovertemplate: "<b>%{customdata}</b><br>Impactos: %{x:.2f}<br>Expectativas: %{y:.2f}<extra></extra>",
+        marker: { size: 20, color: "#059669", opacity: 0.96, line: { width: 2, color: "#ffffff" } },
+        hovertemplate: "<b>%{customdata}</b><br>Significancia: %{x:.2f}<br>Expectativas: %{y:.2f}<br>(MATERIAL)<extra></extra>",
       });
     }
 
