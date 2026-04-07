@@ -4019,7 +4019,8 @@ Equipo PARACEL`;
 
     document.getElementById("btnExportReportCSV").addEventListener("click", () => exportCSVPack(ensureDB()));
 
-    document.getElementById("btnDownloadMatrixCSV").addEventListener("click", () => {
+    const btnMatrix = document.getElementById("btnDownloadMatrixCSV");
+    if (btnMatrix) btnMatrix.addEventListener("click", () => {
       const db = ensureDB();
       const { rows } = computeScores(db);
       downloadCSV("matriz_doble_materialidad.csv", rows.map((r) => ({
@@ -4035,7 +4036,8 @@ Equipo PARACEL`;
       })));
     });
 
-    document.getElementById("btnDownloadStakeCSV").addEventListener("click", () => {
+    const btnStake = document.getElementById("btnDownloadStakeCSV");
+    if (btnStake) btnStake.addEventListener("click", () => {
       const db = ensureDB();
       const stake = computeStakeholderByTheme(db, db.currentEditionId);
       const rows = DATA.topics.map((t) => {
@@ -4183,7 +4185,7 @@ Equipo PARACEL`;
       roleBadge.style.display = "";
       if (logExtCard) logExtCard.style.display = "";
       if (logIntCard) logIntCard.style.display = "";
-      setActiveView("home");
+      setActiveView("report");
     } else if (role === "externa") {
       roleBadge.textContent = "Encuestado";
       roleBadge.style.display = "";
