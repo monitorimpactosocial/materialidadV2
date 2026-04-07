@@ -2328,8 +2328,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     p.tauImpact = Number(document.getElementById("tauImpact").value);
     p.tauFin = Number(document.getElementById("tauFin").value);
     p.tauMaterial = Number(document.getElementById("tauMaterial").value);
-    p.tauLegacyExternal = Number(document.getElementById("tauLegacyExternal").value);
-    p.tauLegacyInternal = Number(document.getElementById("tauLegacyInternal").value);
+    p.tauLegacyExternal = parseFloat(document.getElementById("tauLegacyExternal").value) || DEFAULT_PARAMS.tauLegacyExternal;
+    p.tauLegacyInternal = parseFloat(document.getElementById("tauLegacyInternal").value) || DEFAULT_PARAMS.tauLegacyInternal;
     p.ruleDouble = document.getElementById("ruleSelect").value;
 
     p.wImpact = {
@@ -2379,7 +2379,12 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("change", syncAndRender);
-      if (el.tagName === "INPUT") el.addEventListener("input", syncAndRender);
+      // Text inputs: solo al perder foco o Enter (no en cada tecla)
+      if (el.tagName === "INPUT" && el.type === "text") {
+        el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); syncAndRender(); el.blur(); } });
+      } else if (el.tagName === "INPUT" && el.type !== "checkbox") {
+        el.addEventListener("input", syncAndRender);
+      }
     });
 
     // Doble Materialidad panel inputs → sync to main params
@@ -2389,8 +2394,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       const dmImp = document.getElementById("dmTauImpact");
       const dmFin = document.getElementById("dmTauFin");
       const dmRule = document.getElementById("dmRule");
-      if (dmImp) p.tauImpact = Number(dmImp.value);
-      if (dmFin) p.tauFin = Number(dmFin.value);
+      if (dmImp) p.tauImpact = parseFloat(dmImp.value) || DEFAULT_PARAMS.tauImpact;
+      if (dmFin) p.tauFin = parseFloat(dmFin.value) || DEFAULT_PARAMS.tauFin;
       if (dmRule) p.ruleDouble = dmRule.value;
       db.params = p;
       saveDB(db);
@@ -2401,7 +2406,10 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("change", dmSyncAndRender);
-      if (el.tagName === "INPUT") el.addEventListener("input", dmSyncAndRender);
+      // Para text inputs: actualizar al presionar Enter
+      if (el.tagName === "INPUT" && el.type === "text") {
+        el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); dmSyncAndRender(); el.blur(); } });
+      }
     });
 
     document.getElementById("btnResetParams").addEventListener("click", () => {
@@ -3283,9 +3291,10 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
   function renderDobleMatKPIs(db) {
     const { rows } = computeScores(db);
-    const nImp = rows.filter((r) => r.impact_mat).length;
-    const nFin = rows.filter((r) => r.fin_mat).length;
+    // Clasificación exclusiva (4 cuadrantes, no acumulativa)
     const nDouble = rows.filter((r) => r.double_mat).length;
+    const nImp = rows.filter((r) => r.impact_mat && !r.fin_mat).length;
+    const nFin = rows.filter((r) => !r.impact_mat && r.fin_mat).length;
     const nNone = rows.filter((r) => !r.impact_mat && !r.fin_mat).length;
 
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = String(v); };
