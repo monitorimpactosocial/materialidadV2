@@ -3039,8 +3039,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   // ---------------------------------------------------------------------------
   // Doble Materialidad (pestaña dedicada)
   // ---------------------------------------------------------------------------
-  function renderDobleMatPlot(db) {
-    const target = document.getElementById("plotDobleMatScatter");
+  function renderDobleMatPlot(db, targetId) {
+    const target = document.getElementById(targetId || "plotDobleMatScatter");
     if (!target) return;
 
     const params = getParams(db);
@@ -3129,11 +3129,11 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       legend: { orientation: "h", y: -0.18, x: 0.5, xanchor: "center" },
     };
 
-    Plotly.newPlot("plotDobleMatScatter", traces, layout, { displayModeBar: false, responsive: true });
+    Plotly.newPlot(targetId || "plotDobleMatScatter", traces, layout, { displayModeBar: false, responsive: true });
   }
 
-  function renderDobleMatThermometer(db) {
-    const container = document.getElementById("plotDobleMatThermometer");
+  function renderDobleMatThermometer(db, containerId) {
+    const container = document.getElementById(containerId || "plotDobleMatThermometer");
     if (!container) return;
 
     const params = getParams(db);
@@ -3591,6 +3591,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     // plot en reporte
     renderExternalTop10(db, "plotExternalTop10");
     renderDimensionPlot(db, "plotDimensionReport");
+    renderDobleMatPlot(db, "plotDobleMatScatterReport");
+    renderDobleMatThermometer(db, "plotDobleMatThermReport");
     renderLegacyMatrixPlot(db, "plotLegacyMatrixReport");
     renderLegacyRankingPlot(db, "plotLegacyRankingReport");
     renderTop5KPIs(db);
@@ -3898,6 +3900,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     const figureDefs = [
       { id: "plotExternalTop10", file: "image001.png" },
       { id: "plotDimensionReport", file: "image002.png" },
+      { id: "plotDobleMatScatterReport", file: "image007.png" },
       { id: "plotLegacyMatrixReport", file: "image005.png" },
       { id: "plotLegacyRankingReport", file: "image006.png" },
     ];
@@ -4058,10 +4061,13 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     </tr>
   </table>
 
-  <h3>4.2. Ranking Completo de Temas</h3>
+  <h3>4.2. Matriz de Doble Materialidad</h3>
+  ${buildWordFigure("Doble Materialidad", imageRefs.plotDobleMatScatterReport, "Eje X = Impacto ASG (outside-in). Eje Y = Impacto Financiero (inside-out). Tamaño = importancia stakeholders.")}
+
+  <h3>4.3. Ranking Completo de Temas</h3>
   ${tableWordHtml("tableReportAll", { widths: [34, 11, 11, 11, 11, 11, 11], fontSize: "7.4pt" })}
 
-  <h3>4.3. Matriz Clásica de Impacto y Expectativas (metodología histórica)</h3>
+  <h3>4.4. Matriz Clásica de Impacto y Expectativas (metodología histórica)</h3>
   ${buildWordFigure("Matriz Clásica", imageRefs.plotLegacyMatrixReport, "Cruce reconstruido entre impactos y expectativas a partir de ambas encuestas.")}
   ${buildWordFigure("Ranking Comparado", imageRefs.plotLegacyRankingReport, "Comparativo normalizado por tema entre significancia de impactos y puntaje de expectativas.")}
 
