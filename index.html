@@ -293,6 +293,35 @@
           </div>
         </div>
 
+        <!-- Configuración de doble materialidad -->
+        <div class="card mt-16">
+          <div class="card-header">
+            <h2>Configuración de umbrales</h2>
+            <p class="muted">Defina los valores de corte para cada dimensión. Los temas con puntaje ≥ umbral se clasifican como materiales en esa dimensión.</p>
+          </div>
+          <div class="card-body">
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+              <div class="field">
+                <label for="dmTauImpact">Umbral Impacto ASG (1–5)</label>
+                <input id="dmTauImpact" type="number" min="0" max="5" step="any" value="3.50" />
+                <div class="muted small">Impacto ASG interno ≥ este valor = material de impacto.</div>
+              </div>
+              <div class="field">
+                <label for="dmTauFin">Umbral Financiero (1–5)</label>
+                <input id="dmTauFin" type="number" min="0" max="5" step="any" value="3.50" />
+                <div class="muted small">Riesgo/oportunidad financiera ≥ este valor = material financiero.</div>
+              </div>
+              <div class="field">
+                <label for="dmRule">Regla de combinación</label>
+                <select id="dmRule">
+                  <option value="AND">AND — ambas dimensiones (doble materialidad estricta)</option>
+                  <option value="OR">OR — al menos una dimensión</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- KPIs -->
         <div class="grid-2 mt-16" style="grid-template-columns: repeat(4, 1fr); gap:12px;">
           <div class="card" style="text-align:center; padding:16px;">
@@ -1283,6 +1312,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=39"></script>
+  <script src="assets/js/app.js?v=40"></script>
 </body>
 </html>

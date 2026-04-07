@@ -2296,6 +2296,13 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     document.getElementById("tauImpact").value = fmt(p.tauImpact, 2);
     document.getElementById("tauFin").value = fmt(p.tauFin, 2);
     document.getElementById("tauMaterial").value = fmt(p.tauMaterial !== undefined ? p.tauMaterial : DEFAULT_PARAMS.tauMaterial, 2);
+    // Sync doble materialidad panel
+    const dmImp = document.getElementById("dmTauImpact");
+    const dmFin = document.getElementById("dmTauFin");
+    const dmRule = document.getElementById("dmRule");
+    if (dmImp) dmImp.value = fmt(p.tauImpact, 2);
+    if (dmFin) dmFin.value = fmt(p.tauFin, 2);
+    if (dmRule) dmRule.value = p.ruleDouble;
     document.getElementById("tauLegacyExternal").value = fmt(p.tauLegacyExternal !== undefined ? p.tauLegacyExternal : DEFAULT_PARAMS.tauLegacyExternal, 2);
     document.getElementById("tauLegacyInternal").value = fmt(p.tauLegacyInternal !== undefined ? p.tauLegacyInternal : DEFAULT_PARAMS.tauLegacyInternal, 2);
     document.getElementById("ruleSelect").value = p.ruleDouble;
@@ -2373,6 +2380,28 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       if (!el) return;
       el.addEventListener("change", syncAndRender);
       if (el.tagName === "INPUT") el.addEventListener("input", syncAndRender);
+    });
+
+    // Doble Materialidad panel inputs → sync to main params
+    const dmSyncAndRender = () => {
+      const db = ensureDB();
+      const p = getParams(db);
+      const dmImp = document.getElementById("dmTauImpact");
+      const dmFin = document.getElementById("dmTauFin");
+      const dmRule = document.getElementById("dmRule");
+      if (dmImp) p.tauImpact = Number(dmImp.value);
+      if (dmFin) p.tauFin = Number(dmFin.value);
+      if (dmRule) p.ruleDouble = dmRule.value;
+      db.params = p;
+      saveDB(db);
+      syncParamsToUI(db);
+      renderAll(db);
+    };
+    ["dmTauImpact", "dmTauFin", "dmRule"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("change", dmSyncAndRender);
+      if (el.tagName === "INPUT") el.addEventListener("input", dmSyncAndRender);
     });
 
     document.getElementById("btnResetParams").addEventListener("click", () => {
@@ -3112,108 +3141,92 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
     const tauImp = params.tauImpact;
     const tauFin = params.tauFin;
+    const hw = 0.55;
+    const shapes = [];
 
-    // Barras de fondo: zonas verde (0-umbral×0.6), amarillo (umbral×0.6-umbral), rojo (umbral-5)
-    const zoneShapes = [];
-    const addZones = (xCenter, halfW) => {
-      const lowEnd = tauImp * 0.6;
-      zoneShapes.push(
-        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: 0, y1: lowEnd, fillcolor: "rgba(34,197,94,0.25)", line: { width: 0 }, layer: "below" },
-        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: lowEnd, y1: tauImp, fillcolor: "rgba(234,179,8,0.25)", line: { width: 0 }, layer: "below" },
-        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: tauImp, y1: 5, fillcolor: "rgba(239,68,68,0.18)", line: { width: 0 }, layer: "below" },
+    // Zonas de fondo para cada columna (verde-amarillo-rojo)
+    const addBarZones = (cx, tau) => {
+      const midCut = tau * 0.65;
+      shapes.push(
+        { type: "rect", x0: cx - hw, x1: cx + hw, y0: 0, y1: midCut, fillcolor: "rgba(34,197,94,0.30)", line: { color: "#16a34a", width: 1 }, layer: "below" },
+        { type: "rect", x0: cx - hw, x1: cx + hw, y0: midCut, y1: tau, fillcolor: "rgba(234,179,8,0.30)", line: { color: "#ca8a04", width: 1 }, layer: "below" },
+        { type: "rect", x0: cx - hw, x1: cx + hw, y0: tau, y1: 5, fillcolor: "rgba(239,68,68,0.20)", line: { color: "#dc2626", width: 1 }, layer: "below" },
+        // Línea de umbral gruesa
+        { type: "line", x0: cx - hw - 0.15, x1: cx + hw + 0.15, y0: tau, y1: tau, line: { color: "#111", width: 2.5 }, layer: "above" },
       );
     };
-    const addZonesFin = (xCenter, halfW) => {
-      const lowEnd = tauFin * 0.6;
-      zoneShapes.push(
-        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: 0, y1: lowEnd, fillcolor: "rgba(34,197,94,0.25)", line: { width: 0 }, layer: "below" },
-        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: lowEnd, y1: tauFin, fillcolor: "rgba(234,179,8,0.25)", line: { width: 0 }, layer: "below" },
-        { type: "rect", x0: xCenter - halfW, x1: xCenter + halfW, y0: tauFin, y1: 5, fillcolor: "rgba(239,68,68,0.18)", line: { width: 0 }, layer: "below" },
-      );
+    addBarZones(1.2, tauImp);
+    addBarZones(3.8, tauFin);
+
+    // Flechas para temas que superan umbral (SVG path shapes)
+    const addArrow = (cx, yBase, yTop, label, side) => {
+      const aw = 0.18; // ancho del cuerpo
+      const ah = 0.22; // ancho de la cabeza
+      const headH = 0.25; // alto de la punta
+      const bodyTop = yTop - headH;
+      // Path: cuerpo rectangular + cabeza triangular
+      shapes.push({
+        type: "path",
+        path: `M ${cx - aw} ${yBase} L ${cx - aw} ${bodyTop} L ${cx - ah} ${bodyTop} L ${cx} ${yTop} L ${cx + ah} ${bodyTop} L ${cx + aw} ${bodyTop} L ${cx + aw} ${yBase} Z`,
+        fillcolor: "#dc2626",
+        line: { color: "#991b1b", width: 1 },
+        layer: "above",
+      });
     };
 
-    // Columna izquierda: x=1, columna derecha: x=3
-    const hw = 0.6;
-    addZones(1, hw);
-    addZonesFin(3, hw);
-
-    // Líneas de umbral
-    zoneShapes.push(
-      { type: "line", x0: 1 - hw, x1: 1 + hw, y0: tauImp, y1: tauImp, line: { color: "#111", width: 2 }, layer: "above" },
-      { type: "line", x0: 3 - hw, x1: 3 + hw, y0: tauFin, y1: tauFin, line: { color: "#111", width: 2 }, layer: "above" },
+    const annotations = [];
+    // Títulos
+    annotations.push(
+      { x: 1.2, y: 5.55, text: "<b>Materialidad de Impacto</b>", showarrow: false, font: { size: 13, color: "#064e3b" }, xanchor: "center" },
+      { x: 1.2, y: 5.28, text: "Impacto de Paracel al desarrollo<br>sostenible (económico, social, ambiental)", showarrow: false, font: { size: 8.5, color: "#6b7280" }, xanchor: "center" },
+      { x: 3.8, y: 5.55, text: "<b>Materialidad Financiera</b>", showarrow: false, font: { size: 13, color: "#1e3a8a" }, xanchor: "center" },
+      { x: 3.8, y: 5.28, text: "Riesgos y Oportunidades ASG que<br>representen afectaciones financieras", showarrow: false, font: { size: 8.5, color: "#6b7280" }, xanchor: "center" },
     );
+    // Escala
+    [0, tauImp, 5].forEach((v) => annotations.push({ x: 1.2 - hw - 0.12, y: v, text: `<b>${v}</b>`, showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" }));
+    [0, tauFin, 5].forEach((v) => annotations.push({ x: 3.8 - hw - 0.12, y: v, text: `<b>${v}</b>`, showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" }));
 
-    // Puntos: cada tema como marcador en la columna correspondiente
-    // Impacto (x=1) con jitter
-    const impRows = valid.filter((r) => r.impact_score !== null);
-    const finRows = valid.filter((r) => r.fin_score !== null);
+    // Dibujar temas como flechas (sobre umbral) o bloques (bajo umbral)
+    // Impacto: ordenar por score descend, agrupar sobre/bajo umbral
+    const impAbove = valid.filter((r) => r.impact_score !== null && r.impact_score >= tauImp).sort((a, b) => b.impact_score - a.impact_score);
+    const impBelow = valid.filter((r) => r.impact_score !== null && r.impact_score < tauImp).sort((a, b) => b.impact_score - a.impact_score);
+    const finAbove = valid.filter((r) => r.fin_score !== null && r.fin_score >= tauFin).sort((a, b) => b.fin_score - a.fin_score);
+    const finBelow = valid.filter((r) => r.fin_score !== null && r.fin_score < tauFin).sort((a, b) => b.fin_score - a.fin_score);
 
-    const jitter = (arr, base) => arr.map((_, i) => base + (Math.random() - 0.5) * 0.35);
+    // Flechas rojas para temas sobre umbral
+    impAbove.forEach((r, i) => {
+      addArrow(1.2, tauImp, Math.min(r.impact_score, 5), r.tema_id, "left");
+      annotations.push({ x: 1.2 + hw + 0.15, y: (tauImp + r.impact_score) / 2, text: escapeHTML(r.tema_nombre.length > 35 ? r.tema_nombre.slice(0, 32) + "..." : r.tema_nombre), showarrow: false, font: { size: 8.5, color: "#991b1b" }, xanchor: "left" });
+    });
+    finAbove.forEach((r, i) => {
+      addArrow(3.8, tauFin, Math.min(r.fin_score, 5), r.tema_id, "right");
+      annotations.push({ x: 3.8 + hw + 0.15, y: (tauFin + r.fin_score) / 2, text: escapeHTML(r.tema_nombre.length > 35 ? r.tema_nombre.slice(0, 32) + "..." : r.tema_nombre), showarrow: false, font: { size: 8.5, color: "#991b1b" }, xanchor: "left" });
+    });
 
-    const traces = [];
-    if (impRows.length) {
-      traces.push({
-        x: jitter(impRows, 1),
-        y: impRows.map((r) => r.impact_score),
-        text: impRows.map((r) => r.tema_id),
-        customdata: impRows.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
-        mode: "markers+text",
-        type: "scatter",
-        name: "Impacto ASG",
-        textposition: "middle right",
-        textfont: { size: 9, color: "#374151" },
-        marker: {
-          size: impRows.map((r) => r.impact_score >= tauImp ? 16 : 10),
-          color: impRows.map((r) => r.impact_score >= tauImp ? "#dc2626" : r.impact_score >= tauImp * 0.6 ? "#eab308" : "#22c55e"),
-          opacity: 0.9,
-          line: { width: 1.5, color: "#fff" },
-          symbol: impRows.map((r) => r.impact_score >= tauImp ? "triangle-up" : "circle"),
-        },
-        hovertemplate: "<b>%{customdata}</b><br>Impacto ASG: %{y:.2f}<extra></extra>",
-      });
-    }
-    if (finRows.length) {
-      traces.push({
-        x: jitter(finRows, 3),
-        y: finRows.map((r) => r.fin_score),
-        text: finRows.map((r) => r.tema_id),
-        customdata: finRows.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
-        mode: "markers+text",
-        type: "scatter",
-        name: "Financiero",
-        textposition: "middle right",
-        textfont: { size: 9, color: "#374151" },
-        marker: {
-          size: finRows.map((r) => r.fin_score >= tauFin ? 16 : 10),
-          color: finRows.map((r) => r.fin_score >= tauFin ? "#dc2626" : r.fin_score >= tauFin * 0.6 ? "#eab308" : "#22c55e"),
-          opacity: 0.9,
-          line: { width: 1.5, color: "#fff" },
-          symbol: finRows.map((r) => r.fin_score >= tauFin ? "triangle-up" : "circle"),
-        },
-        hovertemplate: "<b>%{customdata}</b><br>Financiero: %{y:.2f}<extra></extra>",
-      });
-    }
+    // Bloques para temas bajo umbral (apilados como barras)
+    const blockH = 0.12;
+    impBelow.forEach((r, i) => {
+      const yPos = r.impact_score;
+      const color = yPos >= tauImp * 0.65 ? "#eab308" : "#22c55e";
+      shapes.push({ type: "rect", x0: 1.2 - 0.15, x1: 1.2 + 0.15, y0: yPos - blockH / 2, y1: yPos + blockH / 2, fillcolor: color, line: { color: "#fff", width: 0.5 }, layer: "above" });
+      annotations.push({ x: 1.2 + hw + 0.15, y: yPos, text: `<span style="color:${color === "#eab308" ? "#92400e" : "#166534"}">${escapeHTML(r.tema_id)}</span>`, showarrow: false, font: { size: 7.5 }, xanchor: "left" });
+    });
+    finBelow.forEach((r, i) => {
+      const yPos = r.fin_score;
+      const color = yPos >= tauFin * 0.65 ? "#eab308" : "#22c55e";
+      shapes.push({ type: "rect", x0: 3.8 - 0.15, x1: 3.8 + 0.15, y0: yPos - blockH / 2, y1: yPos + blockH / 2, fillcolor: color, line: { color: "#fff", width: 0.5 }, layer: "above" });
+      annotations.push({ x: 3.8 + hw + 0.15, y: yPos, text: `<span style="color:${color === "#eab308" ? "#92400e" : "#166534"}">${escapeHTML(r.tema_id)}</span>`, showarrow: false, font: { size: 7.5 }, xanchor: "left" });
+    });
 
-    const annotations = [
-      { x: 1, y: 5.3, text: "<b>Materialidad de Impacto</b>", showarrow: false, font: { size: 13, color: "#064e3b" }, xanchor: "center" },
-      { x: 1, y: 5.05, text: "Impacto de Paracel al desarrollo<br>sostenible (económico, social, ambiental)", showarrow: false, font: { size: 9, color: "#6b7280" }, xanchor: "center" },
-      { x: 3, y: 5.3, text: "<b>Materialidad Financiera</b>", showarrow: false, font: { size: 13, color: "#1e3a8a" }, xanchor: "center" },
-      { x: 3, y: 5.05, text: "Riesgos y Oportunidades ASG que<br>representen afectaciones financieras", showarrow: false, font: { size: 9, color: "#6b7280" }, xanchor: "center" },
-      // Escala labels
-      { x: 1 - hw - 0.08, y: 5, text: "<b>5</b>", showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
-      { x: 1 - hw - 0.08, y: tauImp, text: `<b>${fmt(tauImp, 0)}</b>`, showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
-      { x: 1 - hw - 0.08, y: 0, text: "<b>0</b>", showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
-      { x: 3 - hw - 0.08, y: 5, text: "<b>5</b>", showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
-      { x: 3 - hw - 0.08, y: tauFin, text: `<b>${fmt(tauFin, 0)}</b>`, showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
-      { x: 3 - hw - 0.08, y: 0, text: "<b>0</b>", showarrow: false, font: { size: 11, color: "#111" }, xanchor: "right" },
-    ];
+    // Dummy trace (Plotly needs at least one)
+    const traces = [{ x: [null], y: [null], type: "scatter", mode: "markers", showlegend: false }];
 
     const layout = {
-      height: 520,
-      margin: { l: 20, r: 20, t: 80, b: 30 },
-      xaxis: { range: [-0.2, 4.5], showgrid: false, zeroline: false, showticklabels: false, fixedrange: true },
-      yaxis: { range: [-0.3, 5.6], showgrid: false, zeroline: false, showticklabels: false, fixedrange: true },
-      shapes: zoneShapes,
+      height: Math.max(520, 200 + Math.max(impAbove.length, finAbove.length) * 40),
+      margin: { l: 20, r: 200, t: 90, b: 30 },
+      xaxis: { range: [-0.2, 5.5], showgrid: false, zeroline: false, showticklabels: false, fixedrange: true },
+      yaxis: { range: [-0.3, 5.8], showgrid: false, zeroline: false, showticklabels: false, fixedrange: true },
+      shapes,
       annotations,
       paper_bgcolor: "#ffffff",
       plot_bgcolor: "#ffffff",
@@ -3588,6 +3601,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     renderQuickTable(db);
     renderExternalLog(db);
     renderInternalLog(db);
+    if (document.getElementById("view-doblemat").classList.contains("active")) renderDobleMatView(db);
     if (document.getElementById("view-legacy").classList.contains("active")) renderLegacyView(db);
     if (document.getElementById("view-compiled").classList.contains("active")) renderCompiledDataView(db);
     if (document.getElementById("view-report").classList.contains("active")) { renderDashboard(db); renderReport(db); }
