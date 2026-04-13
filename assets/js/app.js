@@ -2854,7 +2854,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   function hookLegacyView() {
     const driversBody = document.querySelector("#tableLegacyDrivers tbody");
     if (driversBody) {
-      const saveLegacyOverrides = (tr) => {
+      // Guarda los valores P/S/B de la fila al DB sin re-renderizar la tabla.
+      const persistLegacyRow = (tr) => {
         if (!tr) return;
         const temaId = tr.getAttribute("data-tid");
         if (!temaId) return;
@@ -2871,14 +2872,37 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         });
         setLegacyMatrixRow(db, temaId, next);
         saveDB(db);
+      };
+
+      // Re-renderiza la vista legacy y opcionalmente el reporte.
+      const refreshLegacy = () => {
+        const db = ensureDB();
         renderLegacyView(db);
         if (document.getElementById("view-report").classList.contains("active")) { renderDashboard(db); renderReport(db); }
       };
 
-      driversBody.addEventListener("change", (ev) => {
+      // Temporizador de re-render diferido: se cancela si el foco sigue dentro
+      // de la tabla, para que cambiar P→S→B no reordene la tabla entre campos.
+      let rerenderTimer = null;
+
+      driversBody.addEventListener("focusin", (ev) => {
+        if (ev.target.closest("input[data-field]")) {
+          clearTimeout(rerenderTimer);
+          rerenderTimer = null;
+        }
+      });
+
+      driversBody.addEventListener("focusout", (ev) => {
         const input = ev.target.closest("input[data-field]");
         if (!input) return;
-        saveLegacyOverrides(input.closest("tr[data-tid]"));
+        persistLegacyRow(input.closest("tr[data-tid]"));
+        // Programar re-render; si el foco entra a otro input de la tabla
+        // (Tab al siguiente campo) el focusin de arriba lo cancelará.
+        clearTimeout(rerenderTimer);
+        rerenderTimer = setTimeout(() => {
+          rerenderTimer = null;
+          refreshLegacy();
+        }, 350);
       });
 
       driversBody.addEventListener("click", (ev) => {
@@ -2889,8 +2913,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         const current = getLegacyMatrixRow(db, temaId);
         setLegacyMatrixRow(db, temaId, { ...current, p: null, s: null, b: null });
         saveDB(db);
-        renderLegacyView(db);
-        if (document.getElementById("view-report").classList.contains("active")) { renderDashboard(db); renderReport(db); }
+        refreshLegacy();
       });
     }
 
