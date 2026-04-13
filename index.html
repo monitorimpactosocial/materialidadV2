@@ -1031,8 +1031,10 @@
 
             <div class="btn-row mt-16 no-print">
               <button class="btn btn-primary" id="btnPrintReport" type="button">Imprimir (PDF)</button>
-              <button class="btn btn-primary" id="btnExportWord" type="button" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); border-color: #1e3a8a;">Exportar a Word</button>
+              <button class="btn btn-primary" id="btnExportWord" type="button" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); border-color: #1e3a8a;">&#128196; Exportar a Word</button>
               <button class="btn btn-secondary" id="btnExportReportCSV" type="button">Exportar tablas (CSV)</button>
+              <button class="btn btn-secondary" id="btnSaveSnapshot" type="button" style="border-color:#059669; color:#059669;">&#128190; Guardar resultados</button>
+              <button class="btn btn-ghost" id="btnOpenHistory" type="button" style="color:#059669;">&#128337; Ver historial</button>
             </div>
           </div>
         </div>
@@ -1313,12 +1315,32 @@
     </form>
   </dialog>
 
+  <!-- MODAL HISTORIAL DE RESULTADOS -->
+  <dialog class="modal" id="historyModal" style="max-width:680px; width:95vw;">
+    <div class="modal-card" style="max-height:85vh; display:flex; flex-direction:column;">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title">&#128337; Historial de Resultados</div>
+          <div class="muted small">Instantáneas guardadas de parámetros y resultados calculados. Máx. 30 registros.</div>
+        </div>
+        <button class="btn btn-ghost" id="btnCloseHistory" type="button" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto; flex:1; padding:16px 20px;">
+        <p class="muted small" style="margin-bottom:12px;">Cada instantánea guarda los parámetros activos en ese momento. Al cargar, se restauran los parámetros y se recalculan los resultados. Los datos de encuesta no se modifican.</p>
+        <div id="historyList"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-primary" id="btnCloseHistory2" type="button">Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- DATALISTS PARA VALORES HISTORICOS -->
   <datalist id="listSector"></datalist>
   <datalist id="listOrg"></datalist>
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=44"></script>
+  <script src="assets/js/app.js?v=45"></script>
 </body>
 </html>

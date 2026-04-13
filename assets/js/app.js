@@ -11,6 +11,7 @@
   const APP_KEY = "materialidad_instrument_app_v2";
   const LEGACY_APP_KEY = "materialidad_instrument_app_v1";
   const SYNC_QUEUE_KEY = "materialidad_instrument_sync_queue_v1";
+  const SNAPSHOTS_KEY = "materialidad_result_snapshots_v1";
   const CURRENT_SCHEMA_VERSION = 3;
   const DATA = {
     topics: [],
@@ -858,6 +859,134 @@ function ensureDB() {
 
 
   // ---------------------------------------------------------------------------
+  // Historial de resultados (snapshots de parámetros + puntajes calculados)
+  // ---------------------------------------------------------------------------
+  function loadSnapshots() {
+    try { return JSON.parse(localStorage.getItem(SNAPSHOTS_KEY) || "[]"); }
+    catch { return []; }
+  }
+
+  function persistSnapshots(snaps) {
+    localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snaps));
+  }
+
+  function saveResultSnapshot(db, customName) {
+    const { rows } = computeScores(db);
+    const params = cloneDeep(getParams(db));
+    const edition = (db.editions || []).find((e) => e.id === db.currentEditionId) || {};
+    const nExternal = (db.externalResponses || []).filter((r) => r.editionId === db.currentEditionId).length;
+    const nInternal = (db.internalAssessments || []).filter((a) => a.editionId === db.currentEditionId).length;
+    const nMaterial = rows.filter((r) => r.double_mat).length;
+    const dateStr = new Date().toLocaleDateString("es-CL");
+    const name = customName || `Resultados · ${dateStr} · Ed. ${edition.name || db.currentEditionId}`;
+    const snap = {
+      id: "snap_" + Date.now(),
+      name,
+      createdAt: new Date().toISOString(),
+      editionId: db.currentEditionId,
+      editionName: edition.name || db.currentEditionId || "",
+      params,
+      scores: rows.map((r) => ({
+        tema_id: r.tema_id, tema_nombre: r.tema_nombre,
+        stakeholder_mean: r.stakeholder_mean, impact_score: r.impact_score,
+        fin_score: r.fin_score, impact_mat: r.impact_mat, fin_mat: r.fin_mat,
+        double_mat: r.double_mat, is_material: r.is_material,
+      })),
+      metadata: { nExternal, nInternal, nMaterial },
+    };
+    const snaps = loadSnapshots();
+    snaps.unshift(snap);
+    if (snaps.length > 30) snaps.length = 30;
+    persistSnapshots(snaps);
+    return snap;
+  }
+
+  function deleteSnapshot(id) {
+    const snaps = loadSnapshots().filter((s) => s.id !== id);
+    persistSnapshots(snaps);
+  }
+
+  function applySnapshotParams(snapId) {
+    const snap = loadSnapshots().find((s) => s.id === snapId);
+    if (!snap) { alert("Instantánea no encontrada."); return; }
+    const db = ensureDB();
+    db.params = cloneDeep(snap.params);
+    saveDB(db);
+    syncParamsToUI(db);
+    renderAll(db);
+    alert(`Parámetros de "${snap.name}" restaurados.`);
+  }
+
+  function renderHistoryPanel() {
+    const container = document.getElementById("historyList");
+    if (!container) return;
+    const snaps = loadSnapshots();
+    if (!snaps.length) {
+      container.innerHTML = `<p class="muted" style="padding:12px 0;">No hay resultados guardados todavía.</p>`;
+      return;
+    }
+    container.innerHTML = snaps.map((snap) => {
+      const dt = new Date(snap.createdAt).toLocaleString("es-CL");
+      const nExt = snap.metadata?.nExternal ?? "?";
+      const nInt = snap.metadata?.nInternal ?? "?";
+      const nMat = snap.metadata?.nMaterial ?? "?";
+      return `<div class="history-item" data-snap-id="${escapeHTML(snap.id)}"
+          style="border:1px solid #d1fae5; border-left:4px solid #059669; border-radius:8px; padding:12px 16px; margin-bottom:10px; background:#f0fdf4;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+          <div style="flex:1; min-width:0;">
+            <strong style="display:block; font-size:13px; color:#064e3b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(snap.name)}</strong>
+            <span class="muted small" style="font-size:11px;">${dt} · Edición: ${escapeHTML(snap.editionName || snap.editionId)}</span>
+            <div style="margin-top:6px; font-size:12px;">
+              Ext: <strong>${nExt}</strong> &nbsp;|&nbsp; Int: <strong>${nInt}</strong> &nbsp;|&nbsp;
+              <span style="color:#059669; font-weight:700;">Materiales: ${nMat}</span>
+            </div>
+          </div>
+          <div style="display:flex; gap:6px; flex-shrink:0; align-items:flex-start;">
+            <button class="btn btn-secondary btn-sm snap-load-btn" style="font-size:12px; padding:4px 10px;">Cargar paráms.</button>
+            <button class="btn btn-ghost btn-sm snap-delete-btn" style="font-size:12px; padding:4px 10px; color:var(--danger);">Eliminar</button>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+
+    // Event delegation
+    container.querySelectorAll(".snap-load-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.closest("[data-snap-id]").dataset.snapId;
+        applySnapshotParams(id);
+        document.getElementById("historyModal").close();
+      });
+    });
+    container.querySelectorAll(".snap-delete-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.closest("[data-snap-id]").dataset.snapId;
+        if (!confirm("¿Eliminar esta instantánea?")) return;
+        deleteSnapshot(id);
+        renderHistoryPanel();
+      });
+    });
+  }
+
+  function hookHistory() {
+    const modal = document.getElementById("historyModal");
+    if (!modal) return;
+
+    document.getElementById("btnOpenHistory").addEventListener("click", () => {
+      renderHistoryPanel();
+      modal.showModal();
+    });
+    document.getElementById("btnCloseHistory").addEventListener("click", () => modal.close());
+    document.getElementById("btnCloseHistory2").addEventListener("click", () => modal.close());
+
+    document.getElementById("btnSaveSnapshot").addEventListener("click", () => {
+      const db = ensureDB();
+      const name = prompt("Nombre para esta instantánea (deje vacío para nombre automático):", "") || "";
+      const snap = saveResultSnapshot(db, name.trim() || null);
+      alert(`Resultados guardados: "${snap.name}"`);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Cálculo de indicadores
   // ---------------------------------------------------------------------------
   function computeStakeholderByTheme(db, editionId) {
@@ -1474,7 +1603,7 @@ function computeScores(db) {
     const layout = {
       title: { text: "<b>MATRIZ CLÁSICA (METODOLOGÍA HISTÓRICA)</b>", x: 0.5, xanchor: "center", font: { size: isPrint ? 16 : 19, color: "#111111" } },
       height: isPrint ? 520 : 620,
-      margin: { l: 80, r: 24, t: 60, b: 70 },
+      margin: { l: 90, r: 40, t: 70, b: 80 },
       xaxis: {
         title: { text: "<b>SIGNIFICANCIA (IMPACTOS)</b>", standoff: 14, font: { size: 13, color: "#111111" } },
         range: [axisX0, axisX1],
@@ -1554,11 +1683,11 @@ function computeScores(db) {
     ];
 
     const layout = {
-      margin: { l: 210, r: 20, t: 10, b: 50 },
+      margin: { l: 240, r: 24, t: 10, b: 55 },
       height,
       barmode: "group",
       xaxis: { title: "% del máximo teórico", range: [0, 105], gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
-      yaxis: { automargin: true, autorange: "reversed" },
+      yaxis: { automargin: true, autorange: "reversed", tickfont: { size: 11 } },
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(255,255,255,0.75)",
       legend: { orientation: "h", y: 1.08, x: 0 },
@@ -2977,13 +3106,14 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     }];
 
     const layout = {
-      margin: { l: 60, r: 20, t: 30, b: 60 },
+      margin: { l: 70, r: 60, t: 55, b: 70 },
       xaxis: {
         title: { text: "Importancia percibida (stakeholders)", font: { size: 13 } },
         range: [axisMin - axisPad, axisMax + axisPad],
         gridcolor: "rgba(2,44,34,0.10)",
         zeroline: false,
         dtick: 0.5,
+        automargin: true,
       },
       yaxis: {
         title: { text: "Impacto ASG (evaluación interna)", font: { size: 13 } },
@@ -2991,6 +3121,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         gridcolor: "rgba(2,44,34,0.10)",
         zeroline: false,
         dtick: 0.5,
+        automargin: true,
       },
       shapes: [
         { type: "line", x0: tau, x1: tau, y0: axisMin - axisPad, y1: axisMax + axisPad, line: { color: "rgba(185,28,28,0.6)", width: 2, dash: "dot" } },
@@ -3920,13 +4051,15 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       const plot = document.getElementById(fig.id);
       if (!plot) continue;
       try {
-        const image = await capturePlotForWord(plot, 760);
+        const captureW = fig.id === "plotLegacyRankingReport" ? 860 : 900;
+        const image = await capturePlotForWord(plot, captureW);
         const location = fig.file;
         const part = dataUrlToMhtmlPart(image.dataUrl, location);
         if (part) {
-          const maxDisplayWidthPx = 440;
+          // A4 page with 1.5cm margins: text width ≈ 18cm ≈ 510pt → 680px
+          const maxDisplayWidthPx = 680;
           const displayWidthPx = Math.min(maxDisplayWidthPx, image.width);
-          const displayHeightPx = Math.max(220, Math.round(displayWidthPx * (image.height / Math.max(image.width, 1))));
+          const displayHeightPx = Math.max(260, Math.round(displayWidthPx * (image.height / Math.max(image.width, 1))));
           parts.push(part);
           refs[fig.id] = {
             location,
@@ -3962,7 +4095,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   <meta charset="utf-8" />
   <title>Reporte Doble Materialidad</title>
   <style>
-    @page { size: A4 portrait; margin: 1.2cm; }
+    @page { size: A4 portrait; margin: 1.5cm; }
     body { font-family: Arial, Tahoma, sans-serif; font-size: 10pt; color: #243041; line-height: 1.45; }
     h1, h2, h3 { margin: 0 0 8pt 0; page-break-after: avoid; }
     h1 { font-size: 24pt; color: #064e3b; letter-spacing: -0.03em; }
@@ -4734,6 +4867,7 @@ if (db.internalAssessments && db.internalAssessments.length > 0) {
     hookCompiledDataView();
     hookAdmin();
     hookShortcuts();
+    hookHistory();
 
     // aplicar escenario si db no tiene params definidos de forma consistente
     // (si el usuario nunca guardó, se usa el escenario base)
