@@ -611,6 +611,23 @@
             <p class="muted">Solo los temas seleccionados arriba. Ajuste P, S y B manualmente; E, C y F vienen del diagnóstico histórico o de la encuesta externa.</p>
           </div>
           <div class="card-body">
+
+            <!-- Panel de configuraciones P/S/B -->
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:14px 16px; margin-bottom:16px;">
+              <div style="font-size:13px; font-weight:700; color:#064e3b; margin-bottom:10px;">&#127381; Configuraciones de ponderadores P/S/B</div>
+              <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+                <div style="flex:1; min-width:220px;">
+                  <label style="font-size:11px; color:#64748b; display:block; margin-bottom:4px;">Seleccionar configuración</label>
+                  <select id="psbConfigSelect" style="width:100%; font-size:13px; padding:6px 8px; border:1px solid #d1fae5; border-radius:6px; background:#fff;"></select>
+                </div>
+                <button class="btn btn-primary btn-sm" id="btnApplyPsbConfig" type="button" style="height:34px; font-size:12px; white-space:nowrap;">&#9654; Aplicar</button>
+                <button class="btn btn-secondary btn-sm" id="btnSavePsbConfig" type="button" style="height:34px; font-size:12px; white-space:nowrap;">&#128190; Guardar actual</button>
+                <button class="btn btn-secondary btn-sm" id="btnSavePsbConfigAs" type="button" style="height:34px; font-size:12px; white-space:nowrap;">&#128221; Guardar como nueva</button>
+                <button class="btn btn-ghost btn-sm" id="btnDeletePsbConfig" type="button" style="height:34px; font-size:12px; color:var(--danger); display:none; white-space:nowrap;">&#128465; Eliminar</button>
+              </div>
+              <div id="psbConfigDesc" style="font-size:11px; color:#64748b; margin-top:6px; min-height:14px;"></div>
+            </div>
+
             <div class="table-wrap">
               <table class="table table-compact" id="tableLegacyDrivers">
                 <thead>
@@ -1341,6 +1358,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=46"></script>
+  <script src="assets/js/app.js?v=47"></script>
 </body>
 </html>
