@@ -2369,7 +2369,7 @@ function computeScores(db) {
 
     // render específico según vista
     const db = ensureDB();
-    if (viewName === "legacy") renderLegacyView(db);
+    if (viewName === "legacy") { renderLegacyView(db); renderPsbConfigSelect(); }
     if (viewName === "compiled") renderCompiledDataView(db);
     if (viewName === "doblemat") renderDobleMatView(db);
     if (viewName === "report") { renderDashboard(db); renderReport(db); }
@@ -3974,7 +3974,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     renderExternalLog(db);
     renderInternalLog(db);
     if (document.getElementById("view-doblemat").classList.contains("active")) renderDobleMatView(db);
-    if (document.getElementById("view-legacy").classList.contains("active")) renderLegacyView(db);
+    if (document.getElementById("view-legacy").classList.contains("active")) { renderLegacyView(db); renderPsbConfigSelect(); }
     if (document.getElementById("view-compiled").classList.contains("active")) renderCompiledDataView(db);
     if (document.getElementById("view-report").classList.contains("active")) { renderDashboard(db); renderReport(db); }
   }
