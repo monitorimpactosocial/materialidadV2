@@ -46,6 +46,7 @@
 
       <div class="header-right">
         <div class="edition-pill" id="editionPill" title="Edición activa"></div>
+        <div id="activeConfigBadge" style="display:none; background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:20px; padding:2px 12px; font-size:11px; font-weight:600; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Configuración activa"></div>
         <span id="userRoleBadge" class="badge" style="display:none; margin-right:8px; border:none; background:var(--primary); color:white;"></span>
         <button class="btn btn-ghost" id="btnOpenAdmin" type="button">Administración</button>
         <button class="btn btn-ghost" id="btnSysLogout" type="button" style="color:var(--danger);">Salir</button>
@@ -1051,6 +1052,18 @@
               </div>
             </div>
 
+            <div id="reportConfigSection" style="margin-top:24px;">
+              <h4 style="color:var(--primary); border-bottom:1px solid #d1fae5; padding-bottom:6px; margin-bottom:10px;">Parámetros de configuración aplicados</h4>
+              <table class="styled-table" id="tableReportConfig" style="width:100%; font-size:12px;">
+                <tbody></tbody>
+              </table>
+              <h4 style="color:var(--primary); border-bottom:1px solid #d1fae5; padding-bottom:6px; margin-bottom:10px; margin-top:16px;">Ponderadores P/S/B por tema (Metodología Clásica)</h4>
+              <table class="styled-table" id="tableReportPsb" style="width:100%; font-size:11px;">
+                <thead><tr><th>Código</th><th>Tema</th><th>P</th><th>S</th><th>B</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
             <div class="btn-row mt-16 no-print">
               <button class="btn btn-primary" id="btnPrintReport" type="button">Imprimir (PDF)</button>
               <button class="btn btn-primary" id="btnExportWord" type="button" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); border-color: #1e3a8a;">&#128196; Exportar a Word</button>
@@ -1391,6 +1404,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=53"></script>
+  <script src="assets/js/app.js?v=54"></script>
 </body>
 </html>

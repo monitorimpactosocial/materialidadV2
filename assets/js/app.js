@@ -1022,6 +1022,17 @@ function ensureDB() {
     }
   }
 
+  function updateActiveConfigBadge(name) {
+    const badge = document.getElementById("activeConfigBadge");
+    if (!badge) return;
+    if (name) {
+      badge.textContent = "Config: " + name;
+      badge.style.display = "";
+    } else {
+      badge.style.display = "none";
+    }
+  }
+
   function applyFullConfig(configId, db) {
     const cfg = getFullConfig(configId, db);
     if (!cfg) { alert("Configuración no encontrada."); return; }
@@ -1030,6 +1041,7 @@ function ensureDB() {
     saveDB(db);
     syncParamsToUI(db);
     renderAll(db);
+    updateActiveConfigBadge(cfg.name);
   }
 
   function exportFullConfig(configId, db) {
@@ -1237,6 +1249,7 @@ function ensureDB() {
       editionId: db.currentEditionId,
       editionName: edition.name || db.currentEditionId || "",
       params,
+      legacyMatrix: cloneDeep(db.legacyMatrix || { rowsByTheme: {} }),
       scores: rows.map((r) => ({
         tema_id: r.tema_id, tema_nombre: r.tema_nombre,
         stakeholder_mean: r.stakeholder_mean, impact_score: r.impact_score,
@@ -2179,7 +2192,7 @@ function computeScores(db) {
     const maxImpact = 50;
     const maxExpect = 12 * factor;
 
-    const labels = rows.map((row) => `${row.tema_id} · ${row.tema_nombre}`);
+    const labels = rows.map((row) => row.tema_id + " " + (row.tema_nombre.length > 28 ? row.tema_nombre.substring(0, 26) + "…" : row.tema_nombre));
     const impactosPct = rows.map((row) => row.significancia !== null ? (row.significancia / maxImpact) * 100 : 0);
     const expectativasPct = rows.map((row) => row.expectativas_total !== null ? (row.expectativas_total / maxExpect) * 100 : 0);
     const height = Math.max(460, rows.length * 28);
@@ -2194,6 +2207,9 @@ function computeScores(db) {
         marker: { color: "#14532d" },
         customdata: rows.map((row) => row.significancia),
         hovertemplate: "<b>%{y}</b><br>Impactos: %{x:.1f}% (valor: %{customdata:.2f})<extra></extra>",
+        text: impactosPct.map(v => v.toFixed(1) + "%"),
+        textposition: "outside",
+        cliponaxis: false,
       },
       {
         x: expectativasPct,
@@ -2204,6 +2220,9 @@ function computeScores(db) {
         marker: { color: "#0f766e" },
         customdata: rows.map((row) => row.expectativas_total),
         hovertemplate: "<b>%{y}</b><br>Expectativas: %{x:.1f}% (valor: %{customdata:.2f})<extra></extra>",
+        text: expectativasPct.map(v => v.toFixed(1) + "%"),
+        textposition: "outside",
+        cliponaxis: false,
       },
     ];
 
@@ -2211,7 +2230,7 @@ function computeScores(db) {
       margin: { l: 240, r: 24, t: 10, b: 55 },
       height,
       barmode: "group",
-      xaxis: { title: "% del máximo teórico", range: [0, 105], gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
+      xaxis: { title: "% del máximo teórico", range: [0, 120], gridcolor: "rgba(2,44,34,0.10)", zeroline: false },
       yaxis: { automargin: true, autorange: "reversed", tickfont: { size: 11 } },
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor: "rgba(255,255,255,0.75)",
@@ -4107,37 +4126,57 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     }
   }
 
-  function renderExternalTop10(db, targetId) {
+  function renderMaterialTopicsBar(db, targetId) {
+    const target = document.getElementById(targetId);
+    if (!target) return;
     const { rows } = computeScores(db);
-    const topExt = [...rows].filter(r => r.stakeholder_mean !== null)
-                            .sort((a, b) => b.stakeholder_mean - a.stakeholder_mean)
-                            .slice(0, 10);
-    
-    if (topExt.length === 0) return;
-    topExt.reverse();
 
-    const y = topExt.map(r => r.tema_nombre.length > 40 ? r.tema_nombre.substring(0, 37) + '...' : r.tema_nombre);
-    const x = topExt.map(r => r.stakeholder_mean);
+    // Todos los temas con alguna materialidad, ordenados por score integrado
+    const matRows = rows
+      .filter((r) => r.double_mat || r.impact_mat || r.fin_mat)
+      .map((r) => ({
+        ...r,
+        integrated: averageOf([r.stakeholder_mean, r.impact_score, r.fin_score]),
+        label: r.double_mat ? "Doble" : r.impact_mat ? "Impacto" : "Financiero",
+        color: r.double_mat ? "#14532d" : r.impact_mat ? "#0369a1" : "#b45309",
+      }))
+      .sort((a, b) => (b.integrated || 0) - (a.integrated || 0));
+
+    if (!matRows.length) {
+      try { Plotly.purge(target); } catch {}
+      target.innerHTML = `<div class="muted">No hay temas materiales para mostrar con los umbrales actuales.</div>`;
+      return;
+    }
+
+    matRows.reverse(); // bottom-to-top
+    const shortName = (r) => r.tema_id + " " + (r.tema_nombre.length > 30 ? r.tema_nombre.substring(0, 28) + "…" : r.tema_nombre);
+    const y = matRows.map(shortName);
+    const x = matRows.map((r) => r.integrated !== null ? +r.integrated.toFixed(2) : 0);
+    const height = Math.max(340, matRows.length * 30 + 60);
 
     const data = [{
-      type: 'bar',
-      x: x,
-      y: y,
-      orientation: 'h',
-      marker: { color: '#16a34a' },
-      hovertemplate: "Importancia: %{x:.2f}<extra></extra>"
+      type: "bar",
+      x,
+      y,
+      orientation: "h",
+      marker: { color: matRows.map((r) => r.color) },
+      text: x.map((v) => v.toFixed(2)),
+      textposition: "outside",
+      cliponaxis: false,
+      hovertemplate: "<b>%{y}</b><br>Score integrado: %{x:.2f}<extra></extra>",
     }];
 
     const layout = {
-      margin: { l: 250, r: 20, t: 30, b: 40 },
-      xaxis: { range: [1, 5], title: "Promedio Stakeholders", gridcolor: "rgba(22,163,74,0.10)" },
+      margin: { l: 220, r: 60, t: 30, b: 40 },
+      height,
+      xaxis: { range: [0, 5.6], title: "Score integrado promedio", gridcolor: "rgba(22,163,74,0.10)" },
+      yaxis: { automargin: true, tickfont: { size: 10 } },
       paper_bgcolor: "rgba(0,0,0,0)",
-      plot_bgcolor: "rgba(255,255,255,0.75)"
+      plot_bgcolor: "rgba(255,255,255,0.75)",
+      showlegend: false,
     };
 
-    if (document.getElementById(targetId)) {
-        Plotly.newPlot(targetId, data, layout, { displayModeBar: false, responsive: true });
-    }
+    Plotly.newPlot(targetId, data, layout, { displayModeBar: false, responsive: true });
   }
 
   function averageOf(values) {
@@ -4277,13 +4316,39 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     }
 
     // plot en reporte
-    renderExternalTop10(db, "plotExternalTop10");
+    renderMaterialTopicsBar(db, "plotExternalTop10");
     renderDimensionPlot(db, "plotDimensionReport");
     renderDobleMatPlot(db, "plotDobleMatScatterReport");
     renderDobleMatThermometer(db, "plotDobleMatThermReport");
     renderLegacyMatrixPlot(db, "plotLegacyMatrixReport");
     renderLegacyRankingPlot(db, "plotLegacyRankingReport");
     renderTop5KPIs(db);
+
+    // Poblar tabla de configuración en reporte
+    const configBody = document.querySelector("#tableReportConfig tbody");
+    if (configBody) {
+      const p = params;
+      const psbRows = DATA.topics.map((t) => {
+        const row = getLegacyMatrixRow(db, t.id);
+        return { id: t.id, nombre: t.nombre, p: row.p, s: row.s, b: row.b };
+      }).filter(r => r.p !== null || r.s !== null || r.b !== null);
+      configBody.innerHTML = [
+        `<tr><td><strong>Umbral Materialidad (τ Mat)</strong></td><td>${fmt(p.tauMaterial, 2)}</td></tr>`,
+        `<tr><td><strong>Umbral Impacto (τ Imp)</strong></td><td>${fmt(p.tauImpact, 2)}</td></tr>`,
+        `<tr><td><strong>Umbral Financiero (τ Fin)</strong></td><td>${fmt(p.tauFin, 2)}</td></tr>`,
+        `<tr><td><strong>Regla doble materialidad</strong></td><td>${escapeHTML(p.ruleDouble)}</td></tr>`,
+        `<tr><td><strong>Filtro de grupo</strong></td><td>${escapeHTML(p.groupFilter || "TODOS")}</td></tr>`,
+        `<tr><td><strong>Pesos Impacto</strong></td><td>Sev ${p.wImpact?.severidad ?? "-"} · Alc ${p.wImpact?.alcance ?? "-"} · Irr ${p.wImpact?.irremediabilidad ?? "-"} · Prob ${p.wImpact?.probabilidad ?? "-"}</td></tr>`,
+        `<tr><td><strong>Pesos Financiero</strong></td><td>Imp ${p.wFin?.impacto_financiero ?? "-"} · Prob ${p.wFin?.probabilidad_financiera ?? "-"}</td></tr>`,
+      ].join("");
+
+      const psbBody = document.querySelector("#tableReportPsb tbody");
+      if (psbBody && psbRows.length) {
+        psbBody.innerHTML = psbRows.map(r =>
+          `<tr><td>${escapeHTML(r.id)}</td><td>${escapeHTML(r.nombre)}</td><td class="right">${r.p ?? "–"}</td><td class="right">${r.s ?? "–"}</td><td class="right">${r.b ?? "–"}</td></tr>`
+        ).join("");
+      }
+    }
   }
 
   function renderAll(db) {
@@ -4710,9 +4775,17 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
   </table>
 
   <div class="page-break"></div>
+  <h2>1b. Parámetros de Configuración Aplicados</h2>
+  <p class="section-intro">Umbrales, reglas y ponderadores utilizados en este análisis de materialidad.</p>
+  ${tableWordHtml("tableReportConfig", { widths: [55, 45] })}
+  <h3>Ponderadores P/S/B por Tema (Metodología Clásica)</h3>
+  <p class="section-intro">P = Probabilidad de ocurrencia · S = Severidad · B = Beneficio/relevancia financiera. Escala 1-5.</p>
+  ${tableWordHtml("tableReportPsb", { widths: [10, 56, 11, 11, 12], fontSize: "8pt" })}
+
+  <div class="page-break"></div>
   <h2>2. Materialidad de Impacto (Perspectiva Externa)</h2>
   <p class="section-intro">Resultados de la encuesta a grupos de interés sobre la importancia percibida de cada tema ASG (materialidad de impacto, perspectiva outside-in).</p>
-  ${buildWordFigure("2.1. Top 10 Temas Más Relevantes", imageRefs.plotExternalTop10, "Visión externa de stakeholders sobre temas prioritarios.")}
+  ${buildWordFigure("2.1. Temas Materiales Identificados", imageRefs.plotExternalTop10, "Temas con materialidad simple o doble, ordenados por score integrado. Verde oscuro = doble materialidad, azul = solo impacto, naranja = solo financiero.")}
   <h3>2.2. Cobertura por Grupo de Interés</h3>
   ${tableWordHtml("tableReportGroups", { widths: [44, 14, 14, 28] })}
   <p>${textValue("repExternalNarrative")}</p>
@@ -4751,15 +4824,18 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     </tr>
   </table>
 
-  <h3>4.2. Matriz de Doble Materialidad</h3>
+  <h3>4.2. Matriz Clásica (Metodología Histórica) — Temas Materiales Simples</h3>
+  ${buildWordFigure("Matriz Clásica de Materialidad", imageRefs.plotLegacyMatrixReport, "Cruce reconstruido entre impactos y expectativas a partir de ambas evaluaciones.")}
+  ${buildWordFigure("Ranking: Significancia vs Expectativas", imageRefs.plotLegacyRankingReport, "Comparativo normalizado por tema entre significancia de impactos y puntaje de expectativas (% del máximo teórico).")}
+
+  <h3>4.3. Temas Materiales Identificados</h3>
+  ${buildWordFigure("Temas Materiales", imageRefs.plotExternalTop10, "Temas con materialidad simple o doble, ordenados por score integrado.")}
+
+  <h3>4.4. Matriz de Doble Materialidad</h3>
   ${buildWordFigure("Doble Materialidad", imageRefs.plotDobleMatScatterReport, "Eje X = Impacto ASG (outside-in). Eje Y = Impacto Financiero (inside-out). Tamaño = importancia stakeholders.")}
 
-  <h3>4.3. Ranking Completo de Temas</h3>
+  <h3>4.5. Ranking Completo de Temas</h3>
   ${tableWordHtml("tableReportAll", { widths: [34, 11, 11, 11, 11, 11, 11], fontSize: "7.4pt" })}
-
-  <h3>4.4. Matriz Clásica de Impacto y Expectativas (metodología histórica)</h3>
-  ${buildWordFigure("Matriz Clásica", imageRefs.plotLegacyMatrixReport, "Cruce reconstruido entre impactos y expectativas a partir de ambas encuestas.")}
-  ${buildWordFigure("Ranking Comparado", imageRefs.plotLegacyRankingReport, "Comparativo normalizado por tema entre significancia de impactos y puntaje de expectativas.")}
 
   <div class="page-break"></div>
   <h2>5. Cierre</h2>
