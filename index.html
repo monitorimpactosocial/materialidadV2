@@ -78,6 +78,11 @@
       <div class="nav-divider"></div>
 
       <div class="nav-card">
+        <div class="nav-card-title">Configuraciones</div>
+        <button class="btn btn-primary btn-block" id="btnOpenFullConfigs" type="button" style="background:linear-gradient(135deg,#064e3b,#059669); border-color:#064e3b; font-weight:700;">&#128196; Mis configuraciones</button>
+      </div>
+
+      <div class="nav-card">
         <div class="nav-card-title">Atajos</div>
         <button class="btn btn-secondary btn-block" id="btnQuickExport" type="button">Exportar datos</button>
         <button class="btn btn-secondary btn-block" id="btnQuickPrint" type="button">Imprimir reporte (PDF)</button>
@@ -1332,6 +1337,34 @@
     </form>
   </dialog>
 
+  <!-- MODAL CONFIGURACIONES COMPLETAS -->
+  <dialog class="modal" id="fullConfigModal" style="max-width:780px; width:96vw;">
+    <div class="modal-card" style="max-height:88vh; display:flex; flex-direction:column;">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title">&#128196; Mis configuraciones</div>
+          <div class="muted small">Conjuntos completos de parámetros y ponderadores P/S/B. Las compartidas las ve todo el equipo; las locales solo en este navegador.</div>
+        </div>
+        <button class="btn btn-ghost" id="btnCloseFullConfigs" type="button" aria-label="Cerrar">✕</button>
+      </div>
+
+      <div style="padding:12px 20px 0 20px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <button class="btn btn-primary" id="btnSaveFullConfig" type="button" style="font-size:13px;">&#128190; Guardar configuración actual</button>
+        <button class="btn btn-secondary" id="btnImportFullConfig" type="button" style="font-size:13px;">&#128229; Importar desde archivo</button>
+        <input type="file" id="importFullConfigFile" accept=".json" style="display:none;" />
+        <span class="muted small" style="flex:1; min-width:160px;">Para compartir con otro usuario: exporte una configuración y envíe el .json para que la importe.</span>
+      </div>
+
+      <div class="modal-body" style="overflow-y:auto; flex:1; padding:16px 20px;">
+        <div id="fullConfigList"></div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn btn-primary" id="btnCloseFullConfigs2" type="button">Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- MODAL HISTORIAL DE RESULTADOS -->
   <dialog class="modal" id="historyModal" style="max-width:680px; width:95vw;">
     <div class="modal-card" style="max-height:85vh; display:flex; flex-direction:column;">
@@ -1358,6 +1391,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=48"></script>
+  <script src="assets/js/app.js?v=49"></script>
 </body>
 </html>

@@ -5069,5 +5069,361 @@
   },
   "manualMaterialTopics": [
     "P23"
+  ],
+  "sharedPresetConfigs": [
+    {
+      "id": "shared_excel_2021",
+      "name": "Historico Excel 2021 - Parametros base",
+      "savedAt": "2026-04-13T00:00:00.000Z",
+      "author": "PARACEL",
+      "description": "P/S/B tomados de la Matriz de Materialidad v00 (17/01/2021). tauMaterial=3.5, tauImpacto=4.5, tauFin=4.0.",
+      "shared": true,
+      "params": {
+        "tauImpact": 4.5,
+        "tauFin": 4,
+        "tauMaterial": 3.5,
+        "tauLegacyExternal": 4.5,
+        "tauLegacyInternal": 4.5,
+        "ruleDouble": "AND",
+        "wImpact": {
+          "severidad": 0.3,
+          "alcance": 0.25,
+          "irremediabilidad": 0.25,
+          "probabilidad": 0.2
+        },
+        "wFin": {
+          "impacto_financiero": 0.6,
+          "probabilidad_financiera": 0.4
+        },
+        "stakeWeightByN": true,
+        "groupFilter": "TODOS",
+        "legacyExpectationFactor": 2.08,
+        "legacyTopN": 27,
+        "legacyPWeights": {
+          "probabilidad": 0.65,
+          "probabilidad_financiera": 0.35
+        },
+        "legacySWeights": {
+          "severidad": 0.4,
+          "alcance": 0.3,
+          "irremediabilidad": 0.3
+        },
+        "legacyBWeights": {
+          "financiero": 0.7,
+          "relevancia_externa": 0.3
+        }
+      },
+      "legacyMatrix": {
+        "rowsByTheme": {
+          "P01": {
+            "p": 5,
+            "s": 3,
+            "b": 4,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P05": {
+            "p": 5,
+            "s": 5,
+            "b": 5,
+            "legislacion": "SI",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P07": {
+            "p": 5,
+            "s": 4,
+            "b": 5,
+            "legislacion": "SI",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P09": {
+            "p": 5,
+            "s": 5,
+            "b": 5,
+            "legislacion": "SI",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P10": {
+            "p": 5,
+            "s": 4,
+            "b": 5,
+            "legislacion": "SI",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P12": {
+            "p": 5,
+            "s": 5,
+            "b": 5,
+            "legislacion": "SI",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P16": {
+            "p": 3,
+            "s": 2,
+            "b": 4,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P17": {
+            "p": 4,
+            "s": 2,
+            "b": 4,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P19": {
+            "p": 5,
+            "s": 3,
+            "b": 5,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P20": {
+            "p": 3,
+            "s": 2,
+            "b": 3,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P21": {
+            "p": 4,
+            "s": 3,
+            "b": 5,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P24": {
+            "p": 5,
+            "s": 3,
+            "b": 5,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P25": {
+            "p": 4,
+            "s": 3,
+            "b": 4,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          }
+        }
+      }
+    },
+    {
+      "id": "shared_strict_2026",
+      "name": "Umbrales conservadores 2026 (tau=4.0)",
+      "savedAt": "2026-04-13T00:00:00.000Z",
+      "author": "PARACEL",
+      "description": "Umbrales mas altos (tau=4.0 en todas las dimensiones). Selecciona menos temas materiales.",
+      "shared": true,
+      "params": {
+        "tauImpact": 4.0,
+        "tauFin": 4.0,
+        "tauMaterial": 4.0,
+        "tauLegacyExternal": 4.5,
+        "tauLegacyInternal": 4.5,
+        "ruleDouble": "AND",
+        "wImpact": {
+          "severidad": 0.3,
+          "alcance": 0.25,
+          "irremediabilidad": 0.25,
+          "probabilidad": 0.2
+        },
+        "wFin": {
+          "impacto_financiero": 0.6,
+          "probabilidad_financiera": 0.4
+        },
+        "stakeWeightByN": true,
+        "groupFilter": "TODOS",
+        "legacyExpectationFactor": 2.08,
+        "legacyTopN": 27,
+        "legacyPWeights": {
+          "probabilidad": 0.65,
+          "probabilidad_financiera": 0.35
+        },
+        "legacySWeights": {
+          "severidad": 0.4,
+          "alcance": 0.3,
+          "irremediabilidad": 0.3
+        },
+        "legacyBWeights": {
+          "financiero": 0.7,
+          "relevancia_externa": 0.3
+        }
+      },
+      "legacyMatrix": {
+        "rowsByTheme": {
+          "P01": {
+            "p": 5,
+            "s": 3,
+            "b": 4,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P05": {
+            "p": 5,
+            "s": 5,
+            "b": 5,
+            "legislacion": "SI",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P07": {
+            "p": 5,
+            "s": 4,
+            "b": 5,
+            "legislacion": "SI",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P09": {
+            "p": 5,
+            "s": 5,
+            "b": 5,
+            "legislacion": "SI",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P10": {
+            "p": 5,
+            "s": 4,
+            "b": 5,
+            "legislacion": "SI",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P12": {
+            "p": 5,
+            "s": 5,
+            "b": 5,
+            "legislacion": "SI",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P16": {
+            "p": 3,
+            "s": 2,
+            "b": 4,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P17": {
+            "p": 4,
+            "s": 2,
+            "b": 4,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P19": {
+            "p": 5,
+            "s": 3,
+            "b": 5,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P20": {
+            "p": 3,
+            "s": 2,
+            "b": 3,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P21": {
+            "p": 4,
+            "s": 3,
+            "b": 5,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P24": {
+            "p": 5,
+            "s": 3,
+            "b": 5,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          },
+          "P25": {
+            "p": 4,
+            "s": 3,
+            "b": 4,
+            "legislacion": "NO",
+            "grupos_relacionados": "",
+            "e": null,
+            "c": null,
+            "f": null
+          }
+        }
+      }
+    }
   ]
 }

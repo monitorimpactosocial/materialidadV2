@@ -13,6 +13,7 @@
   const SYNC_QUEUE_KEY = "materialidad_instrument_sync_queue_v1";
   const SNAPSHOTS_KEY = "materialidad_result_snapshots_v1";
   const PSB_CONFIGS_KEY = "materialidad_psb_configs_v1";
+  const FULL_CONFIGS_KEY = "materialidad_full_configs_v1";
   const CURRENT_SCHEMA_VERSION = 3;
 
   // Configuraciones P/S/B incorporadas (no editables, siempre disponibles)
@@ -781,6 +782,9 @@ function migrateDB(raw) {
   
   const manualMaterialTopics = Array.isArray(raw.manualMaterialTopics) ? raw.manualMaterialTopics.filter((id) => typeof id === "string") : [];
 
+  // Configuraciones completas compartidas (vienen de initial_db.json para todos los usuarios)
+  const sharedPresetConfigs = Array.isArray(raw.sharedPresetConfigs) ? raw.sharedPresetConfigs : [];
+
   const finalDB = pruneObsoleteSeedData({
     version: CURRENT_SCHEMA_VERSION,
     updatedAt: raw.updatedAt || nowISO(),
@@ -793,6 +797,7 @@ function migrateDB(raw) {
     emails,
     legacyMatrix,
     manualMaterialTopics,
+    sharedPresetConfigs,
   });
   
   console.log("[migrateDB] DESPUÉS de pruneObsoleteSeedData:");
@@ -890,6 +895,217 @@ function ensureDB() {
   return ACTIVE_DB;
 }
 
+
+  // ---------------------------------------------------------------------------
+  // Configuraciones completas (todos los parámetros + P/S/B por tema)
+  // Compartidas: db.sharedPresetConfigs (vienen de initial_db.json, visibles a todos)
+  // Privadas:    localStorage[FULL_CONFIGS_KEY]  (solo en este navegador)
+  // ---------------------------------------------------------------------------
+  function loadFullConfigs() {
+    try { return JSON.parse(localStorage.getItem(FULL_CONFIGS_KEY) || "[]"); }
+    catch { return []; }
+  }
+
+  function persistFullConfigs(configs) {
+    localStorage.setItem(FULL_CONFIGS_KEY, JSON.stringify(configs));
+  }
+
+  function getAllFullConfigs(db) {
+    const shared = ((db && db.sharedPresetConfigs) || []).map((c) => ({ ...c, shared: true }));
+    const local = loadFullConfigs().map((c) => ({ ...c, shared: false }));
+    return [...shared, ...local];
+  }
+
+  function getFullConfig(id, db) {
+    return getAllFullConfigs(db).find((c) => c.id === id) || null;
+  }
+
+  function captureFullConfigData(db) {
+    return {
+      params: cloneDeep(getParams(db)),
+      legacyMatrix: cloneDeep(db.legacyMatrix || { rowsByTheme: {} }),
+    };
+  }
+
+  function saveFullConfigLocal(name, db) {
+    const configs = loadFullConfigs();
+    const dateStr = new Date().toLocaleDateString("es-CL");
+    const entry = {
+      id: "cfg_" + Date.now(),
+      name: name || `Configuración ${dateStr}`,
+      savedAt: new Date().toISOString(),
+      author: "",
+      description: "",
+      ...captureFullConfigData(db),
+    };
+    configs.unshift(entry);
+    if (configs.length > 50) configs.length = 50;
+    persistFullConfigs(configs);
+    return entry;
+  }
+
+  function deleteFullConfigLocal(id) {
+    persistFullConfigs(loadFullConfigs().filter((c) => c.id !== id));
+  }
+
+  function applyFullConfig(configId, db) {
+    const cfg = getFullConfig(configId, db);
+    if (!cfg) { alert("Configuración no encontrada."); return; }
+    db.params = cloneDeep(cfg.params);
+    if (cfg.legacyMatrix) db.legacyMatrix = cloneDeep(cfg.legacyMatrix);
+    saveDB(db);
+    syncParamsToUI(db);
+    renderAll(db);
+  }
+
+  function exportFullConfig(configId, db) {
+    const cfg = getFullConfig(configId, db);
+    if (!cfg) return;
+    const blob = JSON.stringify(cfg, null, 2);
+    downloadText(`config_${cfg.name.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0,10)}.json`, blob, "application/json;charset=utf-8");
+  }
+
+  function importFullConfigFromFile(file, db) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const cfg = JSON.parse(e.target.result);
+        if (!cfg.params) { alert("Archivo inválido: no contiene parámetros."); return; }
+        cfg.id = "cfg_" + Date.now();
+        cfg.savedAt = new Date().toISOString();
+        cfg.shared = false;
+        const configs = loadFullConfigs();
+        configs.unshift(cfg);
+        if (configs.length > 50) configs.length = 50;
+        persistFullConfigs(configs);
+        renderFullConfigsModal(db);
+        alert(`Configuración "${cfg.name || "importada"}" cargada.`);
+      } catch { alert("Error al leer el archivo."); }
+    };
+    reader.readAsText(file);
+  }
+
+  function buildFullConfigSummary(cfg) {
+    if (!cfg || !cfg.params) return "";
+    const p = cfg.params;
+    const nPsb = cfg.legacyMatrix && cfg.legacyMatrix.rowsByTheme
+      ? Object.values(cfg.legacyMatrix.rowsByTheme).filter((r) => r.p !== null || r.s !== null || r.b !== null).length
+      : 0;
+    return [
+      `τ Mat: ${p.tauMaterial ?? "–"}`,
+      `τ Imp: ${p.tauImpact ?? "–"}`,
+      `τ Fin: ${p.tauFin ?? "–"}`,
+      `Regla: ${p.ruleDouble ?? "–"}`,
+      `Grupo: ${p.groupFilter ?? "–"}`,
+      `P/S/B: ${nPsb} temas`,
+    ].join("  ·  ");
+  }
+
+  function renderFullConfigsModal(db) {
+    const container = document.getElementById("fullConfigList");
+    if (!container) return;
+    const all = getAllFullConfigs(db);
+
+    if (!all.length) {
+      container.innerHTML = `<p class="muted" style="padding:12px 0;">No hay configuraciones guardadas todavía.</p>`;
+      return;
+    }
+
+    const groups = [
+      { label: "Compartidas (visibles para todos los usuarios)", items: all.filter((c) => c.shared) },
+      { label: "Guardadas en este navegador", items: all.filter((c) => !c.shared) },
+    ];
+
+    container.innerHTML = groups.filter((g) => g.items.length).map((g) => `
+      <div style="margin-bottom:18px;">
+        <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;">${g.label}</div>
+        ${g.items.map((cfg) => {
+          const dt = cfg.savedAt ? new Date(cfg.savedAt).toLocaleString("es-CL") : "";
+          const summary = buildFullConfigSummary(cfg);
+          return `<div class="full-cfg-item" data-cfg-id="${escapeHTML(cfg.id)}"
+            style="border:1px solid #d1fae5; border-left:4px solid ${cfg.shared ? "#2563eb" : "#059669"}; border-radius:8px; padding:12px 14px; margin-bottom:8px; background:#f8fafc;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+              <div style="flex:1; min-width:0;">
+                <strong style="font-size:13px; color:#0f172a;">${escapeHTML(cfg.name)}</strong>
+                ${cfg.shared ? `<span style="font-size:10px; background:#dbeafe; color:#1e40af; border-radius:4px; padding:1px 6px; margin-left:6px;">Compartida</span>` : ""}
+                <div style="font-size:11px; color:#64748b; margin-top:2px;">${dt}${cfg.author ? " · " + escapeHTML(cfg.author) : ""}</div>
+                <div style="font-size:11px; color:#475569; margin-top:4px; font-family:monospace;">${escapeHTML(summary)}</div>
+                ${cfg.description ? `<div style="font-size:11px; color:#64748b; margin-top:3px; font-style:italic;">${escapeHTML(cfg.description)}</div>` : ""}
+              </div>
+              <div style="display:flex; flex-direction:column; gap:4px; flex-shrink:0;">
+                <button class="btn btn-primary btn-sm cfg-apply-btn" style="font-size:11px; padding:3px 10px;">&#9654; Aplicar</button>
+                <button class="btn btn-secondary btn-sm cfg-export-btn" style="font-size:11px; padding:3px 10px;">&#8659; Exportar</button>
+                ${!cfg.shared ? `<button class="btn btn-ghost btn-sm cfg-delete-btn" style="font-size:11px; padding:3px 10px; color:var(--danger);">&#128465; Eliminar</button>` : ""}
+              </div>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>
+    `).join("");
+
+    container.querySelectorAll(".cfg-apply-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.closest("[data-cfg-id]").dataset.cfgId;
+        const cfg = getFullConfig(id, db);
+        if (!confirm(`¿Aplicar la configuración "${cfg?.name}"?\nEstablecerá todos los parámetros y ponderadores P/S/B.`)) return;
+        applyFullConfig(id, ensureDB());
+        document.getElementById("fullConfigModal").close();
+        alert(`Configuración "${cfg?.name}" aplicada.`);
+      });
+    });
+
+    container.querySelectorAll(".cfg-export-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.closest("[data-cfg-id]").dataset.cfgId;
+        exportFullConfig(id, ensureDB());
+      });
+    });
+
+    container.querySelectorAll(".cfg-delete-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.closest("[data-cfg-id]").dataset.cfgId;
+        const cfg = getFullConfig(id, ensureDB());
+        if (!confirm(`¿Eliminar la configuración "${cfg?.name}"?`)) return;
+        deleteFullConfigLocal(id);
+        renderFullConfigsModal(ensureDB());
+      });
+    });
+  }
+
+  function hookFullConfigs() {
+    const modal = document.getElementById("fullConfigModal");
+    if (!modal) return;
+
+    document.getElementById("btnOpenFullConfigs").addEventListener("click", () => {
+      renderFullConfigsModal(ensureDB());
+      modal.showModal();
+    });
+
+    document.getElementById("btnCloseFullConfigs").addEventListener("click", () => modal.close());
+    document.getElementById("btnCloseFullConfigs2").addEventListener("click", () => modal.close());
+
+    document.getElementById("btnSaveFullConfig").addEventListener("click", () => {
+      const db = ensureDB();
+      const name = prompt("Nombre para esta configuración:", `Configuración ${new Date().toLocaleDateString("es-CL")}`);
+      if (name === null) return;
+      const desc = prompt("Descripción breve (opcional):", "") || "";
+      const entry = saveFullConfigLocal(name.trim() || null, db);
+      if (desc) { entry.description = desc; persistFullConfigs(loadFullConfigs().map((c) => c.id === entry.id ? entry : c)); }
+      renderFullConfigsModal(db);
+      alert(`Configuración "${entry.name}" guardada localmente.\n\nPara compartirla con otros usuarios, expórtala y envíala para que la importen.`);
+    });
+
+    document.getElementById("btnImportFullConfig").addEventListener("click", () => {
+      document.getElementById("importFullConfigFile").click();
+    });
+
+    document.getElementById("importFullConfigFile").addEventListener("change", (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      importFullConfigFromFile(file, ensureDB());
+      ev.target.value = "";
+    });
+  }
 
   // ---------------------------------------------------------------------------
   // Historial de resultados (snapshots de parámetros + puntajes calculados)
@@ -5099,6 +5315,7 @@ if (db.internalAssessments && db.internalAssessments.length > 0) {
     hookAdmin();
     hookShortcuts();
     hookHistory();
+    hookFullConfigs();
 
     // aplicar escenario si db no tiene params definidos de forma consistente
     // (si el usuario nunca guardó, se usa el escenario base)
