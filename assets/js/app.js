@@ -784,6 +784,8 @@ function migrateDB(raw) {
 
   // Configuraciones completas compartidas (vienen de initial_db.json para todos los usuarios)
   const sharedPresetConfigs = Array.isArray(raw.sharedPresetConfigs) ? raw.sharedPresetConfigs : [];
+  // Configuraciones en la nube (vienen del GAS, visibles para todos los usuarios)
+  const cloudFullConfigs = Array.isArray(raw.cloudFullConfigs) ? raw.cloudFullConfigs : [];
 
   const finalDB = pruneObsoleteSeedData({
     version: CURRENT_SCHEMA_VERSION,
@@ -798,6 +800,7 @@ function migrateDB(raw) {
     legacyMatrix,
     manualMaterialTopics,
     sharedPresetConfigs,
+    cloudFullConfigs,
   });
   
   console.log("[migrateDB] DESPUÉS de pruneObsoleteSeedData:");
@@ -898,8 +901,10 @@ function ensureDB() {
 
   // ---------------------------------------------------------------------------
   // Configuraciones completas (todos los parámetros + P/S/B por tema)
-  // Compartidas: db.sharedPresetConfigs (vienen de initial_db.json, visibles a todos)
-  // Privadas:    localStorage[FULL_CONFIGS_KEY]  (solo en este navegador)
+  // Fuentes (en orden de prioridad visual):
+  //   "preset"  → db.sharedPresetConfigs (initial_db.json, admin, badge azul)
+  //   "cloud"   → db.cloudFullConfigs     (Google Apps Script/Sheets, todos los usuarios, badge verde)
+  //   "local"   → localStorage[FULL_CONFIGS_KEY] (solo este navegador, badge gris)
   // ---------------------------------------------------------------------------
   function loadFullConfigs() {
     try { return JSON.parse(localStorage.getItem(FULL_CONFIGS_KEY) || "[]"); }
@@ -911,9 +916,10 @@ function ensureDB() {
   }
 
   function getAllFullConfigs(db) {
-    const shared = ((db && db.sharedPresetConfigs) || []).map((c) => ({ ...c, shared: true }));
-    const local = loadFullConfigs().map((c) => ({ ...c, shared: false }));
-    return [...shared, ...local];
+    const preset = ((db && db.sharedPresetConfigs) || []).map((c) => ({ ...c, source: "preset" }));
+    const cloud  = ((db && db.cloudFullConfigs)  || []).map((c) => ({ ...c, source: "cloud"  }));
+    const local  = loadFullConfigs().map((c) => ({ ...c, source: "local" }));
+    return [...preset, ...cloud, ...local];
   }
 
   function getFullConfig(id, db) {
@@ -927,15 +933,44 @@ function ensureDB() {
     };
   }
 
-  function saveFullConfigLocal(name, db) {
-    const configs = loadFullConfigs();
+  // Guardar en la nube (GAS → Google Sheets, visible para todos)
+  async function saveFullConfigCloud(name, desc, db) {
     const dateStr = new Date().toLocaleDateString("es-CL");
     const entry = {
-      id: "cfg_" + Date.now(),
+      id: "cfg_cloud_" + Date.now(),
       name: name || `Configuración ${dateStr}`,
       savedAt: new Date().toISOString(),
       author: "",
-      description: "",
+      description: desc || "",
+      ...captureFullConfigData(db),
+    };
+    // Actualización optimista local
+    if (!db.cloudFullConfigs) db.cloudFullConfigs = [];
+    db.cloudFullConfigs.unshift(entry);
+    saveDB(db);
+    // Sincronizar con GAS
+    try {
+      await syncToCloudRecord("fullConfig", entry);
+    } catch (err) {
+      console.error("[saveFullConfigCloud] Error al subir config:", err);
+      // Quitar de la lista optimista si falló
+      db.cloudFullConfigs = db.cloudFullConfigs.filter((c) => c.id !== entry.id);
+      saveDB(db);
+      throw err;
+    }
+    return entry;
+  }
+
+  // Guardar solo en este navegador (localStorage)
+  function saveFullConfigLocal(name, desc, db) {
+    const configs = loadFullConfigs();
+    const dateStr = new Date().toLocaleDateString("es-CL");
+    const entry = {
+      id: "cfg_local_" + Date.now(),
+      name: name || `Configuración ${dateStr}`,
+      savedAt: new Date().toISOString(),
+      author: "",
+      description: desc || "",
       ...captureFullConfigData(db),
     };
     configs.unshift(entry);
@@ -946,6 +981,18 @@ function ensureDB() {
 
   function deleteFullConfigLocal(id) {
     persistFullConfigs(loadFullConfigs().filter((c) => c.id !== id));
+  }
+
+  async function deleteFullConfigCloud(id, db) {
+    if (db.cloudFullConfigs) {
+      db.cloudFullConfigs = db.cloudFullConfigs.filter((c) => c.id !== id);
+      saveDB(db);
+    }
+    try {
+      await syncToCloudRecord("deleteFullConfig", { id });
+    } catch (err) {
+      console.error("[deleteFullConfigCloud] Error al eliminar config:", err);
+    }
   }
 
   function applyFullConfig(configId, db) {
@@ -967,20 +1014,37 @@ function ensureDB() {
 
   function importFullConfigFromFile(file, db) {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const cfg = JSON.parse(e.target.result);
         if (!cfg.params) { alert("Archivo inválido: no contiene parámetros."); return; }
-        cfg.id = "cfg_" + Date.now();
         cfg.savedAt = new Date().toISOString();
-        cfg.shared = false;
-        const configs = loadFullConfigs();
-        configs.unshift(cfg);
-        if (configs.length > 50) configs.length = 50;
-        persistFullConfigs(configs);
-        renderFullConfigsModal(db);
-        alert(`Configuración "${cfg.name || "importada"}" cargada.`);
-      } catch { alert("Error al leer el archivo."); }
+        // Preguntar destino
+        const toCloud = confirm(
+          `¿Guardar la configuración "${cfg.name || "importada"}" en la nube?\n\n` +
+          `Aceptar → Guardar en la nube (todos los usuarios podrán usarla)\n` +
+          `Cancelar → Guardar solo en este navegador`
+        );
+        if (toCloud) {
+          cfg.id = "cfg_cloud_" + Date.now();
+          await saveFullConfigCloud(cfg.name, cfg.description, db).catch(() => null);
+          // Aplicar los datos del archivo (no los de la pantalla actual)
+          if (!db.cloudFullConfigs) db.cloudFullConfigs = [];
+          // Reemplazar la entrada optimista con los datos del archivo
+          db.cloudFullConfigs = db.cloudFullConfigs.map((c) =>
+            c.savedAt === cfg.savedAt ? { ...cfg, source: "cloud" } : c
+          );
+          saveDB(db);
+        } else {
+          cfg.id = "cfg_local_" + Date.now();
+          const configs = loadFullConfigs();
+          configs.unshift(cfg);
+          if (configs.length > 50) configs.length = 50;
+          persistFullConfigs(configs);
+        }
+        renderFullConfigsModal(ensureDB());
+        alert(`Configuración "${cfg.name || "importada"}" importada ${toCloud ? "a la nube" : "localmente"}.`);
+      } catch (err) { console.error(err); alert("Error al leer el archivo."); }
     };
     reader.readAsText(file);
   }
@@ -992,11 +1056,11 @@ function ensureDB() {
       ? Object.values(cfg.legacyMatrix.rowsByTheme).filter((r) => r.p !== null || r.s !== null || r.b !== null).length
       : 0;
     return [
-      `τ Mat: ${p.tauMaterial ?? "–"}`,
-      `τ Imp: ${p.tauImpact ?? "–"}`,
-      `τ Fin: ${p.tauFin ?? "–"}`,
-      `Regla: ${p.ruleDouble ?? "–"}`,
-      `Grupo: ${p.groupFilter ?? "–"}`,
+      `tau Mat: ${p.tauMaterial ?? "-"}`,
+      `tau Imp: ${p.tauImpact ?? "-"}`,
+      `tau Fin: ${p.tauFin ?? "-"}`,
+      `Regla: ${p.ruleDouble ?? "-"}`,
+      `Grupo: ${p.groupFilter ?? "-"}`,
       `P/S/B: ${nPsb} temas`,
     ].join("  ·  ");
   }
@@ -1011,23 +1075,29 @@ function ensureDB() {
       return;
     }
 
-    const groups = [
-      { label: "Compartidas (visibles para todos los usuarios)", items: all.filter((c) => c.shared) },
-      { label: "Guardadas en este navegador", items: all.filter((c) => !c.shared) },
-    ];
+    const SOURCE_META = {
+      preset: { label: "Predefinidas",                  badge: `<span style="font-size:10px;background:#dbeafe;color:#1e40af;border-radius:4px;padding:1px 6px;margin-left:6px;">Predefinida</span>`,  border: "#2563eb", canDelete: false },
+      cloud:  { label: "Guardadas en la nube (todos los usuarios)", badge: `<span style="font-size:10px;background:#dcfce7;color:#15803d;border-radius:4px;padding:1px 6px;margin-left:6px;">&#9729; Nube</span>`, border: "#059669", canDelete: true  },
+      local:  { label: "Solo en este navegador",        badge: `<span style="font-size:10px;background:#f1f5f9;color:#475569;border-radius:4px;padding:1px 6px;margin-left:6px;">Navegador</span>`, border: "#94a3b8", canDelete: true  },
+    };
 
-    container.innerHTML = groups.filter((g) => g.items.length).map((g) => `
+    const groups = ["preset", "cloud", "local"].map((src) => ({
+      meta: SOURCE_META[src],
+      items: all.filter((c) => c.source === src),
+    })).filter((g) => g.items.length);
+
+    container.innerHTML = groups.map((g) => `
       <div style="margin-bottom:18px;">
-        <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;">${g.label}</div>
+        <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;">${g.meta.label}</div>
         ${g.items.map((cfg) => {
           const dt = cfg.savedAt ? new Date(cfg.savedAt).toLocaleString("es-CL") : "";
           const summary = buildFullConfigSummary(cfg);
-          return `<div class="full-cfg-item" data-cfg-id="${escapeHTML(cfg.id)}"
-            style="border:1px solid #d1fae5; border-left:4px solid ${cfg.shared ? "#2563eb" : "#059669"}; border-radius:8px; padding:12px 14px; margin-bottom:8px; background:#f8fafc;">
+          return `<div class="full-cfg-item" data-cfg-id="${escapeHTML(cfg.id)}" data-cfg-source="${cfg.source}"
+            style="border:1px solid #d1fae5; border-left:4px solid ${g.meta.border}; border-radius:8px; padding:12px 14px; margin-bottom:8px; background:#f8fafc;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
               <div style="flex:1; min-width:0;">
                 <strong style="font-size:13px; color:#0f172a;">${escapeHTML(cfg.name)}</strong>
-                ${cfg.shared ? `<span style="font-size:10px; background:#dbeafe; color:#1e40af; border-radius:4px; padding:1px 6px; margin-left:6px;">Compartida</span>` : ""}
+                ${g.meta.badge}
                 <div style="font-size:11px; color:#64748b; margin-top:2px;">${dt}${cfg.author ? " · " + escapeHTML(cfg.author) : ""}</div>
                 <div style="font-size:11px; color:#475569; margin-top:4px; font-family:monospace;">${escapeHTML(summary)}</div>
                 ${cfg.description ? `<div style="font-size:11px; color:#64748b; margin-top:3px; font-style:italic;">${escapeHTML(cfg.description)}</div>` : ""}
@@ -1035,7 +1105,7 @@ function ensureDB() {
               <div style="display:flex; flex-direction:column; gap:4px; flex-shrink:0;">
                 <button class="btn btn-primary btn-sm cfg-apply-btn" style="font-size:11px; padding:3px 10px;">&#9654; Aplicar</button>
                 <button class="btn btn-secondary btn-sm cfg-export-btn" style="font-size:11px; padding:3px 10px;">&#8659; Exportar</button>
-                ${!cfg.shared ? `<button class="btn btn-ghost btn-sm cfg-delete-btn" style="font-size:11px; padding:3px 10px; color:var(--danger);">&#128465; Eliminar</button>` : ""}
+                ${g.meta.canDelete ? `<button class="btn btn-ghost btn-sm cfg-delete-btn" style="font-size:11px; padding:3px 10px; color:var(--danger);">&#128465; Eliminar</button>` : ""}
               </div>
             </div>
           </div>`;
@@ -1062,11 +1132,17 @@ function ensureDB() {
     });
 
     container.querySelectorAll(".cfg-delete-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const id = btn.closest("[data-cfg-id]").dataset.cfgId;
+      btn.addEventListener("click", async () => {
+        const item = btn.closest("[data-cfg-id]");
+        const id = item.dataset.cfgId;
+        const source = item.dataset.cfgSource;
         const cfg = getFullConfig(id, ensureDB());
-        if (!confirm(`¿Eliminar la configuración "${cfg?.name}"?`)) return;
-        deleteFullConfigLocal(id);
+        if (!confirm(`¿Eliminar la configuración "${cfg?.name}"?${source === "cloud" ? "\n\nEsto la eliminará para TODOS los usuarios." : ""}`)) return;
+        if (source === "cloud") {
+          await deleteFullConfigCloud(id, ensureDB());
+        } else {
+          deleteFullConfigLocal(id);
+        }
         renderFullConfigsModal(ensureDB());
       });
     });
@@ -1084,15 +1160,34 @@ function ensureDB() {
     document.getElementById("btnCloseFullConfigs").addEventListener("click", () => modal.close());
     document.getElementById("btnCloseFullConfigs2").addEventListener("click", () => modal.close());
 
-    document.getElementById("btnSaveFullConfig").addEventListener("click", () => {
+    document.getElementById("btnSaveFullConfig").addEventListener("click", async () => {
       const db = ensureDB();
       const name = prompt("Nombre para esta configuración:", `Configuración ${new Date().toLocaleDateString("es-CL")}`);
       if (name === null) return;
       const desc = prompt("Descripción breve (opcional):", "") || "";
-      const entry = saveFullConfigLocal(name.trim() || null, db);
-      if (desc) { entry.description = desc; persistFullConfigs(loadFullConfigs().map((c) => c.id === entry.id ? entry : c)); }
-      renderFullConfigsModal(db);
-      alert(`Configuración "${entry.name}" guardada localmente.\n\nPara compartirla con otros usuarios, expórtala y envíala para que la importen.`);
+      const trimmedName = name.trim() || null;
+
+      const toCloud = confirm(
+        `¿Dónde guardar la configuración?\n\n` +
+        `Aceptar → Guardar en la nube (todos los usuarios podrán usarla)\n` +
+        `Cancelar → Guardar solo en este navegador`
+      );
+
+      if (toCloud) {
+        try {
+          const entry = await saveFullConfigCloud(trimmedName, desc, db);
+          renderFullConfigsModal(ensureDB());
+          alert(`Configuración "${entry.name}" guardada en la nube.\nTodos los usuarios podrán acceder a ella.`);
+        } catch (err) {
+          alert("No se pudo guardar en la nube. Verifique su conexión.\n\nSe guardó localmente como respaldo.");
+          const entry = saveFullConfigLocal(trimmedName, desc, db);
+          renderFullConfigsModal(ensureDB());
+        }
+      } else {
+        const entry = saveFullConfigLocal(trimmedName, desc, db);
+        renderFullConfigsModal(db);
+        alert(`Configuración "${entry.name}" guardada en este navegador.`);
+      }
     });
 
     document.getElementById("btnImportFullConfig").addEventListener("click", () => {
@@ -5195,10 +5290,12 @@ try {
     console.log("  - Respuestas externas:", cloudDB.externalResponses ? cloudDB.externalResponses.length : 0);
     console.log("  - Evaluaciones internas:", cloudDB.internalAssessments ? cloudDB.internalAssessments.length : 0);
     
-    // Combinar: GAS externalResponses + initial_db.json internalAssessments
+    // Combinar: GAS externalResponses + initial_db.json internalAssessments + configs nube
     mergedDB = {
       ...cloudDB,
-      internalAssessments: (initialDB && initialDB.internalAssessments) || []
+      internalAssessments: (initialDB && initialDB.internalAssessments) || [],
+      sharedPresetConfigs: (initialDB && initialDB.sharedPresetConfigs) || [],
+      cloudFullConfigs: Array.isArray(cloudDB.fullConfigs) ? cloudDB.fullConfigs : [],
     };
     console.log("[INIT] MERGED DB creado con:");
     console.log("  - externalResponses del GAS:", mergedDB.externalResponses.length);
@@ -5213,7 +5310,7 @@ if (!mergedDB) {
   // Si no hay datos en la nube, usar solo initial_db.json
   console.log("[INIT] GAS devolvió vacío - usando solo initial_db.json");
   if (initialDB) {
-    mergedDB = initialDB;
+    mergedDB = { ...initialDB, cloudFullConfigs: [] };
   } else {
     // Si tampoco hay initial_db.json, crear estructura vacía
     console.log("[INIT] initial_db.json también vacío - creando estructura inicial");
