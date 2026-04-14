@@ -111,8 +111,8 @@
   };
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbx4I7BLRHUkwPKhzR-mHdveboNEUNn0XeYNP8hX99GF_FoCFwOla94cM2HW73A_cZ_hRA/exec";
-  // GAS dedicado a configuraciones completas (standalone, lee el Sheet MATERIALIDAD por ID)
-  const FULL_CONFIGS_GAS_URL = "https://script.google.com/macros/s/AKfycbxDvhNX0oi1xblnoqE0fGElGKgjjZsOf2sCXrLz2ji48oN-ZdOL4jqIo3pNJIoM9YwWrg/exec";
+  // GAS dedicado a configuraciones completas (PropertiesService, sin SpreadsheetApp)
+  const FULL_CONFIGS_GAS_URL = "https://script.google.com/macros/s/AKfycbzpcwON4OoLDFj9n8O6xne4POVW3uRiVPRDAqS0EO5x-m3nsPX0x6JKxGxnobNzRso7hA/exec";
   const OFFICIAL_APP_URL = "https://monitorimpactosocial.github.io/materialidadV2/";
   const PRIMARY_LOGIN_USER = "user";
   const PRIMARY_LOGIN_PASSWORD = "123";
