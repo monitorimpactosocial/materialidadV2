@@ -111,6 +111,8 @@
   };
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbx4I7BLRHUkwPKhzR-mHdveboNEUNn0XeYNP8hX99GF_FoCFwOla94cM2HW73A_cZ_hRA/exec";
+  // GAS dedicado a configuraciones completas (standalone, lee el Sheet MATERIALIDAD por ID)
+  const FULL_CONFIGS_GAS_URL = "https://script.google.com/macros/s/AKfycbxDvhNX0oi1xblnoqE0fGElGKgjjZsOf2sCXrLz2ji48oN-ZdOL4jqIo3pNJIoM9YwWrg/exec";
   const OFFICIAL_APP_URL = "https://monitorimpactosocial.github.io/materialidadV2/";
   const PRIMARY_LOGIN_USER = "user";
   const PRIMARY_LOGIN_PASSWORD = "123";
@@ -200,6 +202,31 @@ async function postCloudPayload(payload) {
   }, 15000);
   if (!res.ok) throw new Error(`Fallo al guardar (${res.status})`);
   return res;
+}
+
+// POST al GAS de configuraciones (FULL_CONFIGS_GAS_URL)
+async function postConfigsPayload(payload) {
+  const res = await fetchWithTimeout(FULL_CONFIGS_GAS_URL, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: { "Content-Type": "text/plain;charset=utf-8" }
+  }, 15000);
+  if (!res.ok) throw new Error(`Fallo configs GAS (${res.status})`);
+  return res;
+}
+
+// GET al GAS de configuraciones → devuelve array de fullConfigs
+async function fetchCloudConfigs() {
+  try {
+    const r = await fetchWithTimeout(FULL_CONFIGS_GAS_URL + "?t=" + Date.now(), {}, 12000);
+    if (!r.ok) throw new Error("Network response not ok");
+    const data = await r.json();
+    console.log("[fetchCloudConfigs] configs recibidas:", Array.isArray(data.fullConfigs) ? data.fullConfigs.length : 0);
+    return Array.isArray(data.fullConfigs) ? data.fullConfigs : [];
+  } catch (err) {
+    console.warn("[fetchCloudConfigs] Fallo al cargar configs:", err);
+    return [];
+  }
 }
 
 async function fetchCloudDB() {
@@ -948,9 +975,9 @@ function ensureDB() {
     if (!db.cloudFullConfigs) db.cloudFullConfigs = [];
     db.cloudFullConfigs.unshift(entry);
     saveDB(db);
-    // Sincronizar con GAS
+    // Sincronizar con GAS de configs
     try {
-      await syncToCloudRecord("fullConfig", entry);
+      await postConfigsPayload({ type: "fullConfig", data: entry });
     } catch (err) {
       console.error("[saveFullConfigCloud] Error al subir config:", err);
       // Quitar de la lista optimista si falló
@@ -989,7 +1016,7 @@ function ensureDB() {
       saveDB(db);
     }
     try {
-      await syncToCloudRecord("deleteFullConfig", { id });
+      await postConfigsPayload({ type: "deleteFullConfig", data: { id } });
     } catch (err) {
       console.error("[deleteFullConfigCloud] Error al eliminar config:", err);
     }
@@ -5282,35 +5309,53 @@ const initialDB = await loadOptionalJSON("data/initial_db.json");
 console.log("[INIT] initial_db.json loaded:");
 console.log("  - internalAssessments:", initialDB && initialDB.internalAssessments ? initialDB.internalAssessments.length : 0);
 
-// Cargar desde Google Sheets (SOLO respuestas externas)
+// Cargar datos en paralelo: GAS principal (respuestas) + GAS configs
+let cloudDB = null;
+let cloudConfigs = [];
 try {
-  const cloudDB = await fetchCloudDB();
-  if (cloudDB) {
-    console.log("[INIT] Datos cargados desde Google Sheets (GAS):");
-    console.log("  - Respuestas externas:", cloudDB.externalResponses ? cloudDB.externalResponses.length : 0);
-    console.log("  - Evaluaciones internas:", cloudDB.internalAssessments ? cloudDB.internalAssessments.length : 0);
-    
-    // Combinar: GAS externalResponses + initial_db.json internalAssessments + configs nube
-    mergedDB = {
-      ...cloudDB,
-      internalAssessments: (initialDB && initialDB.internalAssessments) || [],
-      sharedPresetConfigs: (initialDB && initialDB.sharedPresetConfigs) || [],
-      cloudFullConfigs: Array.isArray(cloudDB.fullConfigs) ? cloudDB.fullConfigs : [],
-    };
-    console.log("[INIT] MERGED DB creado con:");
-    console.log("  - externalResponses del GAS:", mergedDB.externalResponses.length);
-    console.log("  - internalAssessments de initial_db.json:", mergedDB.internalAssessments.length);
+  const [cloudDBResult, cloudConfigsResult] = await Promise.allSettled([
+    fetchCloudDB(),
+    fetchCloudConfigs(),
+  ]);
+
+  if (cloudDBResult.status === "fulfilled") {
+    cloudDB = cloudDBResult.value;
+  } else {
+    console.error("[INIT] Fallo al leer Google Sheets:", cloudDBResult.reason);
+    alert("Atención: No se pudieron cargar los datos del Excel en línea. Verifique su conexión.");
+  }
+
+  if (cloudConfigsResult.status === "fulfilled") {
+    cloudConfigs = cloudConfigsResult.value || [];
+    console.log("[INIT] Configuraciones en la nube:", cloudConfigs.length);
+  } else {
+    console.warn("[INIT] Fallo al cargar configs:", cloudConfigsResult.reason);
   }
 } catch(err) {
-  console.error("[INIT] Fallo al leer Google Sheets:", err);
-  alert("Atención: No se pudieron cargar los datos del Excel en línea. Verifique su conexión.");
+  console.error("[INIT] Error inesperado al cargar datos:", err);
+}
+
+if (cloudDB) {
+  console.log("[INIT] Datos cargados desde Google Sheets (GAS):");
+  console.log("  - Respuestas externas:", cloudDB.externalResponses ? cloudDB.externalResponses.length : 0);
+  // Combinar: GAS externalResponses + initial_db.json internalAssessments + configs nube
+  mergedDB = {
+    ...cloudDB,
+    internalAssessments: (initialDB && initialDB.internalAssessments) || [],
+    sharedPresetConfigs: (initialDB && initialDB.sharedPresetConfigs) || [],
+    cloudFullConfigs: cloudConfigs,
+  };
+  console.log("[INIT] MERGED DB creado con:");
+  console.log("  - externalResponses del GAS:", mergedDB.externalResponses.length);
+  console.log("  - internalAssessments de initial_db.json:", mergedDB.internalAssessments.length);
+  console.log("  - cloudFullConfigs:", mergedDB.cloudFullConfigs.length);
 }
 
 if (!mergedDB) {
   // Si no hay datos en la nube, usar solo initial_db.json
   console.log("[INIT] GAS devolvió vacío - usando solo initial_db.json");
   if (initialDB) {
-    mergedDB = { ...initialDB, cloudFullConfigs: [] };
+    mergedDB = { ...initialDB, cloudFullConfigs: cloudConfigs };
   } else {
     // Si tampoco hay initial_db.json, crear estructura vacía
     console.log("[INIT] initial_db.json también vacío - creando estructura inicial");
