@@ -1045,32 +1045,19 @@ function ensureDB() {
       try {
         const cfg = JSON.parse(e.target.result);
         if (!cfg.params) { alert("Archivo inválido: no contiene parámetros."); return; }
+        cfg.id = "cfg_cloud_" + Date.now();
         cfg.savedAt = new Date().toISOString();
-        // Preguntar destino
-        const toCloud = confirm(
-          `¿Guardar la configuración "${cfg.name || "importada"}" en la nube?\n\n` +
-          `Aceptar → Guardar en la nube (todos los usuarios podrán usarla)\n` +
-          `Cancelar → Guardar solo en este navegador`
-        );
-        if (toCloud) {
-          cfg.id = "cfg_cloud_" + Date.now();
-          await saveFullConfigCloud(cfg.name, cfg.description, db).catch(() => null);
-          // Aplicar los datos del archivo (no los de la pantalla actual)
+        // Subir directamente a la nube
+        try {
           if (!db.cloudFullConfigs) db.cloudFullConfigs = [];
-          // Reemplazar la entrada optimista con los datos del archivo
-          db.cloudFullConfigs = db.cloudFullConfigs.map((c) =>
-            c.savedAt === cfg.savedAt ? { ...cfg, source: "cloud" } : c
-          );
+          db.cloudFullConfigs.unshift({ ...cfg, source: "cloud" });
           saveDB(db);
-        } else {
-          cfg.id = "cfg_local_" + Date.now();
-          const configs = loadFullConfigs();
-          configs.unshift(cfg);
-          if (configs.length > 50) configs.length = 50;
-          persistFullConfigs(configs);
+          await postConfigsPayload({ type: "fullConfig", data: cfg });
+        } catch (err) {
+          console.error("[importFullConfigFromFile] Error al subir:", err);
         }
         renderFullConfigsModal(ensureDB());
-        alert(`Configuración "${cfg.name || "importada"}" importada ${toCloud ? "a la nube" : "localmente"}.`);
+        alert(`Configuración "${cfg.name || "importada"}" importada y disponible para todos los usuarios.`);
       } catch (err) { console.error(err); alert("Error al leer el archivo."); }
     };
     reader.readAsText(file);
@@ -1194,26 +1181,19 @@ function ensureDB() {
       const desc = prompt("Descripción breve (opcional):", "") || "";
       const trimmedName = name.trim() || null;
 
-      const toCloud = confirm(
-        `¿Dónde guardar la configuración?\n\n` +
-        `Aceptar → Guardar en la nube (todos los usuarios podrán usarla)\n` +
-        `Cancelar → Guardar solo en este navegador`
-      );
-
-      if (toCloud) {
-        try {
-          const entry = await saveFullConfigCloud(trimmedName, desc, db);
-          renderFullConfigsModal(ensureDB());
-          alert(`Configuración "${entry.name}" guardada en la nube.\nTodos los usuarios podrán acceder a ella.`);
-        } catch (err) {
-          alert("No se pudo guardar en la nube. Verifique su conexión.\n\nSe guardó localmente como respaldo.");
-          const entry = saveFullConfigLocal(trimmedName, desc, db);
-          renderFullConfigsModal(ensureDB());
-        }
-      } else {
-        const entry = saveFullConfigLocal(trimmedName, desc, db);
-        renderFullConfigsModal(db);
-        alert(`Configuración "${entry.name}" guardada en este navegador.`);
+      const btn = document.getElementById("btnSaveFullConfig");
+      btn.disabled = true;
+      btn.textContent = "Guardando...";
+      try {
+        const entry = await saveFullConfigCloud(trimmedName, desc, db);
+        renderFullConfigsModal(ensureDB());
+        alert(`✔ Configuración "${entry.name}" guardada.\nTodos los usuarios de la app podrán usarla.`);
+      } catch (err) {
+        alert("No se pudo guardar en la nube. Verifique su conexión e intente nuevamente.");
+        console.error("[btnSaveFullConfig]", err);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = "&#128190; Guardar configuración actual";
       }
     });
 
