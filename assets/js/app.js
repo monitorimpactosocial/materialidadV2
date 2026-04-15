@@ -87,32 +87,32 @@
     P27: { p: 5, s: 5, b: 5 }, // Gestión población transitoria (máx.)
   };
 
-  // Defaults E, C, F por tema — Excel "Matriz de Materialidad Version 2026"
+  // Defaults E, C, F por tema — Excel "Matriz de Materialidad - Version modificada 15abril2026"
   // Temas no presentes en el Excel usan el máximo (4, 4, 4).
   const DEFAULT_ECF = {
     P01: { e: 2, c: 2, f: 2 }, // Rendición de cuentas sobre los impactos
     P02: { e: 2, c: 2, f: 2 }, // Transparencia en las decisiones
-    P03: { e: 3, c: 3, f: 2 }, // Comportamiento ético
+    P03: { e: 3, c: 3, f: 3 }, // Comportamiento ético                    ← f 2→3
     P04: { e: 4, c: 4, f: 4 }, // Responder a los grupos de interés (máx.)
     P05: { e: 3, c: 3, f: 4 }, // Cumplimiento de la ley
-    P06: { e: 3, c: 3, f: 2 }, // Respeto de los derechos humanos
+    P06: { e: 3, c: 3, f: 4 }, // Respeto de los derechos humanos          ← f 2→4
     P07: { e: 4, c: 4, f: 4 }, // Participación inclusiva (máx.)
     P08: { e: 4, c: 4, f: 4 }, // Protección derechos fundamentales trabajo
-    P09: { e: 3, c: 2, f: 3 }, // Altos estándares laborales
-    P10: { e: 4, c: 3, f: 2 }, // Salud y seguridad en el trabajo
+    P09: { e: 3, c: 2, f: 4 }, // Altos estándares laborales               ← f 3→4
+    P10: { e: 4, c: 4, f: 4 }, // Salud y seguridad en el trabajo          ← c 3→4, f 2→4
     P11: { e: 4, c: 4, f: 4 }, // Desarrollo humano y capacitación (máx.)
     P12: { e: 4, c: 4, f: 4 }, // Prevención de la contaminación
-    P13: { e: 3, c: 4, f: 2 }, // Uso sostenible de los recursos
+    P13: { e: 3, c: 4, f: 3 }, // Uso sostenible de los recursos           ← f 2→3
     P14: { e: 4, c: 4, f: 4 }, // Acciones frente al cambio climático (máx.)
-    P15: { e: 2, c: 2, f: 2 }, // Protección y restauración de ecosistemas
-    P16: { e: 4, c: 4, f: 4 }, // Relaciones justas con proveedores
+    P15: { e: 2, c: 2, f: 4 }, // Protección y restauración de ecosistemas ← f 2→4
+    P16: { e: 4, c: 4, f: 3 }, // Relaciones justas con proveedores        ← f 4→3
     P17: { e: 4, c: 4, f: 4 }, // Responsabilidad compartida proveedores (máx.)
     P18: { e: 4, c: 4, f: 4 }, // Respeto derechos de propiedad (máx.)
     P19: { e: 4, c: 4, f: 4 }, // Apoyo a la educación y cultura (máx.)
-    P20: { e: 4, c: 3, f: 2 }, // Impulso a proyectos productivos
-    P21: { e: 4, c: 4, f: 2 }, // Fomento de la creación de empleo local
-    P22: { e: 4, c: 3, f: 2 }, // Acciones para mejorar la salud comunidades
-    P23: { e: 4, c: 4, f: 4 }, // Inversión en infraestructura básica (máx.)
+    P20: { e: 4, c: 2, f: 2 }, // Impulso a proyectos productivos          ← c 3→2
+    P21: { e: 4, c: 2, f: 2 }, // Fomento de la creación de empleo local   ← c 4→2
+    P22: { e: 4, c: 2, f: 2 }, // Acciones para mejorar la salud comunidades ← c 3→2
+    P23: { e: 3, c: 2, f: 2 }, // Inversión en infraestructura básica      ← e 4→3, c 4→2, f 4→2
     P24: { e: 4, c: 4, f: 4 }, // Comunicación y vínculo con comunidades (máx.)
     P25: { e: 4, c: 4, f: 4 }, // Desarrollo de la economía local (máx.)
     P26: { e: 4, c: 4, f: 4 }, // Iniciativas de seguridad vial (máx.)
