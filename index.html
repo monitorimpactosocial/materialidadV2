@@ -877,15 +877,15 @@
               </div>
             </section>
 
-            <!-- SECCIÓN EXTERNA -->
+            <!-- SECCIÓN I: EVALUACIÓN EXTERNA -->
             <br clear="all" style="page-break-before:always" />
             <div style="margin-top: 40px;"></div>
-            <h2 style="color:var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 8px;">SECCIÓN I: Materialidad de Impacto (Perspectiva Externa)</h2>
+            <h2 style="color:var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 8px;">SECCIÓN I: Evaluación Externa (Perspectiva Outside-In)</h2>
             <div class="callout callout-info mt-8" style="background:#f0fdf4; border-left-color:#16a34a;">
               <p style="margin:0;">Respuestas recolectadas a través del instrumento de encuesta a grupos de interés (materialidad de impacto, outside-in). Define la importancia percibida de cada tema ASG desde la perspectiva de los stakeholders.</p>
             </div>
-            
-            <h3 class="mt-16">1.1. Top 10 Temas Más Relevantes (Visión Externa)</h3>
+
+            <h3 class="mt-16">1.1. Temas Materiales (Visión Externa)</h3>
             <div id="plotExternalTop10" class="plot plot-print" style="min-height:300px; margin-bottom: 24px;"></div>
 
             <h3 class="mt-16">1.2. Cobertura por Grupo de Interés</h3>
@@ -911,61 +911,34 @@
               </div>
             </div>
 
-            <!-- SECCIÓN INTERNA -->
+            <!-- SECCIÓN II: MATRIZ CLÁSICA -->
             <br clear="all" style="page-break-before:always" />
             <div style="margin-top: 40px;"></div>
-            <h2 style="color:var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 8px;">SECCIÓN II: Evaluación Interna (Impacto ASG y Financiero)</h2>
-            <div class="callout callout-info mt-8" style="background:#eff6ff; border-left-color:#2563eb;">
-              <p style="margin:0;">Resultados de la calificación de impacto ASG (materialidad de impacto, outside-in) y materialidad financiera (inside-out) provista por el Comité Evaluador Interno.</p>
+            <h2 style="color:var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 8px;">SECCIÓN II: Matriz Clásica (Metodología Histórica)</h2>
+            <div class="callout callout-info mt-8" style="background:#f8fafc; border-left-color:#334155;">
+              <p style="margin:0;">Lectura complementaria que reconstruye la lógica histórica a partir de las encuestas vigentes (fórmulas P×S, P×B y M×Factor). Combina la percepción de stakeholders (Expectativas, eje Y) con la evaluación de significancia interna (Impactos, eje X).</p>
             </div>
 
-            <h3 class="mt-16">2.1. Materialidad por Dimensión ISO 26000</h3>
-            <div id="plotDimensionReport" class="plot plot-print" style="min-height:300px; margin-bottom: 24px;"></div>
-
-            <h3 class="mt-16">2.2. Top 5 Temas Críticos</h3>
-            <div class="grid-2 mt-8 mb-16" id="repKpisTop5" style="gap:16px;">
-              <div class="card card-flat" style="border: 1px solid rgba(6,78,59,0.12); margin:0;">
-                <div class="card-header" style="background: rgba(220, 38, 38, 0.05); padding: 10px 14px; border-bottom: 1px solid rgba(6,78,59,0.08);">
-                  <strong style="color: #b91c1c;">Top 5 Impacto ASG</strong>
-                </div>
-                <div class="card-body" id="top5Impact" style="padding: 10px 14px; font-size: 13px;"></div>
-              </div>
-              <div class="card card-flat" style="border: 1px solid rgba(6,78,59,0.12); margin:0;">
-                <div class="card-header" style="background: rgba(37, 99, 235, 0.05); padding: 10px 14px; border-bottom: 1px solid rgba(6,78,59,0.08);">
-                  <strong style="color: #1d4ed8;">Top 5 Impacto Financiero</strong>
-                </div>
-                <div class="card-body" id="top5Fin" style="padding: 10px 14px; font-size: 13px;"></div>
-              </div>
+            <h3 class="mt-16">2.1. Matriz de Impacto y Expectativas</h3>
+            <div class="legacy-figure-grid mt-12">
+              <div id="plotLegacyMatrixReport" class="plot plot-print"></div>
+              <div id="plotLegacyRankingReport" class="plot plot-print"></div>
             </div>
 
-            <h3 class="mt-16">2.3. Cobertura de Evaluación Interna</h3>
-            <div class="report-two-col">
-              <div class="report-panel">
-                <div class="table-wrap">
-                  <table class="table table-compact" id="tableReportAreas">
-                    <thead>
-                      <tr>
-                        <th>Área</th>
-                        <th class="right">N</th>
-                        <th class="right">Temas</th>
-                      </tr>
-                    </thead>
-                    <tbody></tbody>
-                  </table>
-                </div>
-              </div>
-              <div class="report-panel">
-                <div class="report-panel-title">Lectura del Comité</div>
-                <div id="repInternalNarrative" class="report-copy-block"></div>
-              </div>
+            <h3 class="mt-16">2.2. Ponderadores P/S/B por tema</h3>
+            <div class="table-wrap">
+              <table class="styled-table" id="tableReportPsb" style="width:100%; font-size:11px;">
+                <thead><tr><th>Código</th><th>Tema</th><th>P</th><th>S</th><th>B</th></tr></thead>
+                <tbody></tbody>
+              </table>
             </div>
 
-            <!-- SECCIÓN MATRIZ -->
+            <!-- SECCIÓN III: DOBLE MATERIALIDAD -->
             <br clear="all" style="page-break-before:always" />
             <div style="margin-top: 40px;"></div>
-            <h2 style="color:var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 8px;">SECCIÓN III: Consolidación y Doble Materialidad</h2>
+            <h2 style="color:var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 8px;">SECCIÓN III: Doble Materialidad (Consolidación Integrada)</h2>
             <div class="callout callout-info mt-8">
-              <p style="margin:0;">Cruce estratégico que determina la lista final de temas de doble materialidad, integrando la visión externa (tamaño de burbuja) e interna (Ejes X e Y).</p>
+              <p style="margin:0;">Cruce estratégico que determina la lista final de temas de doble materialidad, integrando la visión externa (stakeholders) e interna (Comité Evaluador). Eje X = Impacto ASG (outside-in). Eje Y = Impacto Financiero (inside-out).</p>
             </div>
 
             <h3 class="mt-16">3.1. Portafolio de Materialidad</h3>
@@ -992,14 +965,56 @@
               </article>
             </section>
 
-            <h3 class="mt-16">3.2. Matriz de Doble Materialidad</h3>
+            <h3 class="mt-16">3.2. Evaluación Interna (Comité Evaluador)</h3>
+            <div class="callout callout-info mt-8" style="background:#eff6ff; border-left-color:#2563eb;">
+              <p style="margin:0;">Resultados de la calificación de impacto ASG (outside-in) y materialidad financiera (inside-out) provista por el Comité Evaluador Interno.</p>
+            </div>
+            <div id="plotDimensionReport" class="plot plot-print" style="min-height:300px; margin-bottom: 24px;"></div>
+
+            <div class="grid-2 mt-8 mb-16" id="repKpisTop5" style="gap:16px;">
+              <div class="card card-flat" style="border: 1px solid rgba(6,78,59,0.12); margin:0;">
+                <div class="card-header" style="background: rgba(220, 38, 38, 0.05); padding: 10px 14px; border-bottom: 1px solid rgba(6,78,59,0.08);">
+                  <strong style="color: #b91c1c;">Top 5 Impacto ASG</strong>
+                </div>
+                <div class="card-body" id="top5Impact" style="padding: 10px 14px; font-size: 13px;"></div>
+              </div>
+              <div class="card card-flat" style="border: 1px solid rgba(6,78,59,0.12); margin:0;">
+                <div class="card-header" style="background: rgba(37, 99, 235, 0.05); padding: 10px 14px; border-bottom: 1px solid rgba(6,78,59,0.08);">
+                  <strong style="color: #1d4ed8;">Top 5 Impacto Financiero</strong>
+                </div>
+                <div class="card-body" id="top5Fin" style="padding: 10px 14px; font-size: 13px;"></div>
+              </div>
+            </div>
+
+            <div class="report-two-col">
+              <div class="report-panel">
+                <div class="table-wrap">
+                  <table class="table table-compact" id="tableReportAreas">
+                    <thead>
+                      <tr>
+                        <th>Área</th>
+                        <th class="right">N</th>
+                        <th class="right">Temas</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="report-panel">
+                <div class="report-panel-title">Lectura del Comité</div>
+                <div id="repInternalNarrative" class="report-copy-block"></div>
+              </div>
+            </div>
+
+            <h3 class="mt-16">3.3. Matriz de Doble Materialidad</h3>
             <p class="muted small">Eje X = Impacto ASG (outside-in). Eje Y = Impacto Financiero (inside-out). Tamaño = importancia stakeholders. Líneas = umbrales.</p>
             <div id="plotDobleMatScatterReport" class="plot plot-print" style="min-height:500px;"></div>
 
-            <h3 class="mt-16">3.3. Termómetros: Impacto vs. Financiero</h3>
+            <h3 class="mt-16">3.4. Termómetros: Impacto vs. Financiero</h3>
             <div id="plotDobleMatThermReport" style="min-height:400px;"></div>
 
-            <h3 class="mt-16">3.4. Ranking completo de temas</h3>
+            <h3 class="mt-16">3.5. Ranking completo de temas</h3>
             <div class="table-wrap">
               <table class="table table-compact" id="tableReportAll">
                 <thead>
@@ -1015,15 +1030,6 @@
                 </thead>
                 <tbody></tbody>
               </table>
-            </div>
-
-            <h3 class="mt-16">3.5. Matriz Clásica de Impacto y Expectativas (metodología histórica)</h3>
-            <div class="callout callout-info mt-8" style="background:#f8fafc; border-left-color:#334155;">
-              <p style="margin:0;">Lectura complementaria que reconstruye la lógica histórica a partir de las encuestas vigentes (fórmulas P×S, P×B y M×Factor).</p>
-            </div>
-            <div class="legacy-figure-grid mt-12">
-              <div id="plotLegacyMatrixReport" class="plot plot-print"></div>
-              <div id="plotLegacyRankingReport" class="plot plot-print"></div>
             </div>
 
             <div class="report-closing mt-16">
@@ -1055,11 +1061,6 @@
             <div id="reportConfigSection" style="margin-top:24px;">
               <h4 style="color:var(--primary); border-bottom:1px solid #d1fae5; padding-bottom:6px; margin-bottom:10px;">Parámetros de configuración aplicados</h4>
               <table class="styled-table" id="tableReportConfig" style="width:100%; font-size:12px;">
-                <tbody></tbody>
-              </table>
-              <h4 style="color:var(--primary); border-bottom:1px solid #d1fae5; padding-bottom:6px; margin-bottom:10px; margin-top:16px;">Ponderadores P/S/B por tema (Metodología Clásica)</h4>
-              <table class="styled-table" id="tableReportPsb" style="width:100%; font-size:11px;">
-                <thead><tr><th>Código</th><th>Tema</th><th>P</th><th>S</th><th>B</th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
@@ -1404,6 +1405,6 @@
   <datalist id="listArea"></datalist>
   <datalist id="listRol"></datalist>
 
-  <script src="assets/js/app.js?v=54"></script>
+  <script src="assets/js/app.js?v=55"></script>
 </body>
 </html>
