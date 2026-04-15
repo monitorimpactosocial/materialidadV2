@@ -1651,6 +1651,12 @@ function computeScores(db) {
         e_sugerido,
         c_sugerido,
         f_sugerido,
+        p_default: psbDef.p,
+        s_default: psbDef.s,
+        b_default: psbDef.b,
+        e_default: ecfDef.e,
+        c_default: ecfDef.c,
+        f_default: ecfDef.f,
         p_manual: manual.p,
         s_manual: manual.s,
         b_manual: manual.b,
@@ -1756,7 +1762,9 @@ function computeScores(db) {
     if (!tbody) return;
 
     const legacy = computeLegacyMatrix(db);
-    const calibRows = legacy.displayRows;
+    // Si hay temas materiales identificados, mostramos sólo esos; si no, mostramos todos
+    // (para que los valores predefinidos del Excel 2026 sean siempre visibles y editables)
+    const calibRows = legacy.displayRows.length > 0 ? legacy.displayRows : legacy.sortedValidRows;
 
     tbody.innerHTML = calibRows.map((row) => `
       <tr class="topic-block" data-tid="${escapeHTML(row.tema_id)}">
@@ -1766,27 +1774,27 @@ function computeScores(db) {
         <td class="right legacy-computed">${row.active_groups_share === null ? "" : `${fmt(row.active_groups_share * 100, 1)}%`}</td>
         <td class="legacy-input-cell">
           <input class="legacy-number ${row.p_manual !== null ? "is-manual" : ""}" data-field="p" type="number" min="1" max="5" step="1" value="${row.p === null ? "" : Math.round(row.p)}" data-suggested="${row.p_sugerido === null ? "" : Math.round(row.p_sugerido)}" />
-          <div class="legacy-suggestion">Sug. ${row.p_sugerido === null ? "N/D" : Math.round(row.p_sugerido)}</div>
+          <div class="legacy-suggestion">${row.p_sugerido !== null ? `Sug. ${Math.round(row.p_sugerido)}` : `Def. ${row.p_default}`}</div>
         </td>
         <td class="legacy-input-cell">
           <input class="legacy-number ${row.s_manual !== null ? "is-manual" : ""}" data-field="s" type="number" min="1" max="5" step="1" value="${row.s === null ? "" : Math.round(row.s)}" data-suggested="${row.s_sugerido === null ? "" : Math.round(row.s_sugerido)}" />
-          <div class="legacy-suggestion">Sug. ${row.s_sugerido === null ? "N/D" : Math.round(row.s_sugerido)}</div>
+          <div class="legacy-suggestion">${row.s_sugerido !== null ? `Sug. ${Math.round(row.s_sugerido)}` : `Def. ${row.s_default}`}</div>
         </td>
         <td class="legacy-input-cell">
           <input class="legacy-number ${row.b_manual !== null ? "is-manual" : ""}" data-field="b" type="number" min="1" max="5" step="1" value="${row.b === null ? "" : Math.round(row.b)}" data-suggested="${row.b_sugerido === null ? "" : Math.round(row.b_sugerido)}" />
-          <div class="legacy-suggestion">Sug. ${row.b_sugerido === null ? "N/D" : fmt(row.b_sugerido, 2)}</div>
+          <div class="legacy-suggestion">${row.b_sugerido !== null ? `Sug. ${fmt(row.b_sugerido, 2)}` : `Def. ${row.b_default}`}</div>
         </td>
         <td class="legacy-input-cell">
           <input class="legacy-number ${row.e_manual !== null ? "is-manual" : ""}" data-field="e" type="number" min="1" max="4" step="1" value="${row.e === null ? "" : Math.round(row.e)}" data-suggested="${row.e_sugerido === null ? "" : Math.round(row.e_sugerido)}" />
-          <div class="legacy-suggestion">Sug. ${row.e_sugerido === null ? "N/D" : Math.round(row.e_sugerido)}</div>
+          <div class="legacy-suggestion">${row.e_sugerido !== null ? `Sug. ${Math.round(row.e_sugerido)}` : `Def. ${row.e_default}`}</div>
         </td>
         <td class="legacy-input-cell">
           <input class="legacy-number ${row.c_manual !== null ? "is-manual" : ""}" data-field="c" type="number" min="1" max="4" step="1" value="${row.c === null ? "" : Math.round(row.c)}" data-suggested="${row.c_sugerido === null ? "" : Math.round(row.c_sugerido)}" />
-          <div class="legacy-suggestion">Sug. ${row.c_sugerido === null ? "N/D" : Math.round(row.c_sugerido)}</div>
+          <div class="legacy-suggestion">${row.c_sugerido !== null ? `Sug. ${Math.round(row.c_sugerido)}` : `Def. ${row.c_default}`}</div>
         </td>
         <td class="legacy-input-cell">
           <input class="legacy-number ${row.f_manual !== null ? "is-manual" : ""}" data-field="f" type="number" min="1" max="4" step="1" value="${row.f === null ? "" : Math.round(row.f)}" data-suggested="${row.f_sugerido === null ? "" : Math.round(row.f_sugerido)}" />
-          <div class="legacy-suggestion">Sug. ${row.f_sugerido === null ? "N/D" : Math.round(row.f_sugerido)}</div>
+          <div class="legacy-suggestion">${row.f_sugerido !== null ? `Sug. ${Math.round(row.f_sugerido)}` : `Def. ${row.f_default}`}</div>
         </td>
         <td class="right legacy-computed"><strong>${row.significancia === null ? "" : fmt(row.significancia, 2)}</strong></td>
         <td class="right legacy-computed">${row.expectativas_total === null ? "" : fmt(row.expectativas_total, 2)}</td>
@@ -4542,7 +4550,37 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     })));
     XLSX.utils.book_append_sheet(wb, wsLegacy, "Matriz_Clasica");
 
-    // ── Hoja 9: PSB Ponderadores ─────────────────────────────────
+    // ── Hoja 9: Matriz de Impacto ────────────────────────────────
+    const topicPilarMap = {};
+    DATA.topics.forEach((t) => { topicPilarMap[t.tema_id] = t.pilar || ""; });
+    const wsImpacto = XLSX.utils.json_to_sheet(legacy.rows.map((r) => ({
+      "Código":          r.tema_id,
+      "Tema":            r.tema_nombre,
+      "Pilar":           topicPilarMap[r.tema_id] || "",
+      "P":               r.p !== null ? +Number(r.p).toFixed(3) : "",
+      "S":               r.s !== null ? +Number(r.s).toFixed(3) : "",
+      "B":               r.b !== null ? +Number(r.b).toFixed(3) : "",
+      "Riesgo (P×S)":    r.riesgo !== null ? +Number(r.riesgo).toFixed(3) : "",
+      "Oport. (P×B)":    r.oportunidad !== null ? +Number(r.oportunidad).toFixed(3) : "",
+      "Signific. (P×S + P×B)": r.significancia !== null ? +Number(r.significancia).toFixed(3) : "",
+    })));
+    XLSX.utils.book_append_sheet(wb, wsImpacto, "Matriz_Impacto");
+
+    // ── Hoja 10: Matriz de Expectativas ──────────────────────────
+    const wsExpectativas = XLSX.utils.json_to_sheet(legacy.rows.map((r) => ({
+      "Código":          r.tema_id,
+      "Tema":            r.tema_nombre,
+      "Pilar":           topicPilarMap[r.tema_id] || "",
+      "E":               r.e !== null ? +Number(r.e).toFixed(3) : "",
+      "C":               r.c !== null ? +Number(r.c).toFixed(3) : "",
+      "F":               r.f !== null ? +Number(r.f).toFixed(3) : "",
+      "Madurez (E+C+F)": r.madurez !== null ? +Number(r.madurez).toFixed(3) : "",
+      "Factor":          r.factor !== undefined ? +Number(r.factor).toFixed(4) : "",
+      "Total (Madurez×Factor)": r.expectativas_total !== null ? +Number(r.expectativas_total).toFixed(3) : "",
+    })));
+    XLSX.utils.book_append_sheet(wb, wsExpectativas, "Matriz_Expectativas");
+
+    // ── Hoja 11: PSB Ponderadores ─────────────────────────────────
     const psbRows = DATA.topics.map((t) => {
       const manual = getLegacyMatrixRow(db, t.tema_id);
       const legRow = legacy.rows.find((r) => r.tema_id === t.tema_id) || {};
