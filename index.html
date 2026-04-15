@@ -626,21 +626,19 @@
                     <th rowspan="2" class="right">Rel. ext.</th>
                     <th rowspan="2" class="right">Top2Box</th>
                     <th rowspan="2" class="right">Cobertura</th>
-                    <th colspan="2" class="center" style="background:#fef2f2; color:#991b1b; border-bottom:1px solid #fecaca;">Impacto (Eje X · P×S)</th>
-                    <th colspan="2" class="center" style="background:#eff6ff; color:#1d4ed8; border-bottom:1px solid #bfdbfe;">Negocio (Eje X · P×B)</th>
-                    <th colspan="3" class="center" style="background:#f0fdf4; color:#166534; border-bottom:1px solid #bbf7d0;">Expectativas (Eje Y)</th>
-                    <th rowspan="2" class="right" title="Significancia = P_imp×S + P_neg×B">Signific.<div class="muted small" style="font-weight:normal;">P_imp×S + P_neg×B</div></th>
+                    <th colspan="3" class="center" style="background:#fef2f2; color:#991b1b; border-bottom:1px solid #fecaca; font-size:11px;">Matriz de Impacto · P×S + P×B</th>
+                    <th colspan="3" class="center" style="background:#f0fdf4; color:#166534; border-bottom:1px solid #bbf7d0; font-size:11px;">Matriz de Expectativas · (E+C+F)×Factor</th>
+                    <th rowspan="2" class="right" title="Significancia = P×S + P×B">Signific.<div class="muted small" style="font-weight:normal;">P×S+P×B</div></th>
                     <th rowspan="2" class="right" title="Expectativas = (E+C+F) × Factor">Expect.<div class="muted small" style="font-weight:normal;">(E+C+F)×F</div></th>
                     <th rowspan="2">Acción</th>
                   </tr>
                   <tr>
-                    <th class="center" style="background:#fef2f2;">P imp.</th>
-                    <th class="center" style="background:#fef2f2;">S</th>
-                    <th class="center" style="background:#eff6ff;">P neg.</th>
-                    <th class="center" style="background:#eff6ff;">B</th>
-                    <th class="right" style="background:#f0fdf4;">E</th>
-                    <th class="right" style="background:#f0fdf4;">C</th>
-                    <th class="right" style="background:#f0fdf4;">F</th>
+                    <th class="center" style="background:#fef2f2; font-size:11px;" title="Probabilidad (1-5)">P</th>
+                    <th class="center" style="background:#fef2f2; font-size:11px;" title="Severidad (1-5)">S</th>
+                    <th class="center" style="background:#fef2f2; font-size:11px;" title="Beneficio (1-5)">B</th>
+                    <th class="center" style="background:#f0fdf4; font-size:11px;" title="Expectativa (1-4)">E</th>
+                    <th class="center" style="background:#f0fdf4; font-size:11px;" title="Consenso (1-4)">C</th>
+                    <th class="center" style="background:#f0fdf4; font-size:11px;" title="Cobertura de grupos (1-4)">F</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -915,10 +913,11 @@
               <div id="plotLegacyRankingReport" class="plot plot-print"></div>
             </div>
 
-            <h3 class="mt-16">2.2. Ponderadores P/S/B por tema</h3>
+            <h3 class="mt-16">2.2. Ponderadores por tema (Metodología Clásica)</h3>
+            <p class="muted small" style="margin-bottom:8px;">Impacto: P = Probabilidad · S = Severidad · B = Beneficio (escala 1–5) &nbsp;·&nbsp; Expectativas: E = Expectativa · C = Consenso · F = Cobertura grupos (escala 1–4).</p>
             <div class="table-wrap">
               <table class="styled-table" id="tableReportPsb" style="width:100%; font-size:11px;">
-                <thead><tr><th>Código</th><th>Tema</th><th>P imp.</th><th>S</th><th>P neg.</th><th>B</th></tr></thead>
+                <thead><tr><th>Código</th><th>Tema</th><th>P</th><th>S</th><th>B</th><th>E</th><th>C</th><th>F</th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
@@ -1397,6 +1396,6 @@
   <datalist id="listRol"></datalist>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="assets/js/app.js?v=57"></script>
+  <script src="assets/js/app.js?v=58"></script>
 </body>
 </html>
