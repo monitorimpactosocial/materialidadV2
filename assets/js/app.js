@@ -1974,9 +1974,9 @@ function computeScores(db) {
       { x: xZ1, y: axisY1, text: "<b>IMP. BAJO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#b91c1c" } },
       { x: xZ2, y: axisY1, text: "<b>IMP. MEDIO</b>", xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#d97706" } },
       { x: xZ3, y: axisY1, text: "<b>IMP. ALTO</b>",  xanchor: "center", yanchor: "top", showarrow: false, font: { size: 10, color: "#059669" } },
-      { x: axisX0 + xSpan * 0.01, y: yZ1, text: "<b>EXP. BAJA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#b91c1c" } },
-      { x: axisX0 + xSpan * 0.01, y: yZ2, text: "<b>EXP. MEDIA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#d97706" } },
-      { x: axisX0 + xSpan * 0.01, y: yZ3, text: "<b>EXP. ALTA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#059669" } },
+      { x: axisX0 + theorMaxX * 0.01, y: yZ1, text: "<b>EXP. BAJA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#b91c1c" } },
+      { x: axisX0 + theorMaxX * 0.01, y: yZ2, text: "<b>EXP. MEDIA</b>", textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#d97706" } },
+      { x: axisX0 + theorMaxX * 0.01, y: yZ3, text: "<b>EXP. ALTA</b>",  textangle: -90, xanchor: "left", yanchor: "middle", showarrow: false, font: { size: 9, color: "#059669" } },
     ];
 
     const layout = {
