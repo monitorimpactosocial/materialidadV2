@@ -12,41 +12,9 @@
   const LEGACY_APP_KEY = "materialidad_instrument_app_v1";
   const SYNC_QUEUE_KEY = "materialidad_instrument_sync_queue_v1";
   const SNAPSHOTS_KEY = "materialidad_result_snapshots_v1";
-  const PSB_CONFIGS_KEY = "materialidad_psb_configs_v1";
   const FULL_CONFIGS_KEY = "materialidad_full_configs_v1";
   const CURRENT_SCHEMA_VERSION = 3;
 
-  // Configuraciones P/S/B incorporadas (no editables, siempre disponibles)
-  const PSB_BUILTIN_CONFIGS = [
-    {
-      id: "suggested",
-      name: "Valores sugeridos (automáticos)",
-      builtin: true,
-      description: "Borra todos los ajustes manuales; P/S/B se derivan de la evaluación interna.",
-      values: {},   // vacío = limpiar overrides
-    },
-    {
-      id: "excel_2021",
-      name: "Histórico Excel 2021",
-      builtin: true,
-      description: "P/S/B tomados de la Matriz de Materialidad v00 del 17/01/2021.",
-      values: {
-        P01: { p:5, s:3, b:4 },
-        P05: { p:5, s:5, b:5 },
-        P07: { p:5, s:4, b:5 },
-        P09: { p:5, s:5, b:5 },
-        P10: { p:5, s:4, b:5 },
-        P12: { p:5, s:5, b:5 },
-        P16: { p:3, s:2, b:4 },
-        P17: { p:4, s:2, b:4 },
-        P19: { p:5, s:3, b:5 },
-        P20: { p:3, s:2, b:3 },
-        P21: { p:4, s:3, b:5 },
-        P24: { p:5, s:3, b:5 },
-        P25: { p:4, s:3, b:4 },
-      },
-    },
-  ];
   const DATA = {
     topics: [],
     scale: [],
@@ -1351,180 +1319,6 @@ function ensureDB() {
   }
 
   // ---------------------------------------------------------------------------
-  // Configuraciones P/S/B (presets + guardadas por el usuario)
-  // ---------------------------------------------------------------------------
-  function loadPsbConfigs() {
-    try { return JSON.parse(localStorage.getItem(PSB_CONFIGS_KEY) || "[]"); }
-    catch { return []; }
-  }
-
-  function persistPsbConfigs(configs) {
-    localStorage.setItem(PSB_CONFIGS_KEY, JSON.stringify(configs));
-  }
-
-  function getAllPsbConfigs() {
-    return [...PSB_BUILTIN_CONFIGS, ...loadPsbConfigs()];
-  }
-
-  function getPsbConfig(id) {
-    return getAllPsbConfigs().find((c) => c.id === id) || null;
-  }
-
-  // Lee los valores P/S/B actuales de la tabla y los devuelve como objeto {tema_id:{p,s,b}}
-  function captureCurrentPsbValues(db) {
-    const rows = db.legacyMatrix && db.legacyMatrix.rowsByTheme ? db.legacyMatrix.rowsByTheme : {};
-    const values = {};
-    for (const [tid, row] of Object.entries(rows)) {
-      if (row.p !== null || row.s !== null || row.b !== null) {
-        values[tid] = { p: row.p, s: row.s, b: row.b };
-      }
-    }
-    return values;
-  }
-
-  function applyPsbConfig(configId, db) {
-    const cfg = getPsbConfig(configId);
-    if (!cfg) return;
-    const rows = db.legacyMatrix && db.legacyMatrix.rowsByTheme ? db.legacyMatrix.rowsByTheme : {};
-    // Primero limpia todos los overrides P/S/B
-    for (const tid of Object.keys(rows)) {
-      rows[tid] = { ...rows[tid], p: null, s: null, b: null };
-    }
-    // Aplica los valores de la configuración
-    for (const [tid, vals] of Object.entries(cfg.values || {})) {
-      if (!rows[tid]) rows[tid] = {};
-      rows[tid] = { ...rows[tid], p: vals.p ?? null, s: vals.s ?? null, b: vals.b ?? null };
-    }
-    db.legacyMatrix.rowsByTheme = rows;
-    saveDB(db);
-  }
-
-  function saveCurrentAsPsbConfig(name, db, editingId) {
-    const configs = loadPsbConfigs();
-    const dateStr = new Date().toLocaleDateString("es-CL");
-    const finalName = name || `Configuración ${dateStr}`;
-    const id = editingId || "psb_" + Date.now();
-    const values = captureCurrentPsbValues(db);
-    const entry = {
-      id,
-      name: finalName,
-      builtin: false,
-      savedAt: new Date().toISOString(),
-      description: `Guardada el ${dateStr}`,
-      values,
-    };
-    const idx = configs.findIndex((c) => c.id === id);
-    if (idx >= 0) configs[idx] = entry;
-    else configs.unshift(entry);
-    if (configs.length > 50) configs.length = 50;
-    persistPsbConfigs(configs);
-    return entry;
-  }
-
-  function deletePsbConfig(id) {
-    const configs = loadPsbConfigs().filter((c) => c.id !== id);
-    persistPsbConfigs(configs);
-  }
-
-  function renderPsbConfigSelect() {
-    const sel = document.getElementById("psbConfigSelect");
-    if (!sel) return;
-    const all = getAllPsbConfigs();
-    const prev = sel.value;
-    sel.innerHTML = `<option value="">— Seleccionar configuración —</option>`;
-    const builtinGroup = document.createElement("optgroup");
-    builtinGroup.label = "Predefinidas";
-    const userGroup = document.createElement("optgroup");
-    userGroup.label = "Guardadas por usuario";
-    let hasUser = false;
-    for (const cfg of all) {
-      const opt = document.createElement("option");
-      opt.value = cfg.id;
-      const tag = cfg.savedAt ? ` · ${new Date(cfg.savedAt).toLocaleDateString("es-CL")}` : "";
-      opt.textContent = cfg.name + tag;
-      opt.title = cfg.description || "";
-      if (cfg.builtin) builtinGroup.appendChild(opt);
-      else { userGroup.appendChild(opt); hasUser = true; }
-    }
-    sel.appendChild(builtinGroup);
-    if (hasUser) sel.appendChild(userGroup);
-    if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
-
-    // Mostrar/ocultar botón eliminar según si la selección es editable
-    const btnDel = document.getElementById("btnDeletePsbConfig");
-    if (btnDel) btnDel.style.display = "none";
-  }
-
-  function hookPsbConfigs() {
-    const sel = document.getElementById("psbConfigSelect");
-    if (!sel) return;
-
-    renderPsbConfigSelect();
-
-    sel.addEventListener("change", () => {
-      const cfgId = sel.value;
-      const btnDel = document.getElementById("btnDeletePsbConfig");
-      const cfg = cfgId ? getPsbConfig(cfgId) : null;
-      if (btnDel) btnDel.style.display = (cfg && !cfg.builtin) ? "" : "none";
-
-      // Mostrar descripción
-      const desc = document.getElementById("psbConfigDesc");
-      if (desc) desc.textContent = (cfg && cfg.description) ? cfg.description : "";
-    });
-
-    document.getElementById("btnApplyPsbConfig").addEventListener("click", () => {
-      const cfgId = sel.value;
-      if (!cfgId) { alert("Seleccione una configuración primero."); return; }
-      const cfg = getPsbConfig(cfgId);
-      const nValues = Object.keys(cfg.values || {}).length;
-      const label = nValues === 0
-        ? "Esto borrará todos los ajustes manuales de P/S/B."
-        : `Esto reemplazará los valores P/S/B con los de "${cfg.name}" (${nValues} temas).`;
-      if (!confirm(`${label}\n¿Continuar?`)) return;
-      const db = ensureDB();
-      applyPsbConfig(cfgId, db);
-      renderLegacyView(db);
-      if (document.getElementById("view-report").classList.contains("active")) {
-        renderDashboard(db); renderReport(db);
-      }
-    });
-
-    document.getElementById("btnSavePsbConfig").addEventListener("click", () => {
-      const name = prompt("Nombre para esta configuración de ponderadores:", `Configuración ${new Date().toLocaleDateString("es-CL")}`);
-      if (name === null) return;   // cancelado
-      const db = ensureDB();
-      const entry = saveCurrentAsPsbConfig(name.trim() || null, db, null);
-      renderPsbConfigSelect();
-      sel.value = entry.id;
-      sel.dispatchEvent(new Event("change"));
-      alert(`Configuración "${entry.name}" guardada.`);
-    });
-
-    document.getElementById("btnSavePsbConfigAs").addEventListener("click", () => {
-      const baseName = sel.value ? (getPsbConfig(sel.value)?.name || "") : "";
-      const name = prompt("Guardar como nueva configuración (nombre):", baseName ? `${baseName} (copia)` : `Configuración ${new Date().toLocaleDateString("es-CL")}`);
-      if (name === null) return;
-      const db = ensureDB();
-      const entry = saveCurrentAsPsbConfig(name.trim() || null, db, null);
-      renderPsbConfigSelect();
-      sel.value = entry.id;
-      sel.dispatchEvent(new Event("change"));
-      alert(`Guardada como nueva configuración: "${entry.name}".`);
-    });
-
-    document.getElementById("btnDeletePsbConfig").addEventListener("click", () => {
-      const cfgId = sel.value;
-      const cfg = cfgId ? getPsbConfig(cfgId) : null;
-      if (!cfg || cfg.builtin) return;
-      if (!confirm(`¿Eliminar la configuración "${cfg.name}"?`)) return;
-      deletePsbConfig(cfgId);
-      renderPsbConfigSelect();
-      sel.value = "";
-      sel.dispatchEvent(new Event("change"));
-    });
-  }
-
-  // ---------------------------------------------------------------------------
   // Cálculo de indicadores
   // ---------------------------------------------------------------------------
   function computeStakeholderByTheme(db, editionId) {
@@ -2706,7 +2500,7 @@ function computeScores(db) {
 
     // render específico según vista
     const db = ensureDB();
-    if (viewName === "legacy") { renderLegacyView(db); renderPsbConfigSelect(); }
+    if (viewName === "legacy") { renderLegacyView(db); }
     if (viewName === "compiled") renderCompiledDataView(db);
     if (viewName === "doblemat") renderDobleMatView(db);
     if (viewName === "report") { renderDashboard(db); renderReport(db); }
@@ -4357,7 +4151,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     renderExternalLog(db);
     renderInternalLog(db);
     if (document.getElementById("view-doblemat").classList.contains("active")) renderDobleMatView(db);
-    if (document.getElementById("view-legacy").classList.contains("active")) { renderLegacyView(db); renderPsbConfigSelect(); }
+    if (document.getElementById("view-legacy").classList.contains("active")) { renderLegacyView(db); }
     if (document.getElementById("view-compiled").classList.contains("active")) renderCompiledDataView(db);
     if (document.getElementById("view-report").classList.contains("active")) { renderDashboard(db); renderReport(db); }
   }
@@ -5732,7 +5526,6 @@ if (db.internalAssessments && db.internalAssessments.length > 0) {
     hookExternalForm();
     hookInternalForm();
     hookLegacyView();
-    hookPsbConfigs();
     hookCompiledDataView();
     hookAdmin();
     hookShortcuts();
