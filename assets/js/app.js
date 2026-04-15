@@ -1611,9 +1611,10 @@ function computeScores(db) {
       ]);
 
       const psbDef = DEFAULT_PSB[tid] || { p: 5, s: 5, b: 5 };
-      const p = manual.p !== null ? manual.p : (pSuggested !== null ? pSuggested : psbDef.p);
-      const s = manual.s !== null ? manual.s : (sSuggested !== null ? sSuggested : psbDef.s);
-      const b = manual.b !== null ? manual.b : (bSuggested !== null ? bSuggested : psbDef.b);
+      // P/S/B: el DEFAULT (Excel 2026) es la base configurada; pSuggested es sólo referencia
+      const p = manual.p !== null ? manual.p : psbDef.p;
+      const s = manual.s !== null ? manual.s : psbDef.s;
+      const b = manual.b !== null ? manual.b : psbDef.b;
 
       const ecfDef = DEFAULT_ECF[tid] || { e: 4, c: 4, f: 4 };
       const eComputed = scaleRating5ToLegacy4(stakeholderMean);
@@ -4207,11 +4208,19 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     const configBody = document.querySelector("#tableReportConfig tbody");
     if (configBody) {
       const p = params;
-      const psbRows = DATA.topics.map((t) => {
-        const row = getLegacyMatrixRow(db, t.tema_id);
-        const legRow = (legacy.rows || []).find(r => r.tema_id === t.tema_id) || {};
-        return { id: t.tema_id, nombre: t.tema_nombre, p: legRow.p, s: legRow.s, b: legRow.b, e: legRow.e, c: legRow.c, f: legRow.f };
-      }).filter(r => r.p !== null || r.s !== null || r.b !== null || r.e !== null || r.c !== null || r.f !== null);
+      // Tabla PSB: mostrar todos los temas de legacy.rows con valores enteros
+      const materialTids = new Set((legacy.displayRows || []).map(r => r.tema_id));
+      const psbRows = (legacy.rows || []).map((legRow) => ({
+        id: legRow.tema_id,
+        nombre: legRow.tema_nombre,
+        p: legRow.p !== null ? Math.round(legRow.p) : null,
+        s: legRow.s !== null ? Math.round(legRow.s) : null,
+        b: legRow.b !== null ? Math.round(legRow.b) : null,
+        e: legRow.e !== null ? Math.round(legRow.e) : null,
+        c: legRow.c !== null ? Math.round(legRow.c) : null,
+        f: legRow.f !== null ? Math.round(legRow.f) : null,
+        isMaterial: materialTids.has(legRow.tema_id),
+      })).filter(r => r.p !== null || r.s !== null || r.b !== null || r.e !== null || r.c !== null || r.f !== null);
       configBody.innerHTML = [
         `<tr><td><strong>Umbral Materialidad (τ Mat)</strong></td><td>${fmt(p.tauMaterial, 2)}</td></tr>`,
         `<tr><td><strong>Umbral Impacto (τ Imp)</strong></td><td>${fmt(p.tauImpact, 2)}</td></tr>`,
@@ -4225,7 +4234,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       const psbBody = document.querySelector("#tableReportPsb tbody");
       if (psbBody && psbRows.length) {
         psbBody.innerHTML = psbRows.map(r =>
-          `<tr><td>${escapeHTML(r.id)}</td><td>${escapeHTML(r.nombre)}</td><td class="right">${r.p ?? "–"}</td><td class="right">${r.s ?? "–"}</td><td class="right">${r.b ?? "–"}</td><td class="right">${r.e ?? "–"}</td><td class="right">${r.c ?? "–"}</td><td class="right">${r.f ?? "–"}</td></tr>`
+          `<tr${r.isMaterial ? ' style="background:#f0fdf4;"' : ""}><td>${escapeHTML(r.id)}</td><td>${escapeHTML(r.nombre)}</td><td class="right">${r.p ?? "–"}</td><td class="right">${r.s ?? "–"}</td><td class="right">${r.b ?? "–"}</td><td class="right">${r.e ?? "–"}</td><td class="right">${r.c ?? "–"}</td><td class="right">${r.f ?? "–"}</td></tr>`
         ).join("");
       }
     }
