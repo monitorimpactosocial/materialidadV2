@@ -1908,6 +1908,36 @@ function computeScores(db) {
     const interest = allValid.filter((r) => !r.is_legacy_material && (r.above_tau_ext || r.above_tau_int));
     const rest = allValid.filter((r) => !r.is_legacy_material && !r.above_tau_ext && !r.above_tau_int);
 
+    // ── Jitter: calcular ANTES de las trazas ──────────────────────
+    const allX = allValid.map((r) => r.significancia);
+    const allY = allValid.map((r) => r.expectativas_total);
+    const dataXMin = Math.min(...allX);
+    const dataXMax = Math.max(...allX);
+    const dataYMin = Math.min(...allY);
+    const dataYMax = Math.max(...allY);
+    const xSpan = dataXMax - dataXMin || 10;
+    const ySpan = dataYMax - dataYMin || 5;
+    const jRadius = Math.min(xSpan, ySpan) * 0.045;
+    const coordBuckets = new Map();
+    allValid.forEach((r) => {
+      const key = `${r.significancia}|${r.expectativas_total}`;
+      if (!coordBuckets.has(key)) coordBuckets.set(key, []);
+      coordBuckets.get(key).push(r.tema_id);
+    });
+    const jitterMap = new Map();
+    coordBuckets.forEach((tids) => {
+      const n = tids.length;
+      tids.forEach((tid, idx) => {
+        if (n === 1) { jitterMap.set(tid, { dx: 0, dy: 0 }); return; }
+        const ring = Math.floor(idx / 8);
+        const posInRing = idx % 8;
+        const ringCount = Math.min(n - ring * 8, 8);
+        const angle = (2 * Math.PI * posInRing) / ringCount - Math.PI / 2;
+        const jrr = jRadius * (1 + ring * 0.7);
+        jitterMap.set(tid, { dx: jrr * Math.cos(angle), dy: jrr * Math.sin(angle) });
+      });
+    });
+
     const traces = [];
     const jx = (r) => r.significancia + (jitterMap.get(r.tema_id)?.dx || 0);
     const jy = (r) => r.expectativas_total + (jitterMap.get(r.tema_id)?.dy || 0);
@@ -1963,42 +1993,11 @@ function computeScores(db) {
       });
     }
 
-    // Ejes ajustados al rango de datos con margen del 12%
-    const allX = allValid.map((r) => r.significancia);
-    const allY = allValid.map((r) => r.expectativas_total);
-    const dataXMin = Math.min(...allX);
-    const dataXMax = Math.max(...allX);
-    const dataYMin = Math.min(...allY);
-    const dataYMax = Math.max(...allY);
-    const xSpan = dataXMax - dataXMin || 10;
-    const ySpan = dataYMax - dataYMin || 5;
+    // Ejes ajustados al rango de datos con margen del 18%
     const axisX0 = Math.max(0, dataXMin - xSpan * 0.18);
     const axisX1 = dataXMax + xSpan * 0.18;
     const axisY0 = Math.max(0, dataYMin - ySpan * 0.18);
     const axisY1 = dataYMax + ySpan * 0.18;
-
-    // Jitter para puntos con coordenadas exactamente iguales
-    // Se agrupan y se dispersan en círculo para que todos sean visibles
-    const jRadius = Math.min(xSpan, ySpan) * 0.045;
-    const coordBuckets = new Map();
-    allValid.forEach((r) => {
-      const key = `${r.significancia}|${r.expectativas_total}`;
-      if (!coordBuckets.has(key)) coordBuckets.set(key, []);
-      coordBuckets.get(key).push(r.tema_id);
-    });
-    const jitterMap = new Map();
-    coordBuckets.forEach((tids) => {
-      const n = tids.length;
-      tids.forEach((tid, idx) => {
-        if (n === 1) { jitterMap.set(tid, { dx: 0, dy: 0 }); return; }
-        const ring = Math.floor(idx / 8);
-        const posInRing = idx % 8;
-        const ringCount = Math.min(n - ring * 8, 8);
-        const angle = (2 * Math.PI * posInRing) / ringCount - Math.PI / 2;
-        const r = jRadius * (1 + ring * 0.7);
-        jitterMap.set(tid, { dx: r * Math.cos(angle), dy: r * Math.sin(angle) });
-      });
-    });
 
     // Rectángulos de fondo coloreados: 3×3 = 9 zonas
     // Gradiente de rojo (bajo-bajo) a verde (alto-alto) en diagonal
