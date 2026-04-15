@@ -1700,21 +1700,15 @@ function computeScores(db) {
     const tauExt = Number(params.tauLegacyExternal !== undefined ? params.tauLegacyExternal : DEFAULT_PARAMS.tauLegacyExternal);
     const tauInt = Number(params.tauLegacyInternal !== undefined ? params.tauLegacyInternal : DEFAULT_PARAMS.tauLegacyInternal);
 
-    // Cuadrantes: terciles de los datos observados (P33 y P66)
-    const percentile = (arr, p) => {
-      if (!arr.length) return 0;
-      const s = [...arr].sort((a, b) => a - b);
-      const k = (s.length - 1) * p;
-      const lo = Math.floor(k);
-      const hi = Math.ceil(k);
-      return lo === hi ? s[lo] : s[lo] + (s[hi] - s[lo]) * (k - lo);
-    };
-    const validSig = valid.map((r) => r.significancia).filter((v) => v !== null);
-    const validExp = valid.map((r) => r.expectativas_total).filter((v) => v !== null);
-    const impactThirdLow = percentile(validSig, 0.33);
-    const impactThirdHigh = percentile(validSig, 0.66);
-    const expectThirdLow = percentile(validExp, 0.33);
-    const expectThirdHigh = percentile(validExp, 0.66);
+    // Cuadrantes: terciles fijos basados en el máximo teórico de cada eje
+    // Significancia max teórico = 50 (P×S + P×B con P=S=B=5)
+    // Expectativas max teórico = 12 × factor (E+C+F con E=C=F=4 × factor)
+    const theorMaxImpact = 50;
+    const theorMaxExpect = 12 * safeFactor;
+    const impactThirdLow  = theorMaxImpact / 3;
+    const impactThirdHigh = (theorMaxImpact * 2) / 3;
+    const expectThirdLow  = theorMaxExpect / 3;
+    const expectThirdHigh = (theorMaxExpect * 2) / 3;
 
     rows.forEach((row) => {
       row.above_tau_ext = row.stakeholder_mean !== null && row.stakeholder_mean >= tauExt;
