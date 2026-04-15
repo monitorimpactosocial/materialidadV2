@@ -1944,38 +1944,7 @@ function computeScores(db) {
     const hover = (r) => `${r.tema_id} · ${r.tema_nombre}`;
     const hoverTpl = (suffix) => `<b>%{customdata}</b><br>Significancia: %{meta[0]:.1f}<br>Expectativas: %{meta[1]:.1f}${suffix}<extra></extra>`;
 
-    if (rest.length) {
-      traces.push({
-        x: rest.map(jx),
-        y: rest.map(jy),
-        meta: rest.map((r) => [r.significancia, r.expectativas_total]),
-        text: rest.map((r) => r.tema_id),
-        customdata: rest.map(hover),
-        mode: "markers+text",
-        type: "scatter",
-        name: "Sin prioridad",
-        textposition: "top center",
-        textfont: { size: 7, color: "#9ca3af" },
-        marker: { size: 8, color: "#d1d5db", opacity: 0.6, line: { width: 1, color: "#ffffff" } },
-        hovertemplate: hoverTpl(""),
-      });
-    }
-    if (interest.length) {
-      traces.push({
-        x: interest.map(jx),
-        y: interest.map(jy),
-        meta: interest.map((r) => [r.significancia, r.expectativas_total]),
-        text: interest.map((r) => r.tema_id),
-        customdata: interest.map(hover),
-        mode: "markers+text",
-        type: "scatter",
-        name: "De interés",
-        textposition: "top center",
-        textfont: { size: 8, color: "#92400e" },
-        marker: { size: 14, color: "#f59e0b", opacity: 0.85, line: { width: 1.5, color: "#ffffff" } },
-        hovertemplate: hoverTpl("<br>(supera umbral en una dimensión)"),
-      });
-    }
+    // Solo se grafican los temas materiales (puntos verdes)
     if (mat.length) {
       traces.push({
         x: mat.map(jx),
