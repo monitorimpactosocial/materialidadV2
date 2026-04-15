@@ -1956,11 +1956,14 @@ function computeScores(db) {
       });
     }
 
-    // Ejes ajustados al rango de datos con margen del 18%
-    const axisX0 = Math.max(0, dataXMin - xSpan * 0.18);
-    const axisX1 = dataXMax + xSpan * 0.18;
-    const axisY0 = Math.max(0, dataYMin - ySpan * 0.18);
-    const axisY1 = dataYMax + ySpan * 0.18;
+    // Ejes fijos sobre el rango teórico completo: X = [0, 50], Y = [0, 12×factor]
+    // Las áreas coloreadas quedan perfectamente delimitadas por los tercios fijos.
+    const theorMaxX = 50;
+    const theorMaxY = 12 * legacy.factor;
+    const axisX0 = 0;
+    const axisX1 = theorMaxX + theorMaxX * 0.04;   // pequeño margen derecho
+    const axisY0 = 0;
+    const axisY1 = theorMaxY + theorMaxY * 0.04;   // pequeño margen superior
 
     // Rectángulos de fondo coloreados: 3×3 = 9 zonas
     // Gradiente de rojo (bajo-bajo) a verde (alto-alto) en diagonal
