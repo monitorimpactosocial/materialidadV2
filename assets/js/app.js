@@ -4472,6 +4472,229 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     })));
   }
 
+  // ─────────────────────────────────────────────────────────────
+  //  Exportación completa a Excel (.xlsx) — multi-hoja
+  // ─────────────────────────────────────────────────────────────
+  function exportFullExcel(db) {
+    if (typeof XLSX === "undefined") {
+      alert("La librería de Excel no está disponible. Verifica tu conexión a internet e intenta de nuevo.");
+      return;
+    }
+
+    const params  = getParams(db);
+    const edition = (db.editions || []).find((e) => e.id === db.currentEditionId) || {};
+    const prefix  = (edition.name || db.currentEditionId || "materialidad").replace(/\s+/g, "_");
+    const { rows: scoreRows, stake, internal } = computeScores(db);
+    const legacy  = computeLegacyMatrix(db);
+    const externalRows  = (db.externalResponses  || []).filter((x) => x.editionId === db.currentEditionId);
+    const internalRows  = (db.internalAssessments|| []).filter((x) => x.editionId === db.currentEditionId);
+
+    const wb = XLSX.utils.book_new();
+
+    // ── Hoja 1: Resumen ──────────────────────────────────────────
+    const nDouble  = scoreRows.filter((r) => r.double_mat && r.impact_mat && r.fin_mat).length;
+    const nImpOnly = scoreRows.filter((r) => r.impact_mat && !r.fin_mat).length;
+    const nFinOnly = scoreRows.filter((r) => r.fin_mat   && !r.impact_mat).length;
+    const nNone    = scoreRows.filter((r) => !r.impact_mat && !r.fin_mat).length;
+
+    const wsResumen = XLSX.utils.aoa_to_sheet([
+      ["DIAGNÓSTICO DE DOBLE MATERIALIDAD — PARACEL S.A."],
+      [],
+      ["Edición analizada",          edition.name || db.currentEditionId],
+      ["Fecha de generación",        new Date().toLocaleDateString("es-CL")],
+      ["Regla de doble materialidad",params.ruleDouble],
+      ["Umbral Impacto (τ)",         params.tauImpact],
+      ["Umbral Financiero (τ)",      params.tauFin],
+      ["Umbral Materialidad simple", params.tauMaterial],
+      [],
+      ["RESULTADOS"],
+      ["Encuestas externas (N)",     externalRows.length],
+      ["Evaluaciones internas (N)",  internalRows.length],
+      ["Temas totales",              scoreRows.length],
+      ["Doble materialidad",         nDouble],
+      ["Solo materialidad de impacto", nImpOnly],
+      ["Solo materialidad financiera", nFinOnly],
+      ["No materiales",              nNone],
+    ]);
+    XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
+
+    // ── Hoja 2: Parámetros ───────────────────────────────────────
+    const wParamRows = [
+      ["Parámetro", "Valor"],
+      ["Regla de doble materialidad",                       params.ruleDouble],
+      ["Umbral Impacto (τ_impacto)",                        params.tauImpact],
+      ["Umbral Financiero (τ_fin)",                         params.tauFin],
+      ["Umbral materialidad simple (τ_material)",           params.tauMaterial],
+      ["Umbral clásica — Expectativas externas",            params.tauLegacyExternal],
+      ["Umbral clásica — Significancia interna",            params.tauLegacyInternal],
+      ["Ponderación stakeholders por N (vs. igual por grupo)", params.stakeWeightByN ? "Sí" : "No"],
+      ["Filtro grupo de interés",                           params.groupFilter || "TODOS"],
+      ["Factor expectativas (clásica)",                     params.legacyExpectationFactor],
+      [],
+      ["PESOS — Impacto ASG", ""],
+      ["  Severidad",          params.wImpact.severidad],
+      ["  Alcance",            params.wImpact.alcance],
+      ["  Irremediabilidad",   params.wImpact.irremediabilidad],
+      ["  Probabilidad",       params.wImpact.probabilidad],
+      [],
+      ["PESOS — Impacto Financiero", ""],
+      ["  Impacto financiero",        params.wFin.impacto_financiero],
+      ["  Probabilidad financiera",   params.wFin.probabilidad_financiera],
+      [],
+      ["PESOS — P (Metodología Clásica)", ""],
+      ["  Probabilidad social",        (params.legacyPWeights || DEFAULT_PARAMS.legacyPWeights).probabilidad],
+      ["  Probabilidad financiera",    (params.legacyPWeights || DEFAULT_PARAMS.legacyPWeights).probabilidad_financiera],
+      [],
+      ["PESOS — S (Metodología Clásica)", ""],
+      ["  Severidad",                  (params.legacySWeights || DEFAULT_PARAMS.legacySWeights).severidad],
+      ["  Alcance",                    (params.legacySWeights || DEFAULT_PARAMS.legacySWeights).alcance],
+      ["  Irremediabilidad",           (params.legacySWeights || DEFAULT_PARAMS.legacySWeights).irremediabilidad],
+      [],
+      ["PESOS — B (Metodología Clásica)", ""],
+      ["  Impacto financiero",         (params.legacyBWeights || DEFAULT_PARAMS.legacyBWeights).financiero],
+      ["  Relevancia externa",         (params.legacyBWeights || DEFAULT_PARAMS.legacyBWeights).relevancia_externa],
+    ];
+    const wsParams = XLSX.utils.aoa_to_sheet(wParamRows);
+    XLSX.utils.book_append_sheet(wb, wsParams, "Parámetros");
+
+    // ── Hoja 3: Temas Materiales ─────────────────────────────────
+    const tipoLabel = (r) => {
+      if (r.impact_mat && r.fin_mat)  return "Doble materialidad";
+      if (r.impact_mat && !r.fin_mat) return "Solo impacto";
+      if (!r.impact_mat && r.fin_mat) return "Solo financiero";
+      return "No material";
+    };
+    const wsTemas = XLSX.utils.json_to_sheet(scoreRows.map((r) => ({
+      "Código":                   r.tema_id,
+      "Tema":                     r.tema_nombre,
+      "Score Stakeholders":       r.stakeholder_mean !== null ? +r.stakeholder_mean.toFixed(3) : "",
+      "N Encuestas":              r.stakeholder_n,
+      "% ≥4 (Top2Box)":          r.p_ge4 !== null ? +(r.p_ge4 * 100).toFixed(1) : "",
+      "Score Impacto ASG":        r.impact_score !== null ? +r.impact_score.toFixed(3) : "",
+      "Score Financiero":         r.fin_score !== null ? +r.fin_score.toFixed(3) : "",
+      "Mat. Impacto (≥τ)":       r.impact_mat ? "Sí" : "No",
+      "Mat. Financiero (≥τ)":    r.fin_mat ? "Sí" : "No",
+      "Doble Materialidad":       r.double_mat ? "Sí" : "No",
+      "Tipo":                     tipoLabel(r),
+    })));
+    XLSX.utils.book_append_sheet(wb, wsTemas, "Temas_Materiales");
+
+    // ── Hoja 4: Externos Resumen ─────────────────────────────────
+    const wsExtRes = XLSX.utils.json_to_sheet(externalRows.map((x) => ({
+      "ID":           x.id,
+      "Fecha/Hora":   x.ts,
+      "Grupo":        x.grupo,
+      "Sector":       x.sector,
+      "Organización": x.organizacion,
+      "Contacto":     x.contacto,
+      "Percepción":   x.percepcion,
+      "Comentarios":  x.comentarios,
+      "Ítems respondidos": Object.keys(x.ratings || {}).length,
+    })));
+    XLSX.utils.book_append_sheet(wb, wsExtRes, "Externos_Resumen");
+
+    // ── Hoja 5: Externos Detalle (una fila por encuesta × tema) ──
+    const wsExtDet = XLSX.utils.json_to_sheet(externalRows.flatMap((x) =>
+      DATA.topics.map((t) => ({
+        "ID":           x.id,
+        "Fecha/Hora":   x.ts,
+        "Grupo":        x.grupo,
+        "Organización": x.organizacion,
+        "Código Tema":  t.tema_id,
+        "Tema":         t.tema_nombre,
+        "Rating (1-5)": x.ratings && x.ratings[t.tema_id] !== undefined ? x.ratings[t.tema_id] : "",
+      }))
+    ));
+    XLSX.utils.book_append_sheet(wb, wsExtDet, "Externos_Detalle");
+
+    // ── Hoja 6: Internos Resumen ─────────────────────────────────
+    const wsIntRes = XLSX.utils.json_to_sheet(internalRows.map((x) => ({
+      "ID":           x.id,
+      "Fecha/Hora":   x.ts,
+      "Área":         x.area,
+      "Rol":          x.rol,
+      "Comentarios":  x.comentarios,
+      "Temas evaluados": Object.keys(x.table || {}).length,
+    })));
+    XLSX.utils.book_append_sheet(wb, wsIntRes, "Internos_Resumen");
+
+    // ── Hoja 7: Internos Detalle (una fila por evaluación × tema)
+    const wsIntDet = XLSX.utils.json_to_sheet(internalRows.flatMap((x) =>
+      DATA.topics.map((t) => {
+        const row = (x.table || {})[t.tema_id] || {};
+        return {
+          "ID":                    x.id,
+          "Fecha/Hora":            x.ts,
+          "Área":                  x.area,
+          "Rol":                   x.rol,
+          "Código Tema":           t.tema_id,
+          "Tema":                  t.tema_nombre,
+          "Severidad":             row.severidad ?? "",
+          "Alcance":               row.alcance ?? "",
+          "Irremediabilidad":      row.irremediabilidad ?? "",
+          "Probabilidad Social":   row.probabilidad ?? "",
+          "Score Impacto ASG":     row.impacto ?? "",
+          "Impacto Financiero":    row.impacto_financiero ?? "",
+          "Prob. Financiera":      row.probabilidad_financiera ?? "",
+          "Score Financiero":      row.financiero ?? "",
+          "Horizonte":             row.horizonte ?? "",
+        };
+      })
+    ));
+    XLSX.utils.book_append_sheet(wb, wsIntDet, "Internos_Detalle");
+
+    // ── Hoja 8: Matriz Clásica ───────────────────────────────────
+    const wsLegacy = XLSX.utils.json_to_sheet(legacy.rows.map((r) => ({
+      "Código":              r.tema_id,
+      "Tema":                r.tema_nombre,
+      "P (usado)":           r.p !== null ? +Number(r.p).toFixed(3) : "",
+      "S (usado)":           r.s !== null ? +Number(r.s).toFixed(3) : "",
+      "B (usado)":           r.b !== null ? +Number(r.b).toFixed(3) : "",
+      "P origen":            r.p_origen,
+      "S origen":            r.s_origen,
+      "B origen":            r.b_origen,
+      "E (expectativa)":     r.e !== undefined ? r.e : "",
+      "C (consenso)":        r.c !== undefined ? r.c : "",
+      "F (cobertura grupos)":r.f !== undefined ? r.f : "",
+      "Significancia":       r.significancia !== null ? +Number(r.significancia).toFixed(3) : "",
+      "Expectativas Total":  r.expectativas_total !== null ? +Number(r.expectativas_total).toFixed(3) : "",
+      "Prioridad Total":     r.prioridad_total !== null ? +Number(r.prioridad_total).toFixed(3) : "",
+      "Cuadrante":           r.cuadrante || "",
+      "Score Impacto ASG":   r.score_impacto !== null ? +Number(r.score_impacto).toFixed(3) : "",
+      "Score Financiero":    r.score_financiero !== null ? +Number(r.score_financiero).toFixed(3) : "",
+      "Stakeholder Mean":    r.stakeholder_mean !== null ? +Number(r.stakeholder_mean).toFixed(3) : "",
+      "Top2Box (%)":         r.top2box !== null ? +(r.top2box * 100).toFixed(1) : "",
+      "Grupos activos":      r.active_groups_count !== undefined ? r.active_groups_count : "",
+      "Grupos activos (%)":  r.active_groups_share !== null ? +(r.active_groups_share * 100).toFixed(1) : "",
+      "Grupos relacionados": r.grupos_relacionados || "",
+    })));
+    XLSX.utils.book_append_sheet(wb, wsLegacy, "Matriz_Clasica");
+
+    // ── Hoja 9: PSB Ponderadores ─────────────────────────────────
+    const psbRows = DATA.topics.map((t) => {
+      const manual = getLegacyMatrixRow(db, t.tema_id);
+      const legRow = legacy.rows.find((r) => r.tema_id === t.tema_id) || {};
+      return {
+        "Código":      t.tema_id,
+        "Tema":        t.tema_nombre,
+        "P":           legRow.p !== undefined && legRow.p !== null ? +Number(legRow.p).toFixed(3) : "",
+        "S":           legRow.s !== undefined && legRow.s !== null ? +Number(legRow.s).toFixed(3) : "",
+        "B":           legRow.b !== undefined && legRow.b !== null ? +Number(legRow.b).toFixed(3) : "",
+        "P manual":    manual.p !== null ? manual.p : "",
+        "S manual":    manual.s !== null ? manual.s : "",
+        "B manual":    manual.b !== null ? manual.b : "",
+        "P sugerido":  legRow.p_sugerido !== undefined && legRow.p_sugerido !== null ? +Number(legRow.p_sugerido).toFixed(3) : "",
+        "S sugerido":  legRow.s_sugerido !== undefined && legRow.s_sugerido !== null ? +Number(legRow.s_sugerido).toFixed(3) : "",
+        "B sugerido":  legRow.b_sugerido !== undefined && legRow.b_sugerido !== null ? +Number(legRow.b_sugerido).toFixed(3) : "",
+      };
+    });
+    const wsPSB = XLSX.utils.json_to_sheet(psbRows);
+    XLSX.utils.book_append_sheet(wb, wsPSB, "PSB_Ponderadores");
+
+    // ── Descargar ────────────────────────────────────────────────
+    XLSX.writeFile(wb, `${prefix}_materialidad_completo.xlsx`);
+  }
+
   function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
@@ -5125,6 +5348,7 @@ Equipo PARACEL`;
     });
 
     document.getElementById("btnExportReportCSV").addEventListener("click", () => exportCSVPack(ensureDB()));
+    document.getElementById("btnExportExcel").addEventListener("click", () => exportFullExcel(ensureDB()));
 
     const btnMatrix = document.getElementById("btnDownloadMatrixCSV");
     if (btnMatrix) btnMatrix.addEventListener("click", () => {
