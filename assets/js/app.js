@@ -1936,20 +1936,22 @@ function computeScores(db) {
     const axisY1 = theorMaxY + theorMaxY * 0.04;   // pequeño margen superior
 
     // Rectángulos de fondo coloreados: 3×3 = 9 zonas
-    // Gradiente de rojo (bajo-bajo) a verde (alto-alto) en diagonal
+    // Gradiente diagonal: bajo-bajo = más claro, alto-alto = más oscuro.
+    // Opacidad proporcional a (rankX + rankY): rango 2-6 → 0.06 a 0.46
+    const G = (op) => `rgba(5,120,70,${op})`;
     const zoneRects = [
-      // Fila BAJA
-      { type: "rect", x0: axisX0, x1: divX1, y0: axisY0, y1: divY1, fillcolor: "rgba(239,68,68,0.10)", line: { width: 0 }, layer: "below" },
-      { type: "rect", x0: divX1, x1: divX2, y0: axisY0, y1: divY1, fillcolor: "rgba(245,158,11,0.08)", line: { width: 0 }, layer: "below" },
-      { type: "rect", x0: divX2, x1: axisX1, y0: axisY0, y1: divY1, fillcolor: "rgba(234,179,8,0.07)", line: { width: 0 }, layer: "below" },
-      // Fila MEDIA
-      { type: "rect", x0: axisX0, x1: divX1, y0: divY1, y1: divY2, fillcolor: "rgba(245,158,11,0.08)", line: { width: 0 }, layer: "below" },
-      { type: "rect", x0: divX1, x1: divX2, y0: divY1, y1: divY2, fillcolor: "rgba(234,179,8,0.07)", line: { width: 0 }, layer: "below" },
-      { type: "rect", x0: divX2, x1: axisX1, y0: divY1, y1: divY2, fillcolor: "rgba(34,197,94,0.07)", line: { width: 0 }, layer: "below" },
-      // Fila ALTA
-      { type: "rect", x0: axisX0, x1: divX1, y0: divY2, y1: axisY1, fillcolor: "rgba(234,179,8,0.07)", line: { width: 0 }, layer: "below" },
-      { type: "rect", x0: divX1, x1: divX2, y0: divY2, y1: axisY1, fillcolor: "rgba(34,197,94,0.07)", line: { width: 0 }, layer: "below" },
-      { type: "rect", x0: divX2, x1: axisX1, y0: divY2, y1: axisY1, fillcolor: "rgba(5,150,105,0.12)", line: { width: 0 }, layer: "below" },
+      // Fila BAJA  (rankY=1)
+      { type: "rect", x0: axisX0, x1: divX1, y0: axisY0, y1: divY1, fillcolor: G(0.06), line: { width: 0 }, layer: "below" },  // rankX=1 → sum=2
+      { type: "rect", x0: divX1, x1: divX2, y0: axisY0, y1: divY1, fillcolor: G(0.13), line: { width: 0 }, layer: "below" },  // sum=3
+      { type: "rect", x0: divX2, x1: axisX1, y0: axisY0, y1: divY1, fillcolor: G(0.21), line: { width: 0 }, layer: "below" },  // sum=4
+      // Fila MEDIA (rankY=2)
+      { type: "rect", x0: axisX0, x1: divX1, y0: divY1, y1: divY2, fillcolor: G(0.13), line: { width: 0 }, layer: "below" },  // sum=3
+      { type: "rect", x0: divX1, x1: divX2, y0: divY1, y1: divY2, fillcolor: G(0.21), line: { width: 0 }, layer: "below" },  // sum=4
+      { type: "rect", x0: divX2, x1: axisX1, y0: divY1, y1: divY2, fillcolor: G(0.32), line: { width: 0 }, layer: "below" },  // sum=5
+      // Fila ALTA  (rankY=3)
+      { type: "rect", x0: axisX0, x1: divX1, y0: divY2, y1: axisY1, fillcolor: G(0.21), line: { width: 0 }, layer: "below" },  // sum=4
+      { type: "rect", x0: divX1, x1: divX2, y0: divY2, y1: axisY1, fillcolor: G(0.32), line: { width: 0 }, layer: "below" },  // sum=5
+      { type: "rect", x0: divX2, x1: axisX1, y0: divY2, y1: axisY1, fillcolor: G(0.46), line: { width: 0 }, layer: "below" },  // sum=6 (más oscuro)
     ];
 
     // 4 líneas divisoras → 9 zonas (3 columnas × 3 filas)
