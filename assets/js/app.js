@@ -1877,6 +1877,42 @@ function computeScores(db) {
     renderLegacyResultsTable("tableLegacyResults", legacy.sortedValidRows, { showCheckbox: true });
   }
 
+  function applyPointJitter(points, stepX = 0.18, stepY = 0.14) {
+    const groups = new Map();
+    (points || []).forEach((pt, idx) => {
+      const key = `${pt && pt.x}|${pt && pt.y}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(idx);
+    });
+
+    const offsets = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: -1, y: 0 },
+      { x: 0, y: 1 },
+      { x: 0, y: -1 },
+      { x: 1, y: 1 },
+      { x: -1, y: 1 },
+      { x: 1, y: -1 },
+      { x: -1, y: -1 },
+      { x: 2, y: 0 },
+      { x: -2, y: 0 },
+      { x: 0, y: 2 },
+      { x: 0, y: -2 },
+    ];
+
+    const adjusted = points.map((pt) => ({ ...pt }));
+    groups.forEach((idxs) => {
+      if (idxs.length <= 1) return;
+      idxs.forEach((idx, order) => {
+        const base = offsets[order] || { x: (order % 2 === 0 ? 1 : -1) * Math.ceil(order / 4), y: ((order + 1) % 2 === 0 ? 1 : -1) * Math.ceil(order / 4) };
+        adjusted[idx].x = Number(adjusted[idx].x) + base.x * stepX;
+        adjusted[idx].y = Number(adjusted[idx].y) + base.y * stepY;
+      });
+    });
+    return adjusted;
+  }
+
   function renderLegacyMatrixPlot(db, targetId) {
     const target = document.getElementById(targetId);
     if (!target) return;
@@ -1910,10 +1946,17 @@ function computeScores(db) {
 
     // Solo se grafican los temas materiales (puntos verdes)
     if (mat.length) {
+      const materialPoints = applyPointJitter(mat.map((r) => ({
+        x: jx(r),
+        y: jy(r),
+        rawX: r.significancia,
+        rawY: r.expectativas_total,
+      })), 0.35, 0.22);
+
       traces.push({
-        x: mat.map(jx),
-        y: mat.map(jy),
-        meta: mat.map((r) => [r.significancia, r.expectativas_total]),
+        x: materialPoints.map((p) => p.x),
+        y: materialPoints.map((p) => p.y),
+        meta: materialPoints.map((p) => [p.rawX, p.rawY]),
         text: mat.map((r) => r.tema_id),
         customdata: mat.map(hover),
         mode: "markers+text",
@@ -1921,7 +1964,7 @@ function computeScores(db) {
         name: "Material",
         textposition: "top center",
         textfont: { size: 9, color: "#374151" },
-        marker: { size: 20, color: "#059669", opacity: 0.96, line: { width: 2, color: "#ffffff" } },
+        marker: { size: 20, color: "#059669", opacity: 0.74, line: { width: 2, color: "#ffffff" } },
         hovertemplate: hoverTpl("<br>(MATERIAL)"),
       });
     }
@@ -3496,8 +3539,15 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
     const materialRows = rows.filter((r) => r.is_material && r.stakeholder_mean !== null && r.impact_score !== null);
 
-    const x = materialRows.map((r) => r.stakeholder_mean);
-    const y = materialRows.map((r) => r.impact_score);
+    const jitteredPoints = applyPointJitter(materialRows.map((r) => ({
+      x: r.stakeholder_mean,
+      y: r.impact_score,
+      rawX: r.stakeholder_mean,
+      rawY: r.impact_score,
+    })), 0.06, 0.06);
+
+    const x = jitteredPoints.map((p) => p.x);
+    const y = jitteredPoints.map((p) => p.y);
     const hoverText = materialRows.map((r) => `${r.tema_id} · ${r.tema_nombre}`);
     const labelText = materialRows.map((r) => r.tema_id);
 
@@ -3511,14 +3561,15 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
 
     const data = [{
       x, y,
+      meta: jitteredPoints.map((p) => [p.rawX, p.rawY]),
       text: labelText,
       customdata: hoverText,
       mode: "markers+text",
       type: "scatter",
       textposition: "top center",
       textfont: { size: 10, color: "#374151" },
-      marker: { size: 18, color, opacity: 0.9, line: { width: 2, color: "#ffffff" } },
-      hovertemplate: "<b>%{customdata}</b><br>Stakeholders (importancia): %{x:.2f}<br>Impacto ASG (interno): %{y:.2f}<extra></extra>"
+      marker: { size: 18, color, opacity: 0.76, line: { width: 2, color: "#ffffff" } },
+      hovertemplate: "<b>%{customdata}</b><br>Stakeholders (importancia): %{meta[0]:.2f}<br>Impacto ASG (interno): %{meta[1]:.2f}<extra></extra>"
     }];
 
     const layout = {
