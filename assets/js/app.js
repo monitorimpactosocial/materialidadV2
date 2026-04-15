@@ -466,7 +466,8 @@ function sanitizeLegacyYesNo(value) {
 
 function normalizeLegacyMatrixRow(row) {
   return {
-    p: sanitizeBoundedNumber(row && row.p, 1, 5),
+    p_imp: sanitizeBoundedNumber(row && (row.p_imp !== undefined ? row.p_imp : row.p), 1, 5),
+    p_neg: sanitizeBoundedNumber(row && (row.p_neg !== undefined ? row.p_neg : row.p), 1, 5),
     s: sanitizeBoundedNumber(row && row.s, 1, 5),
     b: sanitizeBoundedNumber(row && row.b, 1, 5),
     legislacion: sanitizeLegacyYesNo(row && row.legislacion),
@@ -479,7 +480,7 @@ function normalizeLegacyMatrixRow(row) {
 
 function isLegacyMatrixRowEmpty(row) {
   if (!row) return true;
-  return row.p === null &&
+  return row.p_imp === null && row.p_neg === null &&
     row.s === null &&
     row.b === null &&
     !row.grupos_relacionados &&
@@ -521,7 +522,8 @@ function setLegacyMatrixRow(db, temaId, row) {
 }
 
 function computeLegacyMatrixRow(row, factor) {
-  const p = sanitizeBoundedNumber(row && row.p, 1, 5);
+  const p_imp = sanitizeBoundedNumber(row && row.p_imp, 1, 5);
+  const p_neg = sanitizeBoundedNumber(row && row.p_neg, 1, 5);
   const s = sanitizeBoundedNumber(row && row.s, 1, 5);
   const b = sanitizeBoundedNumber(row && row.b, 1, 5);
   const e = sanitizeBoundedNumber(row && row.e, 1, 4);
@@ -529,8 +531,8 @@ function computeLegacyMatrixRow(row, factor) {
   const f = sanitizeBoundedNumber(row && row.f, 1, 4);
   const expectationFactor = Number(factor);
 
-  const riesgo = p !== null && s !== null ? p * s : null;
-  const oportunidad = p !== null && b !== null ? p * b : null;
+  const riesgo = p_imp !== null && s !== null ? p_imp * s : null;
+  const oportunidad = p_neg !== null && b !== null ? p_neg * b : null;
   const significancia = riesgo !== null && oportunidad !== null ? riesgo + oportunidad : null;
   const madurez = e !== null && c !== null && f !== null ? e + c + f : null;
   const expectativas_total = madurez !== null && isFinite(expectationFactor) && expectationFactor > 0 ? madurez * expectationFactor : null;
@@ -542,7 +544,7 @@ function computeLegacyMatrixRow(row, factor) {
     madurez,
     expectativas_total,
     completa: significancia !== null && expectativas_total !== null,
-    tiene_alguna_carga: [p, s, b, e, c, f].some((v) => v !== null) || !!sanitizeText(row && row.grupos_relacionados, 800),
+    tiene_alguna_carga: [p_imp, p_neg, s, b, e, c, f].some((v) => v !== null) || !!sanitizeText(row && row.grupos_relacionados, 800),
   };
 }
 
@@ -1047,7 +1049,7 @@ function ensureDB() {
     if (!cfg || !cfg.params) return "";
     const p = cfg.params;
     const nPsb = cfg.legacyMatrix && cfg.legacyMatrix.rowsByTheme
-      ? Object.values(cfg.legacyMatrix.rowsByTheme).filter((r) => r.p !== null || r.s !== null || r.b !== null).length
+      ? Object.values(cfg.legacyMatrix.rowsByTheme).filter((r) => r.p_imp !== null || r.p_neg !== null || r.s !== null || r.b !== null).length
       : 0;
     return [
       `tau Mat: ${p.tauMaterial ?? "-"}`,
@@ -1547,10 +1549,8 @@ function computeScores(db) {
       const irremediabilidad = int.subdims && int.subdims.irremediabilidad && int.subdims.irremediabilidad.mean !== null ? int.subdims.irremediabilidad.mean : impactMean;
       const impactoFinanciero = int.subdims && int.subdims.impacto_financiero && int.subdims.impacto_financiero.mean !== null ? int.subdims.impacto_financiero.mean : finMean;
 
-      const pSuggested = weightedAverage([
-        { value: probSocial, weight: legacyPWeights.probabilidad },
-        { value: probFinanciera, weight: legacyPWeights.probabilidad_financiera },
-      ]);
+      const p_imp_sugerido = probSocial;
+      const p_neg_sugerido = probFinanciera;
 
       const sSuggested = weightedAverage([
         { value: severidad, weight: legacySWeights.severidad },
@@ -1563,7 +1563,8 @@ function computeScores(db) {
         { value: stakeholderMean, weight: legacyBWeights.relevancia_externa },
       ]);
 
-      const p = manual.p !== null ? manual.p : pSuggested;
+      const p_imp = manual.p_imp !== null ? manual.p_imp : p_imp_sugerido;
+      const p_neg = manual.p_neg !== null ? manual.p_neg : p_neg_sugerido;
       const s = manual.s !== null ? manual.s : sSuggested;
       const b = manual.b !== null ? manual.b : bSuggested;
 
@@ -1575,7 +1576,7 @@ function computeScores(db) {
       const c = cComputed !== null ? cComputed : ecfDef.c;
       const f = fComputed !== null ? fComputed : ecfDef.f;
 
-      const calc = computeLegacyMatrixRow({ p, s, b, e, c, f, grupos_relacionados: activeGroups.join(", ") }, safeFactor);
+      const calc = computeLegacyMatrixRow({ p_imp, p_neg, s, b, e, c, f, grupos_relacionados: activeGroups.join(", ") }, safeFactor);
 
       return {
         tema_id: topic.tema_id,
@@ -1594,17 +1595,21 @@ function computeScores(db) {
         impacto_financiero: impactoFinanciero,
         score_impacto: impactMean,
         score_financiero: finMean,
-        p_sugerido: pSuggested,
+        p_imp_sugerido: p_imp_sugerido,
+        p_neg_sugerido: p_neg_sugerido,
         s_sugerido: sSuggested,
         b_sugerido: bSuggested,
-        p_manual: manual.p,
+        p_imp_manual: manual.p_imp,
+        p_neg_manual: manual.p_neg,
         s_manual: manual.s,
         b_manual: manual.b,
-        p_origen: manual.p !== null ? "manual" : "sugerido",
+        p_imp_origen: manual.p_imp !== null ? "manual" : "sugerido",
+        p_neg_origen: manual.p_neg !== null ? "manual" : "sugerido",
         s_origen: manual.s !== null ? "manual" : "sugerido",
         b_origen: manual.b !== null ? "manual" : "sugerido",
-        ajustes_manuales: [manual.p, manual.s, manual.b].filter((value) => value !== null).length,
-        p,
+        ajustes_manuales: [manual.p_imp, manual.p_neg, manual.s, manual.b].filter((value) => value !== null).length,
+        p_imp,
+        p_neg,
         s,
         b,
         legislacion: "",
@@ -1705,8 +1710,12 @@ function computeScores(db) {
         <td class="right legacy-computed">${row.top2box === null ? "" : `${fmt(row.top2box * 100, 1)}%`}</td>
         <td class="right legacy-computed">${row.active_groups_share === null ? "" : `${fmt(row.active_groups_share * 100, 1)}%`}</td>
         <td class="legacy-input-cell">
-          <input class="legacy-number ${row.p_manual !== null ? "is-manual" : ""}" data-field="p" type="number" min="1" max="5" step="1" value="${row.p === null ? "" : Math.round(row.p)}" data-suggested="${row.p_sugerido === null ? "" : Math.round(row.p_sugerido)}" />
-          <div class="legacy-suggestion">Sug. ${row.p_sugerido === null ? "N/D" : Math.round(row.p_sugerido)}</div>
+          <input class="legacy-number ${row.p_imp_manual !== null ? "is-manual" : ""}" data-field="p_imp" type="number" min="1" max="5" step="1" value="${row.p_imp === null ? "" : Math.round(row.p_imp)}" data-suggested="${row.p_imp_sugerido === null ? "" : Math.round(row.p_imp_sugerido)}" />
+          <div class="legacy-suggestion">Sug. ${row.p_imp_sugerido === null ? "N/D" : Math.round(row.p_imp_sugerido)}</div>
+        </td>
+        <td class="legacy-input-cell">
+          <input class="legacy-number ${row.p_neg_manual !== null ? "is-manual" : ""}" data-field="p_neg" type="number" min="1" max="5" step="1" value="${row.p_neg === null ? "" : Math.round(row.p_neg)}" data-suggested="${row.p_neg_sugerido === null ? "" : Math.round(row.p_neg_sugerido)}" />
+          <div class="legacy-suggestion">Sug. ${row.p_neg_sugerido === null ? "N/D" : Math.round(row.p_neg_sugerido)}</div>
         </td>
         <td class="legacy-input-cell">
           <input class="legacy-number ${row.s_manual !== null ? "is-manual" : ""}" data-field="s" type="number" min="1" max="5" step="1" value="${row.s === null ? "" : Math.round(row.s)}" data-suggested="${row.s_sugerido === null ? "" : Math.round(row.s_sugerido)}" />
@@ -3200,7 +3209,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         const db = ensureDB();
         const current = getLegacyMatrixRow(db, temaId);
         const next = { ...current };
-        ["p", "s", "b"].forEach((field) => {
+        ["p_imp", "s", "p_neg", "b"].forEach((field) => {
           const input = tr.querySelector(`[data-field="${field}"]`);
           if (!input) return;
           const value = sanitizeBoundedNumber(input.value, 1, 5);
@@ -3249,7 +3258,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
         const temaId = btn.getAttribute("data-reset-legacy-topic");
         const db = ensureDB();
         const current = getLegacyMatrixRow(db, temaId);
-        setLegacyMatrixRow(db, temaId, { ...current, p: null, s: null, b: null });
+        setLegacyMatrixRow(db, temaId, { ...current, p_imp: null, s: null, p_neg: null, b: null });
         saveDB(db);
         refreshLegacy();
       });
@@ -4124,8 +4133,8 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       const p = params;
       const psbRows = DATA.topics.map((t) => {
         const row = getLegacyMatrixRow(db, t.id);
-        return { id: t.id, nombre: t.nombre, p: row.p, s: row.s, b: row.b };
-      }).filter(r => r.p !== null || r.s !== null || r.b !== null);
+        return { id: t.id, nombre: t.nombre, p_imp: row.p_imp, p_neg: row.p_neg, s: row.s, b: row.b };
+      }).filter(r => r.p_imp !== null || r.p_neg !== null || r.s !== null || r.b !== null);
       configBody.innerHTML = [
         `<tr><td><strong>Umbral Materialidad (τ Mat)</strong></td><td>${fmt(p.tauMaterial, 2)}</td></tr>`,
         `<tr><td><strong>Umbral Impacto (τ Imp)</strong></td><td>${fmt(p.tauImpact, 2)}</td></tr>`,
@@ -4139,7 +4148,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       const psbBody = document.querySelector("#tableReportPsb tbody");
       if (psbBody && psbRows.length) {
         psbBody.innerHTML = psbRows.map(r =>
-          `<tr><td>${escapeHTML(r.id)}</td><td>${escapeHTML(r.nombre)}</td><td class="right">${r.p ?? "–"}</td><td class="right">${r.s ?? "–"}</td><td class="right">${r.b ?? "–"}</td></tr>`
+          `<tr><td>${escapeHTML(r.id)}</td><td>${escapeHTML(r.nombre)}</td><td class="right">${r.p_imp ?? "–"}</td><td class="right">${r.s ?? "–"}</td><td class="right">${r.p_neg ?? "–"}</td><td class="right">${r.b ?? "–"}</td></tr>`
         ).join("");
       }
     }
@@ -4248,8 +4257,9 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       top2box: row.top2box ?? "",
       active_groups_count: row.active_groups_count ?? "",
       active_groups_share: row.active_groups_share ?? "",
-      p: row.p ?? "",
+      p_imp: row.p_imp ?? "",
       s: row.s ?? "",
+      p_neg: row.p_neg ?? "",
       b: row.b ?? "",
       grupos_relacionados: row.grupos_relacionados ?? "",
       e: row.e ?? "",
@@ -4441,10 +4451,12 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     const wsLegacy = XLSX.utils.json_to_sheet(legacy.rows.map((r) => ({
       "Código":              r.tema_id,
       "Tema":                r.tema_nombre,
-      "P (usado)":           r.p !== null ? +Number(r.p).toFixed(3) : "",
+      "P_imp (usado)":       r.p_imp !== null ? +Number(r.p_imp).toFixed(3) : "",
       "S (usado)":           r.s !== null ? +Number(r.s).toFixed(3) : "",
+      "P_neg (usado)":       r.p_neg !== null ? +Number(r.p_neg).toFixed(3) : "",
       "B (usado)":           r.b !== null ? +Number(r.b).toFixed(3) : "",
-      "P origen":            r.p_origen,
+      "P_imp origen":        r.p_imp_origen,
+      "P_neg origen":        r.p_neg_origen,
       "S origen":            r.s_origen,
       "B origen":            r.b_origen,
       "E (expectativa)":     r.e !== undefined ? r.e : "",
@@ -4471,15 +4483,18 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
       return {
         "Código":      t.tema_id,
         "Tema":        t.tema_nombre,
-        "P":           legRow.p !== undefined && legRow.p !== null ? +Number(legRow.p).toFixed(3) : "",
-        "S":           legRow.s !== undefined && legRow.s !== null ? +Number(legRow.s).toFixed(3) : "",
-        "B":           legRow.b !== undefined && legRow.b !== null ? +Number(legRow.b).toFixed(3) : "",
-        "P manual":    manual.p !== null ? manual.p : "",
-        "S manual":    manual.s !== null ? manual.s : "",
-        "B manual":    manual.b !== null ? manual.b : "",
-        "P sugerido":  legRow.p_sugerido !== undefined && legRow.p_sugerido !== null ? +Number(legRow.p_sugerido).toFixed(3) : "",
-        "S sugerido":  legRow.s_sugerido !== undefined && legRow.s_sugerido !== null ? +Number(legRow.s_sugerido).toFixed(3) : "",
-        "B sugerido":  legRow.b_sugerido !== undefined && legRow.b_sugerido !== null ? +Number(legRow.b_sugerido).toFixed(3) : "",
+        "P_imp":           legRow.p_imp !== undefined && legRow.p_imp !== null ? +Number(legRow.p_imp).toFixed(3) : "",
+        "S":               legRow.s !== undefined && legRow.s !== null ? +Number(legRow.s).toFixed(3) : "",
+        "P_neg":           legRow.p_neg !== undefined && legRow.p_neg !== null ? +Number(legRow.p_neg).toFixed(3) : "",
+        "B":               legRow.b !== undefined && legRow.b !== null ? +Number(legRow.b).toFixed(3) : "",
+        "P_imp manual":    manual.p_imp !== null ? manual.p_imp : "",
+        "S manual":        manual.s !== null ? manual.s : "",
+        "P_neg manual":    manual.p_neg !== null ? manual.p_neg : "",
+        "B manual":        manual.b !== null ? manual.b : "",
+        "P_imp sugerido":  legRow.p_imp_sugerido !== undefined && legRow.p_imp_sugerido !== null ? +Number(legRow.p_imp_sugerido).toFixed(3) : "",
+        "P_neg sugerido":  legRow.p_neg_sugerido !== undefined && legRow.p_neg_sugerido !== null ? +Number(legRow.p_neg_sugerido).toFixed(3) : "",
+        "S sugerido":      legRow.s_sugerido !== undefined && legRow.s_sugerido !== null ? +Number(legRow.s_sugerido).toFixed(3) : "",
+        "B sugerido":      legRow.b_sugerido !== undefined && legRow.b_sugerido !== null ? +Number(legRow.b_sugerido).toFixed(3) : "",
       };
     });
     const wsPSB = XLSX.utils.json_to_sheet(psbRows);
