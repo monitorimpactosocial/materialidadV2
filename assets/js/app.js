@@ -1902,39 +1902,9 @@ function computeScores(db) {
     const interest = allValid.filter((r) => !r.is_legacy_material && (r.above_tau_ext || r.above_tau_int));
     const rest = allValid.filter((r) => !r.is_legacy_material && !r.above_tau_ext && !r.above_tau_int);
 
-    // ── Jitter: calcular ANTES de las trazas ──────────────────────
-    const allX = allValid.map((r) => r.significancia);
-    const allY = allValid.map((r) => r.expectativas_total);
-    const dataXMin = Math.min(...allX);
-    const dataXMax = Math.max(...allX);
-    const dataYMin = Math.min(...allY);
-    const dataYMax = Math.max(...allY);
-    const xSpan = dataXMax - dataXMin || 10;
-    const ySpan = dataYMax - dataYMin || 5;
-    const jRadius = Math.min(xSpan, ySpan) * 0.045;
-    const coordBuckets = new Map();
-    allValid.forEach((r) => {
-      const key = `${r.significancia}|${r.expectativas_total}`;
-      if (!coordBuckets.has(key)) coordBuckets.set(key, []);
-      coordBuckets.get(key).push(r.tema_id);
-    });
-    const jitterMap = new Map();
-    coordBuckets.forEach((tids) => {
-      const n = tids.length;
-      tids.forEach((tid, idx) => {
-        if (n === 1) { jitterMap.set(tid, { dx: 0, dy: 0 }); return; }
-        const ring = Math.floor(idx / 8);
-        const posInRing = idx % 8;
-        const ringCount = Math.min(n - ring * 8, 8);
-        const angle = (2 * Math.PI * posInRing) / ringCount - Math.PI / 2;
-        const jrr = jRadius * (1 + ring * 0.7);
-        jitterMap.set(tid, { dx: jrr * Math.cos(angle), dy: jrr * Math.sin(angle) });
-      });
-    });
-
     const traces = [];
-    const jx = (r) => r.significancia + (jitterMap.get(r.tema_id)?.dx || 0);
-    const jy = (r) => r.expectativas_total + (jitterMap.get(r.tema_id)?.dy || 0);
+    const jx = (r) => r.significancia;
+    const jy = (r) => r.expectativas_total;
     const hover = (r) => `${r.tema_id} · ${r.tema_nombre}`;
     const hoverTpl = (suffix) => `<b>%{customdata}</b><br>Significancia: %{meta[0]:.1f}<br>Expectativas: %{meta[1]:.1f}${suffix}<extra></extra>`;
 
