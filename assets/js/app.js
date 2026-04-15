@@ -1909,49 +1909,57 @@ function computeScores(db) {
     const rest = allValid.filter((r) => !r.is_legacy_material && !r.above_tau_ext && !r.above_tau_int);
 
     const traces = [];
+    const jx = (r) => r.significancia + (jitterMap.get(r.tema_id)?.dx || 0);
+    const jy = (r) => r.expectativas_total + (jitterMap.get(r.tema_id)?.dy || 0);
+    const hover = (r) => `${r.tema_id} · ${r.tema_nombre}`;
+    const hoverTpl = (suffix) => `<b>%{customdata}</b><br>Significancia: %{meta[0]:.1f}<br>Expectativas: %{meta[1]:.1f}${suffix}<extra></extra>`;
+
     if (rest.length) {
       traces.push({
-        x: rest.map((r) => r.significancia),
-        y: rest.map((r) => r.expectativas_total),
+        x: rest.map(jx),
+        y: rest.map(jy),
+        meta: rest.map((r) => [r.significancia, r.expectativas_total]),
         text: rest.map((r) => r.tema_id),
-        customdata: rest.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
+        customdata: rest.map(hover),
         mode: "markers+text",
         type: "scatter",
         name: "Sin prioridad",
         textposition: "top center",
         textfont: { size: 7, color: "#9ca3af" },
         marker: { size: 8, color: "#d1d5db", opacity: 0.6, line: { width: 1, color: "#ffffff" } },
-        hovertemplate: "<b>%{customdata}</b><br>Significancia: %{x:.2f}<br>Expectativas: %{y:.2f}<extra></extra>",
+        hovertemplate: hoverTpl(""),
       });
     }
     if (interest.length) {
       traces.push({
-        x: interest.map((r) => r.significancia),
-        y: interest.map((r) => r.expectativas_total),
+        x: interest.map(jx),
+        y: interest.map(jy),
+        meta: interest.map((r) => [r.significancia, r.expectativas_total]),
         text: interest.map((r) => r.tema_id),
-        customdata: interest.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
+        customdata: interest.map(hover),
         mode: "markers+text",
         type: "scatter",
         name: "De interés",
         textposition: "top center",
         textfont: { size: 8, color: "#92400e" },
         marker: { size: 14, color: "#f59e0b", opacity: 0.85, line: { width: 1.5, color: "#ffffff" } },
-        hovertemplate: "<b>%{customdata}</b><br>Significancia: %{x:.2f}<br>Expectativas: %{y:.2f}<br>(supera umbral en una dimensión)<extra></extra>",
+        hovertemplate: hoverTpl("<br>(supera umbral en una dimensión)"),
       });
     }
     if (mat.length) {
       traces.push({
-        x: mat.map((r) => r.significancia),
-        y: mat.map((r) => r.expectativas_total),
+        x: mat.map(jx),
+        y: mat.map(jy),
+        meta: mat.map((r) => [r.significancia, r.expectativas_total]),
         text: mat.map((r) => r.tema_id),
-        customdata: mat.map((r) => `${r.tema_id} · ${r.tema_nombre}`),
+        customdata: mat.map(hover),
         mode: "markers+text",
         type: "scatter",
         name: "Material",
         textposition: "top center",
         textfont: { size: 9, color: "#374151" },
         marker: { size: 20, color: "#059669", opacity: 0.96, line: { width: 2, color: "#ffffff" } },
-        hovertemplate: "<b>%{customdata}</b><br>Significancia: %{x:.2f}<br>Expectativas: %{y:.2f}<br>(MATERIAL)<extra></extra>",
+        hovertemplate: hoverTpl("<br>(MATERIAL)"),
       });
     }
 
@@ -1964,10 +1972,33 @@ function computeScores(db) {
     const dataYMax = Math.max(...allY);
     const xSpan = dataXMax - dataXMin || 10;
     const ySpan = dataYMax - dataYMin || 5;
-    const axisX0 = Math.max(0, dataXMin - xSpan * 0.12);
-    const axisX1 = dataXMax + xSpan * 0.12;
-    const axisY0 = Math.max(0, dataYMin - ySpan * 0.12);
-    const axisY1 = dataYMax + ySpan * 0.12;
+    const axisX0 = Math.max(0, dataXMin - xSpan * 0.18);
+    const axisX1 = dataXMax + xSpan * 0.18;
+    const axisY0 = Math.max(0, dataYMin - ySpan * 0.18);
+    const axisY1 = dataYMax + ySpan * 0.18;
+
+    // Jitter para puntos con coordenadas exactamente iguales
+    // Se agrupan y se dispersan en círculo para que todos sean visibles
+    const jRadius = Math.min(xSpan, ySpan) * 0.045;
+    const coordBuckets = new Map();
+    allValid.forEach((r) => {
+      const key = `${r.significancia}|${r.expectativas_total}`;
+      if (!coordBuckets.has(key)) coordBuckets.set(key, []);
+      coordBuckets.get(key).push(r.tema_id);
+    });
+    const jitterMap = new Map();
+    coordBuckets.forEach((tids) => {
+      const n = tids.length;
+      tids.forEach((tid, idx) => {
+        if (n === 1) { jitterMap.set(tid, { dx: 0, dy: 0 }); return; }
+        const ring = Math.floor(idx / 8);
+        const posInRing = idx % 8;
+        const ringCount = Math.min(n - ring * 8, 8);
+        const angle = (2 * Math.PI * posInRing) / ringCount - Math.PI / 2;
+        const r = jRadius * (1 + ring * 0.7);
+        jitterMap.set(tid, { dx: r * Math.cos(angle), dy: r * Math.sin(angle) });
+      });
+    });
 
     // Rectángulos de fondo coloreados: 3×3 = 9 zonas
     // Gradiente de rojo (bajo-bajo) a verde (alto-alto) en diagonal
