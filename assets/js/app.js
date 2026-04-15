@@ -4533,7 +4533,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     XLSX.utils.book_append_sheet(wb, wsIntDet, "Internos_Detalle");
 
     // ── Hoja 8: Matriz Clásica ───────────────────────────────────
-    const wsLegacy = XLSX.utils.json_to_sheet(legacy.rows.map((r) => ({
+    const wsLegacy = XLSX.utils.json_to_sheet(legacy.rows.filter((r) => r.is_legacy_material).map((r) => ({
       "Código":              r.tema_id,
       "Tema":                r.tema_nombre,
       "P (usado)":           r.p !== null ? +Number(r.p).toFixed(3) : "",
@@ -4562,7 +4562,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     // ── Hoja 9: Matriz de Impacto ────────────────────────────────
     const topicPilarMap = {};
     DATA.topics.forEach((t) => { topicPilarMap[t.tema_id] = t.pilar || ""; });
-    const wsImpacto = XLSX.utils.json_to_sheet(legacy.rows.map((r) => ({
+    const wsImpacto = XLSX.utils.json_to_sheet(legacy.rows.filter((r) => r.is_legacy_material).map((r) => ({
       "Código":          r.tema_id,
       "Tema":            r.tema_nombre,
       "Pilar":           topicPilarMap[r.tema_id] || "",
@@ -4576,7 +4576,7 @@ function applyTopicSearch(inputId, containerSelector, itemSelector, textSelector
     XLSX.utils.book_append_sheet(wb, wsImpacto, "Matriz_Impacto");
 
     // ── Hoja 10: Matriz de Expectativas ──────────────────────────
-    const wsExpectativas = XLSX.utils.json_to_sheet(legacy.rows.map((r) => ({
+    const wsExpectativas = XLSX.utils.json_to_sheet(legacy.rows.filter((r) => r.is_legacy_material).map((r) => ({
       "Código":          r.tema_id,
       "Tema":            r.tema_nombre,
       "Pilar":           topicPilarMap[r.tema_id] || "",
