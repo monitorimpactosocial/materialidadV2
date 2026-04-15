@@ -55,21 +55,68 @@
     legacyBWeights: { financiero: 0.70, relevancia_externa: 0.30 },
   };
 
-  // Defaults E, C, F por tema (del diagnóstico histórico 2025)
+  // Defaults P, S, B por tema — Excel "Matriz de Materialidad Version 2026"
+  // Temas no presentes en el Excel usan el máximo (5, 5, 5).
+  const DEFAULT_PSB = {
+    P01: { p: 4, s: 3, b: 3 }, // Rendición de cuentas sobre los impactos
+    P02: { p: 5, s: 3, b: 5 }, // Transparencia en las decisiones
+    P03: { p: 5, s: 5, b: 5 }, // Comportamiento ético
+    P04: { p: 5, s: 5, b: 5 }, // Responder a los grupos de interés (máx.)
+    P05: { p: 5, s: 5, b: 5 }, // Cumplimiento de la ley
+    P06: { p: 5, s: 5, b: 5 }, // Respeto de los derechos humanos
+    P07: { p: 5, s: 5, b: 5 }, // Participación inclusiva (máx.)
+    P08: { p: 5, s: 5, b: 5 }, // Protección derechos fundamentales trabajo
+    P09: { p: 3, s: 5, b: 5 }, // Altos estándares laborales
+    P10: { p: 5, s: 5, b: 5 }, // Salud y seguridad en el trabajo
+    P11: { p: 5, s: 5, b: 5 }, // Desarrollo humano y capacitación (máx.)
+    P12: { p: 4, s: 5, b: 5 }, // Prevención de la contaminación
+    P13: { p: 4, s: 5, b: 5 }, // Uso sostenible de los recursos
+    P14: { p: 5, s: 5, b: 5 }, // Acciones frente al cambio climático (máx.)
+    P15: { p: 3, s: 4, b: 4 }, // Protección y restauración de ecosistemas
+    P16: { p: 4, s: 3, b: 4 }, // Relaciones justas con proveedores
+    P17: { p: 5, s: 5, b: 5 }, // Responsabilidad compartida proveedores (máx.)
+    P18: { p: 5, s: 5, b: 5 }, // Respeto derechos de propiedad (máx.)
+    P19: { p: 5, s: 5, b: 5 }, // Apoyo a la educación y cultura (máx.)
+    P20: { p: 5, s: 3, b: 5 }, // Impulso a proyectos productivos
+    P21: { p: 3, s: 5, b: 3 }, // Fomento de la creación de empleo local
+    P22: { p: 5, s: 5, b: 5 }, // Acciones para mejorar la salud comunidades (máx.)
+    P23: { p: 5, s: 3, b: 3 }, // Inversión en infraestructura básica
+    P24: { p: 5, s: 5, b: 5 }, // Comunicación y vínculo con comunidades (máx.)
+    P25: { p: 5, s: 5, b: 5 }, // Desarrollo de la economía local (máx.)
+    P26: { p: 5, s: 5, b: 5 }, // Iniciativas de seguridad vial (máx.)
+    P27: { p: 5, s: 5, b: 5 }, // Gestión población transitoria (máx.)
+  };
+
+  // Defaults E, C, F por tema — Excel "Matriz de Materialidad Version 2026"
+  // Temas no presentes en el Excel usan el máximo (4, 4, 4).
   const DEFAULT_ECF = {
-    P01: { e: 4, c: 4, f: 3 }, // Transparencia en información sobre impactos
-    P05: { e: 4, c: 4, f: 4 }, // Respeto de las leyes ambientales
-    P07: { e: 4, c: 4, f: 4 }, // Vinculación con Comunidades Indígenas
-    P09: { e: 4, c: 4, f: 4 }, // Condiciones laborales dignas
-    P10: { e: 4, c: 4, f: 4 }, // Cuidado y protección de la salud
-    P12: { e: 4, c: 4, f: 4 }, // Cuidado y protección del Medio Ambiente
-    P16: { e: 3, c: 2, f: 2 }, // Vinculación con productores/proveedores
-    P17: { e: 3, c: 2, f: 2 }, // Asistencia técnica a productores
-    P19: { e: 3, c: 4, f: 3 }, // Desarrollo de programas sociales
-    P20: { e: 3, c: 2, f: 2 }, // Apoyar otras iniciativas productivas
-    P21: { e: 4, c: 4, f: 3 }, // Contratación Mano de Obra Local
-    P24: { e: 3, c: 4, f: 2 }, // Comunicación y vínculo con comunidades
-    P25: { e: 3, c: 4, f: 3 }, // Desarrollo local
+    P01: { e: 2, c: 2, f: 2 }, // Rendición de cuentas sobre los impactos
+    P02: { e: 2, c: 2, f: 2 }, // Transparencia en las decisiones
+    P03: { e: 3, c: 3, f: 2 }, // Comportamiento ético
+    P04: { e: 4, c: 4, f: 4 }, // Responder a los grupos de interés (máx.)
+    P05: { e: 3, c: 3, f: 4 }, // Cumplimiento de la ley
+    P06: { e: 3, c: 3, f: 2 }, // Respeto de los derechos humanos
+    P07: { e: 4, c: 4, f: 4 }, // Participación inclusiva (máx.)
+    P08: { e: 4, c: 4, f: 4 }, // Protección derechos fundamentales trabajo
+    P09: { e: 3, c: 2, f: 3 }, // Altos estándares laborales
+    P10: { e: 4, c: 3, f: 2 }, // Salud y seguridad en el trabajo
+    P11: { e: 4, c: 4, f: 4 }, // Desarrollo humano y capacitación (máx.)
+    P12: { e: 4, c: 4, f: 4 }, // Prevención de la contaminación
+    P13: { e: 3, c: 4, f: 2 }, // Uso sostenible de los recursos
+    P14: { e: 4, c: 4, f: 4 }, // Acciones frente al cambio climático (máx.)
+    P15: { e: 2, c: 2, f: 2 }, // Protección y restauración de ecosistemas
+    P16: { e: 4, c: 4, f: 4 }, // Relaciones justas con proveedores
+    P17: { e: 4, c: 4, f: 4 }, // Responsabilidad compartida proveedores (máx.)
+    P18: { e: 4, c: 4, f: 4 }, // Respeto derechos de propiedad (máx.)
+    P19: { e: 4, c: 4, f: 4 }, // Apoyo a la educación y cultura (máx.)
+    P20: { e: 4, c: 3, f: 2 }, // Impulso a proyectos productivos
+    P21: { e: 4, c: 4, f: 2 }, // Fomento de la creación de empleo local
+    P22: { e: 4, c: 3, f: 2 }, // Acciones para mejorar la salud comunidades
+    P23: { e: 4, c: 4, f: 4 }, // Inversión en infraestructura básica (máx.)
+    P24: { e: 4, c: 4, f: 4 }, // Comunicación y vínculo con comunidades (máx.)
+    P25: { e: 4, c: 4, f: 4 }, // Desarrollo de la economía local (máx.)
+    P26: { e: 4, c: 4, f: 4 }, // Iniciativas de seguridad vial (máx.)
+    P27: { e: 4, c: 4, f: 4 }, // Gestión población transitoria (máx.)
   };
   const COMPILED_MEASURE_ORDER = {
     relevancia: 1,
@@ -1563,11 +1610,12 @@ function computeScores(db) {
         { value: stakeholderMean, weight: legacyBWeights.relevancia_externa },
       ]);
 
-      const p = manual.p !== null ? manual.p : pSuggested;
-      const s = manual.s !== null ? manual.s : sSuggested;
-      const b = manual.b !== null ? manual.b : bSuggested;
+      const psbDef = DEFAULT_PSB[tid] || { p: 5, s: 5, b: 5 };
+      const p = manual.p !== null ? manual.p : (pSuggested !== null ? pSuggested : psbDef.p);
+      const s = manual.s !== null ? manual.s : (sSuggested !== null ? sSuggested : psbDef.s);
+      const b = manual.b !== null ? manual.b : (bSuggested !== null ? bSuggested : psbDef.b);
 
-      const ecfDef = DEFAULT_ECF[tid] || { e: 1, c: 1, f: 1 };
+      const ecfDef = DEFAULT_ECF[tid] || { e: 4, c: 4, f: 4 };
       const eComputed = scaleRating5ToLegacy4(stakeholderMean);
       const cComputed = scaleShareToLegacy4(top2Box);
       const fComputed = scaleShareToLegacy4(groupCoverage);
