@@ -1617,15 +1617,16 @@ function computeScores(db) {
       const b = manual.b !== null ? manual.b : psbDef.b;
 
       const ecfDef = DEFAULT_ECF[tid] || { e: 4, c: 4, f: 4 };
+      // E/C/F: igual que P/S/B, el DEFAULT (Excel 2026) es la base; eComputed es sólo referencia
       const eComputed = scaleRating5ToLegacy4(stakeholderMean);
       const cComputed = scaleShareToLegacy4(top2Box);
       const fComputed = scaleShareToLegacy4(groupCoverage);
-      const e_sugerido = eComputed !== null ? eComputed : ecfDef.e;
-      const c_sugerido = cComputed !== null ? cComputed : ecfDef.c;
-      const f_sugerido = fComputed !== null ? fComputed : ecfDef.f;
-      const e = manual.e !== null ? manual.e : e_sugerido;
-      const c = manual.c !== null ? manual.c : c_sugerido;
-      const f = manual.f !== null ? manual.f : f_sugerido;
+      const e_sugerido = eComputed !== null ? eComputed : null;
+      const c_sugerido = cComputed !== null ? cComputed : null;
+      const f_sugerido = fComputed !== null ? fComputed : null;
+      const e = manual.e !== null ? manual.e : ecfDef.e;
+      const c = manual.c !== null ? manual.c : ecfDef.c;
+      const f = manual.f !== null ? manual.f : ecfDef.f;
 
       const calc = computeLegacyMatrixRow({ p, s, b, e, c, f, grupos_relacionados: activeGroups.join(", ") }, safeFactor);
 
